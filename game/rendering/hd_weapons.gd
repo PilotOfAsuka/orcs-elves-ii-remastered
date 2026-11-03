@@ -29,6 +29,10 @@ var display_scale: float=1.0
 var layer_views: Array[Control]=[]
 var additive: ShaderMaterial
 var textures: Dictionary={}
+var clean_world: Dictionary={}
+var blocked_generation: int=-1
+var copied_frame: Dictionary={}
+var copied_revision: int=-1
 
 func art(sprite: int, frame: int) -> Texture2D:
 	var path: String=ART[sprite][frame]
@@ -50,22 +54,26 @@ func capture(vm: OEVM, screen: JObject, args: Array) -> void:
 	var sprite: int=int(args[0]);var frame: int=int(args[1]);var primary: bool=weapon+1==sprite
 	if not primary and int(AUX.get(weapon,-1))!=sprite: return
 	var revision: int=int(screen.extra.get("world_revision",-1))
+	var generation: int=vm.render_helpers.world_generation
 	var same_frame: bool=not pending.is_empty() and int(pending.graphics)==screen.get_instance_id() and int(pending.before)==revision
 	# Bob's hands (frame 0) and familiar (frame 1) are two original draw calls.
 	var bob_head: bool=primary and sprite==5 and frame==1 and same_frame and pending.layers.size()==1 and int(pending.layers[0].args[1])==0
 	if primary and not bob_head: pending={}
 	if not enabled or sprite not in ART or frame<0 or frame>=ART[sprite].size(): pending={};return
-	if int(args[5])!=0 or (primary and (int(args[4])!=0 or int(args[7])!=0)) or (not primary and int(args[4]) not in [3,4]): pending={};return
+	if int(args[5])!=0 or (primary and (int(args[4])!=0 or int(args[7])!=0)) or (not primary and int(args[4]) not in [3,4]): blocked_generation=generation;pending={};return
 	if not primary and (int(args[7])!=(64 if sprite==130 else 112) or int(args[4])!=(4 if sprite==130 else 3)): pending={};return
-	if int(vm.get_static("a","H","I")) not in [3,4,7] or int(vm.get_static("k","Z","I"))!=0: pending={};return
+	if int(vm.get_static("a","H","I")) not in [3,4,7,9,12,17,19]: pending={};return
+	if int(vm.get_static("k","Z","I"))!=0: blocked_generation=generation;pending={};return
 	var effects: Variant=vm.get_static("v","a","[B")
-	if effects is JObject and effects.data.size()>11 and int(effects.data[11])>0: pending={};return
+	if effects is JObject and effects.data.size()>11 and int(effects.data[11])>0: blocked_generation=generation;pending={};return
 	var width: int=vm.get_static("k","b","I");var height: int=vm.get_static("k","c","I")
 	var pixels: Variant=vm.get_static("k","m","[I")
 	if not pixels is JObject or width<=0 or height<=0 or width*height>pixels.data.size(): pending={};return
+	if generation==blocked_generation or vm.render_helpers.world_pixels_id!=pixels.get_instance_id(): pending={};return
 	if pending.is_empty():
 		if not primary: return
-		var base: Image=vm.render_helpers.raster.preview(pixels,width,height)
+		var reuse: bool=not clean_world.is_empty() and int(clean_world.generation)==generation and int(clean_world.graphics)==screen.get_instance_id() and int(clean_world.pixels)==pixels.get_instance_id() and clean_world.size==Vector2(width,height)
+		var base: Image=clean_world.image if reuse else vm.render_helpers.raster.preview(pixels,width,height)
 		if base==null:
 			vm.render_helpers.raster.before_access(pixels)
 			var bytes:=PackedByteArray();bytes.resize(width*height*4)
@@ -74,22 +82,34 @@ func capture(vm: OEVM, screen: JObject, args: Array) -> void:
 				bytes.encode_u32(n*4,0xff000000|((color&255)<<16)|(color&0xff00)|((color>>16)&255))
 			base=Image.create_from_data(width,height,false,Image.FORMAT_RGBA8,bytes)
 		elif base.get_height()!=height: base=base.get_region(Rect2i(0,0,width,height))
+		clean_world={"generation":generation,"graphics":screen.get_instance_id(),"pixels":pixels.get_instance_id(),"size":Vector2(width,height),"image":base}
 		var lower: JObject=vm.get_static("k","n","[I");var upper: JObject=vm.get_static("k","o","[I")
-		pending={"args":args.duplicate(),"layers":[],"size":Vector2(width,height),"background":base,"clip":Rect2(Vector2(lower.data[0],lower.data[1]),Vector2(upper.data[0]-lower.data[0],upper.data[1]-lower.data[1])),"graphics":screen.get_instance_id(),"before":revision}
+		pending={"args":args.duplicate(),"layers":[],"size":Vector2(width,height),"background":base,"clip":Rect2(Vector2(lower.data[0],lower.data[1]),Vector2(upper.data[0]-lower.data[0],upper.data[1]-lower.data[1])),"graphics":screen.get_instance_id(),"before":revision,"generation":generation,"pixels":pixels.get_instance_id()}
 	var sprites: Array=vm.get_static("k","j","[S").data;var materials: Array=vm.get_static("k","i","[S").data;var edges: Array=vm.get_static("k","e","[S").data
 	var shape: int=materials[(int(sprites[sprite])+frame)*2]
 	pending.layers.append({"args":args.duplicate(),"bounds":Vector2i(edges[shape+2],edges[shape+3])})
 
-func publish(graphics: JObject, revision: int, world_size: Vector2) -> void:
+func valid_recipe(vm: OEVM, screen: JObject, recipe: Dictionary) -> bool:
+	if not enabled or recipe.is_empty() or int(recipe.graphics)!=screen.get_instance_id() or int(recipe.generation)!=vm.render_helpers.world_generation or int(recipe.generation)==blocked_generation: return false
+	var pixels: Variant=vm.get_static("k","m","[I");var player: Variant=vm.get_static("v","b","Lq;");var effects: Variant=vm.get_static("v","a","[B")
+	return pixels is JObject and pixels.get_instance_id()==int(recipe.pixels) and player is JObject and int(vm.get_field(player,"q","g","I"))+1==int(recipe.args[0]) and int(vm.get_static("k","Z","I"))==0 and (not effects is JObject or int(effects.data[11])<=0)
+
+func copy_frame(vm: OEVM, screen: JObject) -> void:
+	var revision: int=int(screen.extra.get("world_revision",-1))
+	# Freeze the recipe at drawRGB, before another u.a can prepare the next pose.
+	if valid_recipe(vm,screen,pending) and int(pending.before)<revision: copied_frame=pending
+	elif not valid_recipe(vm,screen,copied_frame): copied_frame={}
+	copied_revision=revision
+
+func publish(graphics: JObject, revision: int, world_size: Vector2, _vm: OEVM) -> void:
 	var id: int=graphics.get_instance_id()
 	if id==current_graphics_id and revision==current_revision: return
 	current_graphics_id=id;current_revision=revision;current={}
-	if enabled and not pending.is_empty() and int(pending.graphics)==id and int(pending.before)+1==revision and pending.size==world_size:
-		current=pending
+	if enabled and not copied_frame.is_empty() and int(copied_frame.graphics)==id and copied_revision==revision and copied_frame.size==world_size:
+		current=copied_frame
 		var base: Image=current.background
 		if background_texture==null or background_texture.get_size()!=world_size: background_texture=ImageTexture.create_from_image(base)
 		else: background_texture.update(base)
-	pending={}
 	for layer in layer_views:
 		layer.hide();layer.get_child(0).texture=null
 

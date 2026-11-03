@@ -4,6 +4,9 @@ extends RefCounted
 ## Every array and rendering counter belongs to the original game state.
 var fast_visibility: bool=true
 var sprite_observer: Callable
+var world_copy_observer: Callable
+var world_generation: int=0
+var world_pixels_id: int=-1
 var vm: OEVM
 var raster: OEWebRaster
 

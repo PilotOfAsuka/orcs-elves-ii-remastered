@@ -72,6 +72,25 @@ func run() -> void:
 				var name: String="weapon_%02d_%d_%s"%[weapon,frame,"classic" if mode==0 else "hd"]
 				viewport.get_texture().get_image().save_png("res://../build/preview_"+name+".png")
 			cases.append({"weapon":weapon,"frame":frame,"same_graph":pair[0]==pair[1],"args":ui.hd_weapons.current.get("args",[])})
+	for weapon in 11:
+		var pair: Array=[]
+		for active in [false,true]:
+			paint(weapon,0,active)
+			var background: String=ui.hd_weapons.current.background.get_data().hex_encode().sha256_text() if active else ""
+			# Original cold start paints u.a again AFTER its first drawRGB.
+			original("u","a(II)V",[0,0])
+			ui.hd_weapons.current={};ui.hd_weapons.current_revision=-1;ui._process(0)
+			if active: check(not ui.hd_weapons.current.is_empty(),"copied frame survives later unpresented pose")
+			# Dialogue/event exit republishes the existing framebuffer, no movement.
+			for state in [7,3]:
+				ui.session.vm.set_static("a","H","I",state);original("a","i()V",[]);ui._process(0)
+				if active: check(not ui.hd_weapons.current.is_empty(),"HD survives event-only copy "+str([weapon,state]))
+			original("u","a(II)V",[0,0]);original("a","i()V",[]);ui._process(0)
+			if active and not ui.hd_weapons.current.is_empty():
+				check(ui.hd_weapons.current.background.get_data().hex_encode().sha256_text()==background,"clean background excludes repeated original weapon")
+				check(ui.remastered_view.texture==ui.hd_weapons.background_texture,"event exit uses HD presentation")
+			pair.append(signature())
+		check(pair[0]==pair[1],"event/repeated paint preserves complete graph "+str(weapon))
 	paint(0,0,true,32)
 	check(ui.hd_weapons.current.is_empty(),"special palette uses original renderer")
 	paint(1,0,true,0,0x20000)

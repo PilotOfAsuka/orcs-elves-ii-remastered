@@ -45,6 +45,22 @@ func run(ui: Control) -> void:
 					pair.append(FileAccess.open(proof,FileAccess.READ).get_var(false).checksum)
 				cases.append({"weapon":weapon,"frame":frame,"equal":pair[0]==pair[1],"graph":pair[1],"layers":ui.hd_weapons.current.get("layers",[]).size()})
 				passed=passed and pair[0]==pair[1]
+		for weapon in 11:
+			var pair: Array=[];var retained: bool=true;var clean: bool=true
+			for active in [false,true]:
+				passed=paint(ui,base,weapon,0,active) and passed
+				var background: String=ui.hd_weapons.current.background.get_data().hex_encode().sha256_text() if active else ""
+				passed=original(ui,"u","a(II)V",[0,0]) and passed
+				ui.hd_weapons.current={};ui.hd_weapons.current_revision=-1;ui._process(0)
+				if active: retained=retained and not ui.hd_weapons.current.is_empty()
+				for state in [7,3]:
+					ui.session.vm.set_static("a","H","I",state);passed=original(ui,"a","i()V",[]) and passed;ui._process(0)
+					if active: retained=retained and not ui.hd_weapons.current.is_empty()
+				passed=original(ui,"u","a(II)V",[0,0]) and passed;passed=original(ui,"a","i()V",[]) and passed;ui._process(0)
+				if active: clean=not ui.hd_weapons.current.is_empty() and ui.hd_weapons.current.background.get_data().hex_encode().sha256_text()==background
+				OESnapshot.new().save_game(ui.session,proof);pair.append(FileAccess.open(proof,FileAccess.READ).get_var(false).checksum)
+			cases.append({"event_return":true,"weapon":weapon,"equal":pair[0]==pair[1],"retained":retained,"clean":clean})
+			passed=passed and pair[0]==pair[1] and retained and clean
 		passed=paint(ui,base,7,0,true) and passed
 	ui.set_render_mode(1);ui.fade.kill();ui.remastered_view.modulate.a=1
 	var report: Dictionary={"passed":passed,"cases":cases,"texture_cache":ui.hd_weapons.textures.size(),"errors":ui.session.vm.errors.duplicate()}

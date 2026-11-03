@@ -159,6 +159,11 @@ func find_method(cl: String, key: String) -> Dictionary:
 	return {"owner":cl,"method":{}}
 
 func push_frame(fiber: Dictionary, owner: String, method: Dictionary, obj: Variant, args: Array) -> void:
+	# Presentation epoch only: repeated weapon/drawRGB calls reuse this world.
+	if owner=="k" and method.name=="a" and method.desc=="(IIII)V":
+		render_helpers.world_generation+=1
+		var pixels: Variant=get_static("k","m","[I")
+		render_helpers.world_pixels_id=pixels.get_instance_id() if pixels is JObject else -1
 	var locals: Array = []
 	locals.resize(int(method.max_locals))
 	var n: int = 0

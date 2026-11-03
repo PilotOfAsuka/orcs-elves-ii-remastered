@@ -137,6 +137,7 @@ func _ready() -> void:
 	hd_weapons=OEHDWeapons.new()
 	remastered_view.add_child(hd_weapons)
 	session.vm.render_helpers.sprite_observer=func(args: Array): hd_weapons.capture(session.vm,session.platform.screen,args)
+	session.vm.render_helpers.world_copy_observer=func(screen: JObject): hd_weapons.copy_frame(session.vm,screen)
 	native_menu=PanelContainer.new()
 	native_menu.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	view_frame.add_child(native_menu)
@@ -617,7 +618,7 @@ func update_adventure(now: int) -> void:
 	var using_world: bool=kind in ["world","dialogue","cinematic","death","interaction"] and world is Image
 	# The phone framebuffer stays a research reference. Never present its UI.
 	classic_view.texture=world_texture if using_world else null
-	hd_weapons.publish(graphics,revision,world_texture.get_size() if world_texture!=null else Vector2.ZERO)
+	hd_weapons.publish(graphics,revision,world_texture.get_size() if world_texture!=null else Vector2.ZERO,session.vm)
 	hd_weapons.present(remastered_view.size,using_world and kind in ["world","dialogue"])
 	remastered_view.texture=hd_weapons.background_texture if hd_weapons.visible else classic_view.texture
 	classic_view.visible=using_world;remastered_view.visible=using_world

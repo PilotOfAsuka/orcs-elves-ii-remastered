@@ -81,6 +81,7 @@ func draw_rgb(g: OEMidpGraphics, args: Array) -> void:
 					bytes.encode_u32(pixel*4,0xff000000|((packed&255)<<16)|(packed&0xff00)|((packed>>16)&255))
 				screen.extra.world_surface=Image.create_from_data(width,height,false,Image.FORMAT_RGBA8,bytes)
 			screen.extra.world_revision=int(screen.extra.get("world_revision",0))+1
+		if vm.render_helpers.world_copy_observer.is_valid(): vm.render_helpers.world_copy_observer.call(screen)
 
 func draw_region(g: OEMidpGraphics, args: Array) -> void:
 	var image: Image = args[0].data
