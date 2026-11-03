@@ -14,6 +14,7 @@ var unsupported: Dictionary = {}
 var exit_requested: bool = false
 var requested_url: String = ""
 var alert_text: String = ""
+var fast_rgb: bool = true
 var native_statics: Dictionary = {}
 
 func get_static(owner: String, name: String, desc: String) -> Variant:
@@ -36,12 +37,22 @@ func draw_rgb(g: OEMidpGraphics, args: Array) -> void:
 	var height: int = int(args[6])
 	var alpha: bool = int(args[7])!=0
 	var rect := Rect2i(x,y,maxi(0,width),maxi(0,height)).intersection(g.clip)
-	for yy in range(rect.position.y,rect.end.y):
-		for xx in range(rect.position.x,rect.end.x):
-			var packed: int = int(source[start+(yy-y)*scan+xx-x])
-			var color := Color8((packed>>16)&255,(packed>>8)&255,packed&255,(packed>>24)&255 if alpha else 255)
-			if color.a8==255: g.surface.set_pixel(xx,yy,color)
-			elif color.a8>0: g.surface.set_pixel(xx,yy,g.surface.get_pixel(xx,yy).blend(color))
+	if fast_rgb and not alpha and scan==width and rect.has_area() and start>=0 and start+width*height<=source.size():
+		# encode_u32 writes little endian explicitly, independent of host byte order.
+		var bytes:=PackedByteArray()
+		bytes.resize(width*height*4)
+		for pixel in width*height:
+			var packed: int=int(source[start+pixel])
+			bytes.encode_u32(pixel*4,0xff000000|((packed&255)<<16)|(packed&0xff00)|((packed>>16)&255))
+		var image:=Image.create_from_data(width,height,false,Image.FORMAT_RGBA8,bytes)
+		g.surface.blit_rect(image,Rect2i(rect.position-Vector2i(x,y),rect.size),rect.position)
+	else:
+		for yy in range(rect.position.y,rect.end.y):
+			for xx in range(rect.position.x,rect.end.x):
+				var packed: int = int(source[start+(yy-y)*scan+xx-x])
+				var color := Color8((packed>>16)&255,(packed>>8)&255,packed&255,(packed>>24)&255 if alpha else 255)
+				if color.a8==255: g.surface.set_pixel(xx,yy,color)
+				elif color.a8>0: g.surface.set_pixel(xx,yy,g.surface.get_pixel(xx,yy).blend(color))
 	g.dirty = true
 	# Preserve the actual world paint before the original HUD/dialogue overlays.
 	# Store it in the Java graphics object's extra data so graph snapshots retain it.

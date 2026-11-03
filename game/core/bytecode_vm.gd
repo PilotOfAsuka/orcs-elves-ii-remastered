@@ -2,6 +2,12 @@ class_name OEVM
 extends RefCounted
 var fast_font: bool = true
 var font_helpers: OEFontHelpers
+var fast_render: bool = true
+var render_helpers: OERenderHelpers
+var span_observer: Callable
+var fast_resources: bool = true
+var resource_helpers: OEResourceHelpers
+var resource_observer: Callable
 ## Portable interpreter for this JAR's integer CLDC bytecode. Game algorithms are
 ## executed from the original methods, never substituted by guessed game rules.
 ## Source mapping: data/classes.json methods retain all byte offsets and handlers.
@@ -18,8 +24,13 @@ var errors: Array[String] = []
 var trace: Array[String] = []
 var halted: bool = false
 var max_slice: int = 45000
+## Runtime scheduling only; zero retains deterministic instruction-based test runs.
+var frame_budget_us: int = 0
+var resume_after: int = 0
 var profile_enabled: bool = false
 var profile_instructions: Dictionary = {}
+var profile_native_us: Dictionary = {}
+var profile_native_calls: Dictionary = {}
 var field_owner_cache: Dictionary = {}
 var next_id: int = 1
 var active: Dictionary = {}
@@ -29,6 +40,7 @@ var class_locks: Dictionary = {}
 
 func _init() -> void:
 	font_helpers=OEFontHelpers.new(self)
+	render_helpers=OERenderHelpers.new(self)
 	epoch_ms = int(Time.get_unix_time_from_system()*1000.0)
 	classes = normalize(JSON.parse_string(FileAccess.get_file_as_string("res://data/classes.json")))
 	for cl: String in classes:
@@ -36,6 +48,8 @@ func _init() -> void:
 		for field: Dictionary in classes[cl].fields:
 			if int(field.flags) & 8:
 				statics[cl][field.name + ":" + field.desc] = constant(field.constant) if field.has("constant") else default_value(field.desc)
+	resource_helpers=OEResourceHelpers.new(self)
+	resource_helpers.install()
 
 func normalize(value: Variant) -> Variant:
 	if value is float: return int(value)
@@ -76,7 +90,9 @@ func new_array(type: String, length: int) -> JObject:
 	var o: JObject = JObject.new(type)
 	o.data = []
 	o.data.resize(maxi(0, length))
-	for k: int in length: o.data[k] = default_value(type.substr(1))
+	if type=="[J":
+		for k: int in length: o.data[k] = default_value("J")
+	else: o.data.fill(default_value(type.substr(1)))
 	return o
 
 func field_owner(cl: String, name: String, desc: String) -> String:
@@ -93,13 +109,16 @@ func field_owner(cl: String, name: String, desc: String) -> String:
 func get_static(cl: String, name: String, desc: String) -> Variant:
 	var owner: String = field_owner(cl, name, desc)
 	if not classes.has(owner): return native.get_static(owner,name,desc)
-	return statics.get(owner, {}).get(name + ":" + desc, default_value(desc))
+	var fields: Dictionary=statics[owner]
+	var key: String=name+":"+desc
+	return fields[key] if fields.has(key) else default_value(desc)
 
 func set_static(cl: String, name: String, desc: String, value: Variant) -> void:
 	statics[field_owner(cl, name, desc)][name + ":" + desc] = value
 
 func get_field(o: JObject, cl: String, name: String, desc: String) -> Variant:
-	return o.fields.get(field_owner(cl, name, desc) + "." + name + ":" + desc, default_value(desc))
+	var key: String=field_owner(cl,name,desc)+"."+name+":"+desc
+	return o.fields[key] if o.fields.has(key) else default_value(desc)
 
 func set_field(o: JObject, cl: String, name: String, desc: String, value: Variant) -> void:
 	o.fields[field_owner(cl, name, desc) + "." + name + ":" + desc] = value
@@ -198,6 +217,11 @@ func tick(delta_ms: int) -> void:
 	if halted: return
 	now_ms += delta_ms
 	var snapshot: Array[Dictionary] = fibers.duplicate()
+	var began: int=Time.get_ticks_usec() if frame_budget_us>0 else 0
+	if frame_budget_us>0 and resume_after!=0:
+		for index in snapshot.size():
+			if int(snapshot[index].id)==resume_after:
+				snapshot.assign(snapshot.slice(index+1)+snapshot.slice(0,index+1));break
 	for fiber: Dictionary in snapshot:
 		if fiber.frames.is_empty() or fiber.waiting != null or int(fiber.wake) > now_ms: continue
 		if fiber.get("reacquire")!=null:
@@ -209,6 +233,9 @@ func tick(delta_ms: int) -> void:
 		while not fiber.frames.is_empty() and not fiber.yielded and not halted and count < max_slice:
 			step(fiber)
 			count += 1
+			if frame_budget_us>0 and (count&127)==0 and Time.get_ticks_usec()-began>=frame_budget_us: break
+		if frame_budget_us>0 and Time.get_ticks_usec()-began>=frame_budget_us:
+			resume_after=int(fiber.id);break
 	for k: int in range(fibers.size()-1,-1,-1):
 		if fibers[k].frames.is_empty(): fibers.remove_at(k)
 
@@ -368,7 +395,10 @@ func step(fiber: Dictionary) -> void:
 				163: cond = a>b
 				164: cond = a<=b
 			if cond: frame.pc = int(ins[1])
-		167,200: frame.pc = int(ins[1])
+		167,200:
+			frame.pc=int(ins[1])
+			if fast_resources and frame.method.has("resource_blocks") and frame.method.resource_blocks.has(frame.pc):
+				resource_helpers.invoke(frame,frame.method.resource_blocks[frame.pc])
 		170,171:
 			var key: int = int(stack.pop_back()); frame.pc = int(ins[1])
 			for pair: Array in ins[2]:
@@ -397,12 +427,25 @@ func step(fiber: Dictionary) -> void:
 			else:
 				var owner: String = obj.type if op in [182,185] and obj is JObject else ref.owner
 				var found: Dictionary = find_method(owner, ref.name + ref.desc)
-				if not found.method.is_empty() and fast_font and font_helpers.accepts(found.owner,ref.name+ref.desc):
-					var value: int=font_helpers.invoke(ref.name+ref.desc,args)
+				if resource_observer.is_valid() and found.owner=="k" and ref.name+ref.desc in ["d()Z","b()Z"]: resource_observer.call(ref.name+ref.desc,args)
+				if span_observer.is_valid() and render_helpers.accepts(found.owner,ref.name+ref.desc): span_observer.call(ref.name+ref.desc,args)
+				if not found.method.is_empty() and fast_render and render_helpers.accepts(found.owner,ref.name+ref.desc):
+					var value: Variant=render_helpers.invoke(ref.name+ref.desc,args)
+					if ref["return"]!="V" and exception==null: stack.append(value)
+				elif not found.method.is_empty() and fast_resources and resource_helpers.accepts(found.owner,ref.name+ref.desc):
+					var value: Variant=resource_helpers.lookup(ref.name+ref.desc,args)
 					if exception==null: stack.append(value)
+				elif not found.method.is_empty() and fast_font and font_helpers.accepts(found.owner,ref.name+ref.desc,args):
+					var value: int=font_helpers.invoke(ref.name+ref.desc,args)
+					if ref["return"]!="V" and exception==null: stack.append(value)
 				elif not found.method.is_empty(): push_frame(fiber,found.owner,found.method,obj,args)
 				else:
+					var native_began: int=Time.get_ticks_usec() if profile_enabled else 0
 					var result: Variant = native.invoke(ref,obj,args,fiber)
+					if profile_enabled:
+						var native_key: String=ref.owner+"."+ref.name+ref.desc
+						profile_native_us[native_key]=int(profile_native_us.get(native_key,0))+Time.get_ticks_usec()-native_began
+						profile_native_calls[native_key]=int(profile_native_calls.get(native_key,0))+1
 					if ref["return"] != "V" and exception == null: stack.append(result)
 		187: stack.append(new_object(ins[1]))
 		188,189:

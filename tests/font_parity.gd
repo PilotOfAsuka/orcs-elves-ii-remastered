@@ -36,6 +36,29 @@ func run() -> void:
 	for code in range(-2,1300):
 		compare(session,"a(III)I",[code,0,high])
 	compare(session,"a(III)I",[65,3,2])
+	for code in range(0,1300): compare(session,"a(SI)S",[code,0])
+	for text in [""," ","ABC 123","Привет, мир!","Жизнь 100/100 · Броня","Первая\nВторая","ко\u00adроткое","\u00ad","\u001fА","\u001f\n","\u001f\u00ad","\u001f°","°±²³´µ¶·¸¹º","Рюкзак — предметы", "?".repeat(100)]:
+		var buffer:=JObject.new("java/lang/StringBuffer");buffer.data=text
+		compare(session,"a(Ljava/lang/StringBuffer;)I",[buffer])
+	var paint_baseline: String="user://font-paint-baseline.oe2"
+	OESnapshot.new().save_game(session,paint_baseline)
+	for text in ["Привет, мир!","ко\u00adроткое\nАБВ","\u001fА\u001f°","??? Жизнь 100/100", "🙂", "", " ", "$a"]:
+		for anchor in [0,8,16,2,32]:
+			var states: Array=[]
+			for fast in [false,true]:
+				OESnapshot.new().load_game(session,paint_baseline)
+				var buffer:=JObject.new("java/lang/StringBuffer");buffer.data=text
+				var args: Array=[buffer,80,80,anchor,0,-1]
+				if fast: session.vm.font_helpers.invoke("a(Ljava/lang/StringBuffer;IIIII)V",args)
+				else:
+					var next: int=session.vm.next_id
+					original(session,"b","a(Ljava/lang/StringBuffer;IIIII)V",args)
+					session.vm.next_id=next
+				var output: String="user://font-paint-render.oe2"
+				OESnapshot.new().save_game(session,output)
+				states.append(FileAccess.open(output,FileAccess.READ).get_var(false).checksum)
+			comparisons+=1
+			if states[0]!=states[1]: failures.append("font paint "+str([text,anchor]))
 	# Real menu painters: compare the complete framebuffer and the whole saved Java graph.
 	var scenes: Array=[]
 	for menu in [3,16,100,500,102]:
@@ -58,7 +81,7 @@ func run() -> void:
 		if not equal: failures.append("menu parity "+str(menu))
 		scenes.append({"menu":menu,"equal":equal,"bytecode":states[0],"accelerated":states[1]})
 		print("MENU ",menu," ",equal)
-	for path in ["user://font-baseline.oe2","user://font-render.oe2"]:
+	for path in ["user://font-baseline.oe2","user://font-render.oe2",paint_baseline,"user://font-paint-render.oe2"]:
 		for suffix in ["",".bak"]:
 			if FileAccess.file_exists(path+suffix): DirAccess.remove_absolute(path+suffix)
 	var report: Dictionary={"comparisons":comparisons,"scenes":scenes,"errors":session.vm.errors.duplicate(),"failures":failures}

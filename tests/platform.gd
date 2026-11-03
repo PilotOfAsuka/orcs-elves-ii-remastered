@@ -46,6 +46,24 @@ func run() -> void:
 	check(image.get_pixel(1,0)==Color.GREEN,"drawRGB color and clipping")
 	check(image.get_pixel(0,0)==Color.BLACK,"drawRGB outside clip")
 	check(image.get_pixel(1,1)==Color8(17,34,51),"drawRGB scan stride")
+	# Byte order, ignored/processed alpha, translation, clipping and padded scans.
+	pixels.data=[0x00123456,0x7fabcd01,-1,-16777216,0x10203040,0x77665544,0x34567890,0x00fedcba,0x55001122,0x44332211,0x778899aa,0x11223344,0x001234ab]
+	var raster_cases: int=0
+	for alpha in [0,1]:
+		for scan in [3,4,-3]:
+			for translation in [Vector2i.ZERO,Vector2i(-1,2)]:
+				var outputs: Array=[]
+				for fast in [false,true]:
+					bridge.fast_rgb=fast
+					var surface:=Image.create(7,6,false,Image.FORMAT_RGBA8)
+					var painter:=OEMidpGraphics.new(surface)
+					painter.surface.fill(Color8(42,57,90,255))
+					painter.offset=translation
+					painter.set_clip(1,0,4,5)
+					bridge.draw_rgb(painter,[pixels,7 if scan<0 else 1,scan,1,1,3,3,alpha])
+					outputs.append(surface.get_data())
+				check(outputs[0]==outputs[1],"drawRGB bulk parity "+str([alpha,scan,translation]))
+				raster_cases+=1
 	var sheet := Image.create(2,1,false,Image.FORMAT_RGBA8)
 	sheet.set_pixel(0,0,Color.RED)
 	sheet.set_pixel(1,0,Color.BLUE)
@@ -58,5 +76,5 @@ func run() -> void:
 	call_api(session,"javax/microedition/rms/RecordStore","addRecord","([BII)I",store,[target,0,2])
 	check(session.saves.records.get("test")==[0,127],"RMS record contents")
 	session.close()
-	print(JSON.stringify({"checks":14,"failures":failures}))
+	print(JSON.stringify({"checks":14+raster_cases,"failures":failures}))
 	quit(0 if failures.is_empty() else 1)

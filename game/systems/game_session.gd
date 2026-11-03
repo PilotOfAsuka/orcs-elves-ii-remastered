@@ -11,6 +11,7 @@ func _init(persistent: bool = true, sound: Node = null) -> void:
 	vm = OEVM.new()
 	# Bound main-thread work so touch/key events can be processed between slices.
 	if OS.has_feature("web"): vm.max_slice=12000
+	if persistent: vm.frame_budget_us=6000
 	if not persistent: vm.epoch_ms = 1170000000000
 	saves = OESaveManager.new()
 	saves.persistent = persistent
@@ -72,5 +73,9 @@ func release_state() -> void:
 func close() -> void:
 	release_state()
 	vm.font_helpers.vm=null
+	vm.render_helpers.vm=null
+	vm.span_observer=Callable()
+	vm.resource_helpers.vm=null
+	vm.resource_observer=Callable()
 	platform.vm = null
 	vm.native = null

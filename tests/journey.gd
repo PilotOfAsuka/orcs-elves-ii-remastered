@@ -6,6 +6,16 @@ func _initialize() -> void:
 func run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://../build/fixtures"))
 	var session:=OEGameSession.new(false)
+	var profile: bool=OS.get_cmdline_user_args().has("profile")
+	session.vm.profile_enabled=profile
+	var captures: Dictionary={}
+	if OS.get_cmdline_user_args().has("capture"):
+		session.vm.resource_observer=func(key: String,_args: Array):
+			if not captures.has(key):
+				var path: String="res://../build/fixtures/resource_"+("shapes" if key=="d()Z" else "texels")+".oe2"
+				captures[key]=OESnapshot.new().save_game(session,path)
+				print("CAPTURE ",key," ",captures[key])
+	var began: int=Time.get_ticks_usec()
 	var phase: int=0
 	var last_key: int=-100
 	var story_saved: bool=false
@@ -36,6 +46,12 @@ func run() -> void:
 		elif state==7 and dialogue_saved: session.key(53);last_key=tick
 		if tick%100==0: print("TICK ",tick," ",JSON.stringify(session.report()))
 	var report: Dictionary=session.report()
+	report.elapsed_us=Time.get_ticks_usec()-began
+	if profile:
+		var rows: Array=[]
+		for key in session.vm.profile_instructions: rows.append({"method":key,"instructions":session.vm.profile_instructions[key]})
+		rows.sort_custom(func(a: Dictionary,b: Dictionary): return int(a.instructions)>int(b.instructions))
+		report.profile=rows.slice(0,30)
 	report.fixtures={"story":story_saved,"dialogue":dialogue_saved,"world":world_saved}
 	FileAccess.open("res://../build/journey.json",FileAccess.WRITE).store_string(JSON.stringify(report,"\t"))
 	print(JSON.stringify(report))
