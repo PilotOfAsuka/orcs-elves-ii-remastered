@@ -400,3 +400,11 @@ SHA-256 текущего F9: 5efbcfe124843d3ef95bf2c360cdf6009ed47c9aa9d59b623eb
   Подготовлены godot / web-build, экспорт WebGL 2 в один поток, .nojekyll,
   docs/GITHUB_WEB.md и tools/publish_github.py. До фактического завершения
   загрузки и проверки сайта доступность Pages не считается подтверждённой.
+
+Публикация 0.0.17 завершена: https://github.com/PilotOfAsuka/orcs-elves-ii-remastered
+и https://pilotofasuka.github.io/orcs-elves-ii-remastered/ . GitHub Pages сообщил
+status=built, источник — web-build / root. Публичная версия загружается через
+HTTPS, показывает v0.0.17, выбор языка, собственное главное меню и вступление.
+README переработан по просьбе пользователя по образцу WolfMoon: описание для
+игрока на русском и английском, ссылка на игру, управление и сохранения;
+технические подробности перенесены в docs/DEVELOPMENT.md.
