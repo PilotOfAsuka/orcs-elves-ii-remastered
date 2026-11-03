@@ -28,7 +28,6 @@ func get_static(owner: String, name: String, desc: String) -> Variant:
 	return null
 
 func draw_rgb(g: OEMidpGraphics, args: Array) -> void:
-	vm.render_helpers.raster.before_access(args[0])
 	var source: Array = args[0].data
 	var start: int = int(args[1])
 	var scan: int = int(args[2])
@@ -38,7 +37,11 @@ func draw_rgb(g: OEMidpGraphics, args: Array) -> void:
 	var height: int = int(args[6])
 	var alpha: bool = int(args[7])!=0
 	var rect := Rect2i(x,y,maxi(0,width),maxi(0,height)).intersection(g.clip)
-	var cached: Image=vm.render_helpers.raster.image if args[0]==vm.render_helpers.raster.image_destination else null
+	var preview: Image
+	if fast_rgb and not alpha and start==0 and scan==width:
+		preview=vm.render_helpers.raster.preview(args[0],width,height)
+	if preview==null: vm.render_helpers.raster.before_access(args[0])
+	var cached: Image=preview if preview!=null else (vm.render_helpers.raster.image if args[0]==vm.render_helpers.raster.image_destination else null)
 	if fast_rgb and not alpha and cached!=null and start==0 and scan==width and cached.get_width()==width and cached.get_height()>=height:
 		if rect.has_area(): g.surface.blit_rect(cached,Rect2i(rect.position-Vector2i(x,y),rect.size),rect.position)
 	elif fast_rgb and not alpha and scan==width and rect.has_area() and start>=0 and start+width*height<=source.size():
@@ -327,6 +330,7 @@ func invoke(ref: Dictionary, o: Variant, args: Array, fiber: Dictionary) -> Vari
 				var wanted: int = int(args[2]) if args.size()>1 else args[0].data.size()
 				if wanted==0: return 0
 				var count: int = mini(wanted,o.data.size()-int(o.extra.pos))
+				if count>0: vm.render_helpers.raster.before_access(args[0],true)
 				for n: int in count: args[0].data[start+n] = OEVM.signed(int(o.data[int(o.extra.pos)+n]),8)
 				o.extra.pos += count
 				return count if count>0 else -1

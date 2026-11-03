@@ -49,5 +49,11 @@ func publish(extra_ui_us: int) -> void:
 	if now-last_publish<500: return
 	var report: Dictionary={"version":ProjectSettings.get_setting("application/config/version"),"vm_ms":snappedf(vm_us/float(maxi(1,ticks))/1000.0,0.1),"ui_ms":snappedf(ui_us/float(maxi(1,ticks))/1000.0,0.1),"worst_vm_ms":snappedf(max_vm/1000.0,0.1),"frame_gap_ms":snappedf(max_gap/1000.0,0.1),"inputs":events}
 	if OS.has_feature("web"):
-		JavaScriptBridge.eval("document.getElementById('oe-perf').textContent="+JSON.stringify(JSON.stringify(report)))
+		var label: String="VM %.1f мс · UI %.1f мс"%[report.vm_ms,report.ui_ms]
+		for index in range(events.size()-1,-1,-1):
+			var event: Dictionary=events[index]
+			if event.reason=="settled" and int(event.key) in [49,50,51,52,54,56]:
+				label+="\nОтклик %.0f мс · ход %.0f мс"%[event.first_ms,event.elapsed_ms]
+				break
+		JavaScriptBridge.eval("document.getElementById('oe-perf').textContent="+JSON.stringify(JSON.stringify(report))+";{const p=document.getElementById('oe-perf-view');if(p)p.textContent="+JSON.stringify(label)+";}")
 	last_publish=now;ticks=0;vm_us=0;ui_us=0;max_gap=0;max_vm=0

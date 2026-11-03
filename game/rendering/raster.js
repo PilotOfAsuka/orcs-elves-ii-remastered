@@ -1,10 +1,12 @@
 // Exact Java int32 pixel kernels. Pure buffer arithmetic; no DOM or game rules.
 (function(root) {
-  function decode(text) {
+  function decodeBytes(text) {
     const raw=atob(text), bytes=new Uint8Array(raw.length);
     for(let i=0;i<raw.length;i++) bytes[i]=raw.charCodeAt(i);
-    return new Int32Array(bytes.buffer);
+    return bytes;
   }
+  function decode(text) {return new Int32Array(decodeBytes(text).buffer);}
+  function decodeTexels(text) {return new Int8Array(decodeBytes(text).buffer);}
   function encode(words) {
     const bytes=new Uint8Array(words.buffer,words.byteOffset,words.byteLength);
     let raw='';
@@ -158,17 +160,24 @@
     }
     return {empty};
   }
-  root.OERaster={decode,encode,render,wallColumns,spriteColumns,edges:null,texels:new Int32Array(0),pixels:null,
+  root.OERaster={decode,decodeTexels,encode,render,wallColumns,spriteColumns,edges:null,texels:new Int32Array(0),pixels:null,
     start(base){this.pixels=decode(base);},
     feed(commands){render(this.pixels,this.texels,decode(commands));},
     columns(input){return JSON.stringify(wallColumns(JSON.parse(input),this.pixels,this.texels));},
     sprites(input){return JSON.stringify(spriteColumns(JSON.parse(input),this.pixels,this.texels,this.edges));},
-    finish(){
+    rgba(){
       const pixels=this.pixels,rgba=new Int32Array(pixels.length);
       for(let i=0;i<pixels.length;i++){const p=pixels[i];rgba[i]=0xff000000|((p&255)<<16)|(p&0xff00)|((p>>>16)&255);}
-      this.pixels=null;
-      return encode(pixels)+'|'+encode(rgba);
+      return new Uint8Array(rgba.buffer);
     },
+    preview(){return encode(new Int32Array(this.rgba().buffer));},
+    readbackBytes(){const result=new Uint8Array(this.pixels.buffer);this.pixels=null;return result;},
+    finishBytes(){
+      const pixels=new Uint8Array(this.pixels.buffer),rgba=this.rgba(),result=new Uint8Array(pixels.length+rgba.length);
+      result.set(pixels);result.set(rgba,pixels.length);this.pixels=null;return result;
+    },
+    readback(){const result=encode(this.pixels);this.pixels=null;return result;},
+    finish(){const rgba=this.preview();return this.readback()+'|'+rgba;},
     run(base,commands){this.start(base);this.feed(commands);return this.finish();}
   };
   if(typeof module!=='undefined')module.exports=root.OERaster;

@@ -116,8 +116,9 @@ body {
 		$GODOT_HEAD_INCLUDE
 	</head>
 	<body>
-<pre id="oe-perf" style="display:none;position:fixed;right:0;top:0;max-width:700px;white-space:pre-wrap;color:white;background:#101820ee;z-index:99;pointer-events:none;font:11px monospace"></pre>
-<script>if(location.search.includes("perf=1"))document.getElementById("oe-perf").style.display="block";</script>
+<pre id="oe-perf" style="display:none"></pre>
+<pre id="oe-perf-view" aria-hidden="true" style="display:none;position:fixed;right:6px;top:0;max-width:190px;white-space:pre-wrap;color:#c9d3ce;background:#101820dd;z-index:99;pointer-events:none;font:10px monospace"></pre>
+<script>if(location.search.includes("perf=1"))document.getElementById("oe-perf-view").style.display="block";</script>
 		<main id="game-frame">
 		<canvas id="canvas">
 			Для игры нужен браузер с поддержкой canvas.

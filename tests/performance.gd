@@ -15,6 +15,8 @@ func run() -> void:
 	var args:=OS.get_cmdline_user_args()
 	session.vm.profile_enabled=not args.has("plain")
 	session.vm.fast_render=args.has("fast")
+	session.vm.fast_geometry=args.has("fast")
+	session.platform.fast_rgb=args.has("fast")
 	session.vm.fast_font=args.has("fast")
 	session.vm.fast_resources=args.has("fast")
 	var results: Array=[]

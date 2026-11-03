@@ -53,6 +53,7 @@ func wall_nibbles(frame: Dictionary) -> void:
 	var index: int=locals[16]
 	var count: int=locals[15]
 	if index<0 or count>source.size() or offset<0 or offset+2*maxi(0,count-index)>destination.size(): return
+	vm.render_helpers.raster.before_access(vm.get_static("k","c","[B"),true)
 	while index<count:
 		var value: int=int(source[index])&255
 		destination[offset]=value&15
@@ -86,6 +87,7 @@ func shape_runs(frame: Dictionary) -> void:
 			previous=present
 		required+=1
 	if required>mini(destination.size(),32767): return
+	vm.render_helpers.raster.before_access(vm.get_static("k","e","[S"),true)
 	while column<width:
 		destination[base+column+4]=OEVM.signed(cursor-base-2,16)
 		var bitmap: int=OEVM.i32(12+column*stride)
