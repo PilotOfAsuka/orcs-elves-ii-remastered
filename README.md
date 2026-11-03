@@ -78,6 +78,12 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 `?checkpointcheck=1&checkpointprofile=1&perf=1` читает существующий F9,
 работает на отдельной копии и не изменяет пользовательские RMS/F9.
 Для сравнения планировщика добавить `&checkpointscheduled=1`.
+Проверки 0.0.15: `visibility_parity.gd`, `text_decode_parity.gd`,
+`menu_cache.gd`, `metrics.gd`. Для текущей локальной копии F9 используются
+`build/fixtures/user_f9_015.oe2` и производный `user_world_015.oe2`.
+`&checkpointstage15=1` сравнивает новые ускорения, `&checkpointworld=1`
+возвращает диагностическую копию из меню в мир исходным методом.
+`?checkpointcheck=1&checkpointuibench=1&perf=1` измеряет отдельно UI меню.
 Для Web создать `build/web/`, выполнить импорт проекта и экспорт пресета Web.
 Готовые файлы публикуются как статический сайт через HTTP/HTTPS.
 

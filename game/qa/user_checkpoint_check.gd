@@ -21,16 +21,46 @@ func run(ui: Control) -> void:
 	var report: Dictionary={"loaded":loaded,"bytes":bytes.size(),"report":ui.session.report(),"hud":ui.presenter.hud(),"pose":ui.session.metrics.pose(ui.session.vm)}
 	show_report(report,bytes)
 	ui._process(0)
+	if loaded and bool(JavaScriptBridge.eval("location.search.includes('checkpointuibench=1')")):
+		var ui_rows: Array=[]
+		OESnapshot.new().save_game(ui.session,"user://diagnostic-proof.oe2")
+		var before: String=FileAccess.open("user://diagnostic-proof.oe2",FileAccess.READ).get_var(false).checksum
+		for fast in [false,true]:
+			ui.presenter.menu_cache_enabled=fast;ui._process(0)
+			var samples: Array=[]
+			for n in 35:
+				var began: int=Time.get_ticks_usec();ui._process(0);samples.append(Time.get_ticks_usec()-began)
+				await ui.get_tree().process_frame
+			samples.sort();ui_rows.append({"fast":fast,"median_us":samples[17],"max_us":samples.back()})
+		ui.presenter.menu_cache_enabled=true
+		OESnapshot.new().save_game(ui.session,"user://diagnostic-proof.oe2")
+		show_report({"done":true,"ui":ui_rows,"unchanged":before==FileAccess.open("user://diagnostic-proof.oe2",FileAccess.READ).get_var(false).checksum},bytes)
+		return
 	if not loaded or not bool(JavaScriptBridge.eval("location.search.includes('checkpointprofile=1')")): return
+	if bool(JavaScriptBridge.eval("location.search.includes('checkpointworld=1')")) and int(ui.session.vm.get_static("a","H","I"))==2 and int(ui.session.vm.get_static("w","g","I"))==100:
+		var closing: Dictionary=ui.session.vm.launch("w","b(I)V",null,[0])
+		for n in 1000:
+			ui.session.tick(20)
+			if closing.frames.is_empty(): break
+			await ui.get_tree().process_frame
+		OESnapshot.new().save_game(ui.session,ui.saved_path)
 	ui.session.vm.frame_budget_us=0;ui.session.vm.paint_budget_us=0
 	var rows: Array=[]
-	for fast in [false,true]:
+	var detail: bool=bool(JavaScriptBridge.eval("location.search.includes('checkpointdetail=1')"))
+	for fast in ([true] if detail else [false,true]):
 		for key in [54,52,50,56,53,57]:
 			OESnapshot.new().load_game(ui.session,ui.saved_path)
-			ui.session.vm.fast_sprite_setup=fast;ui.session.vm.fast_tiled_paint=fast
+			var stage15: bool=bool(JavaScriptBridge.eval("location.search.includes('checkpointstage15=1')"))
+			ui.session.vm.fast_sprite_setup=true if stage15 else fast;ui.session.vm.fast_tiled_paint=true if stage15 else fast
+			ui.session.vm.render_helpers.fast_visibility=fast if stage15 else true
+			ui.session.vm.resource_helpers.fast_text=fast if stage15 else true
 			if bool(JavaScriptBridge.eval("location.search.includes('checkpointscheduled=1')")):
 				ui.session.vm.native_budget_checks=fast
 				ui.session.vm.frame_budget_us=10000;ui.session.vm.paint_budget_us=24000 if fast else 60000
+			if detail:
+				ui.session.vm.profile_enabled=true
+				ui.session.vm.profile_native_us.clear();ui.session.vm.profile_native_max_us.clear();ui.session.vm.profile_native_calls.clear()
+				ui.session.vm.render_helpers.raster.profile_enabled=true;ui.session.vm.render_helpers.raster.profile_us.clear()
 			ui.session.key(key)
 			var total: int=0;var worst: int=0
 			for clock_step in 6:
@@ -43,9 +73,14 @@ func run(ui: Control) -> void:
 				await ui.get_tree().process_frame
 			OESnapshot.new().save_game(ui.session,"user://diagnostic-proof.oe2")
 			var graph: String=FileAccess.open("user://diagnostic-proof.oe2",FileAccess.READ).get_var(false).checksum
-			rows.append({"fast":fast,"key":key,"cpu_us":total,"worst_slice_us":worst,"graph":graph,"pose":ui.session.metrics.pose(ui.session.vm),"errors":ui.session.vm.errors.duplicate()})
+			rows.append({"fast":fast,"key":key,"cpu_us":total,"worst_slice_us":worst,"graph":graph,"pose":ui.session.metrics.pose(ui.session.vm),"errors":ui.session.vm.errors.duplicate(),"state":int(ui.session.vm.get_static("a","H","I")),"menu":int(ui.session.vm.get_static("w","g","I"))})
+			if detail:
+				rows[-1].native_us=ui.session.vm.profile_native_us.duplicate()
+				rows[-1].native_max_us=ui.session.vm.profile_native_max_us.duplicate()
+				rows[-1].raster_us=ui.session.vm.render_helpers.raster.profile_us.duplicate()
+				rows[-1].texture_switches=ui.session.vm.render_helpers.raster.texture_switches
 			show_report({"completed":rows.size(),"total":12,"rows":rows})
-	ui.session.vm.fast_sprite_setup=true;ui.session.vm.fast_tiled_paint=true
+	ui.session.vm.fast_sprite_setup=true;ui.session.vm.fast_tiled_paint=true;ui.session.vm.render_helpers.fast_visibility=true;ui.session.vm.resource_helpers.fast_text=true
 	OESnapshot.new().load_game(ui.session,ui.saved_path)
 	ui._process(0)
 	show_report({"done":true,"rows":rows},bytes)

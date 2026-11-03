@@ -81,6 +81,7 @@ func release_state() -> void:
 func close() -> void:
 	release_state()
 	vm.geometry.vm=null
+	vm.sprite_blocks.vm=null
 	vm.font_helpers.vm=null
 	vm.render_helpers.raster.vm=null
 	vm.render_helpers.raster.last_texture=null

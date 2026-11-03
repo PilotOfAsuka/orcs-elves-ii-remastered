@@ -17,7 +17,7 @@ func run() -> void:
 		if not OESnapshot.new().load_game(game,"res://../build/fixtures/user_f9_014.oe2"): quit(1);return
 		game.vm.fast_sprite_setup=label!="baseline";game.vm.fast_tiled_paint=label!="baseline"
 		game.vm.profile_enabled=true
-		game.vm.profile_instructions.clear();game.vm.profile_native_us.clear();game.vm.profile_native_calls.clear()
+		game.vm.profile_instructions.clear();game.vm.profile_native_us.clear();game.vm.profile_native_calls.clear();game.vm.profile_native_max_us.clear()
 		var started: int=Time.get_ticks_usec();var count: int=game.vm.instructions
 		game.key(key)
 		var worst: int=0
@@ -26,7 +26,7 @@ func run() -> void:
 			for slice in 10000:
 				if not runnable(game.vm) or game.vm.halted: break
 				began=Time.get_ticks_usec();game.tick(0);worst=maxi(worst,Time.get_ticks_usec()-began)
-		rows.append({"key":key,"us":Time.get_ticks_usec()-started,"worst_tick_us":worst,"instructions":game.vm.instructions-count,"state":game.report().state,"pose":game.metrics.pose(game.vm),"methods":ranked(game.vm.profile_instructions),"native_us":ranked(game.vm.profile_native_us),"errors":game.vm.errors.duplicate()})
+		rows.append({"key":key,"us":Time.get_ticks_usec()-started,"worst_tick_us":worst,"instructions":game.vm.instructions-count,"state":game.report().state,"pose":game.metrics.pose(game.vm),"methods":ranked(game.vm.profile_instructions),"native_us":ranked(game.vm.profile_native_us),"native_max_us":ranked(game.vm.profile_native_max_us),"errors":game.vm.errors.duplicate()})
 		print(JSON.stringify(rows[-1]))
 	var ui=load("res://main.tscn").instantiate();ui.testing=true;ui.paused=true;root.add_child(ui);ui.set_process(false)
 	OESnapshot.new().load_game(ui.session,"res://../build/fixtures/user_f9_014.oe2")

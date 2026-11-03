@@ -2,6 +2,7 @@ class_name OERenderHelpers
 extends RefCounted
 ## Exact fixed-point software-rendering routines from original class k.
 ## Every array and rendering counter belongs to the original game state.
+var fast_visibility: bool=true
 var vm: OEVM
 var raster: OEWebRaster
 
@@ -354,3 +355,13 @@ func tint() -> void:
 	var output: JObject=vm.get_static("k","m","[I")
 	raster.before_access(output,true)
 	for index in output.data.size(): output.data[index]=OEVM.i32(int(output.data[index])|0xff480080)
+
+func visibility_scan(start: int, finish: int) -> Variant:
+	# Tail of original k.b(I)Z. Invalid ranges execute the original loop, which
+	# preserves early returns, bounds exceptions and their exact index.
+	if finish<=start: return 1
+	var depth: Variant=vm.get_static("k","p","[I")
+	if not depth is JObject or start<0 or finish>depth.data.size(): return null
+	raster.before_access(depth)
+	var found: int=depth.data.find(2147483647,start)
+	return int(found<0 or found>=finish)

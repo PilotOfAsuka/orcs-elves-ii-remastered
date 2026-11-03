@@ -39,6 +39,7 @@ var profile_enabled: bool = false
 var profile_instructions: Dictionary = {}
 var profile_native_us: Dictionary = {}
 var profile_native_calls: Dictionary = {}
+var profile_native_max_us: Dictionary = {}
 var field_owner_cache: Dictionary = {}
 var next_id: int = 1
 var active: Dictionary = {}
@@ -465,29 +466,34 @@ func step(fiber: Dictionary) -> void:
 				if span_observer.is_valid() and render_helpers.accepts(found.owner,ref.name+ref.desc): span_observer.call(ref.name+ref.desc,args)
 				if not found.method.is_empty() and fast_geometry and (found.owner!="a" or fast_tiled_paint) and geometry.accepts(found.owner,ref.name+ref.desc):
 					native_boundary=true
+					var helper_began: int=Time.get_ticks_usec() if profile_enabled else 0
 					var value: Variant=geometry.invoke((found.owner+"." if found.owner in ["a","l"] else "")+ref.name+ref.desc,args)
+					if profile_enabled: record_native_profile("compiled:"+found.owner+"."+ref.name+ref.desc,helper_began)
 					if ref["return"]!="V" and exception==null: stack.append(value)
 				elif not found.method.is_empty() and fast_render and render_helpers.accepts(found.owner,ref.name+ref.desc):
 					native_boundary=true
+					var helper_began: int=Time.get_ticks_usec() if profile_enabled else 0
 					var value: Variant=render_helpers.invoke(ref.name+ref.desc,args)
+					if profile_enabled: record_native_profile("render:"+found.owner+"."+ref.name+ref.desc,helper_began)
 					if ref["return"]!="V" and exception==null: stack.append(value)
-				elif not found.method.is_empty() and fast_resources and resource_helpers.accepts(found.owner,ref.name+ref.desc):
+				elif not found.method.is_empty() and fast_resources and resource_helpers.accepts(found.owner,ref.name+ref.desc,args):
 					native_boundary=true
+					var helper_began: int=Time.get_ticks_usec() if profile_enabled else 0
 					var value: Variant=resource_helpers.invoke_method(found.owner,ref.name+ref.desc,obj,args)
-					if exception==null: stack.append(value)
+					if profile_enabled: record_native_profile("resource:"+found.owner+"."+ref.name+ref.desc,helper_began)
+					if ref["return"]!="V" and exception==null: stack.append(value)
 				elif not found.method.is_empty() and fast_font and font_helpers.accepts(found.owner,ref.name+ref.desc,args):
 					native_boundary=true
+					var helper_began: int=Time.get_ticks_usec() if profile_enabled else 0
 					var value: int=font_helpers.invoke(ref.name+ref.desc,args)
+					if profile_enabled: record_native_profile("font:"+found.owner+"."+ref.name+ref.desc,helper_began)
 					if ref["return"]!="V" and exception==null: stack.append(value)
 				elif not found.method.is_empty(): push_frame(fiber,found.owner,found.method,obj,args)
 				else:
 					native_boundary=true
 					var native_began: int=Time.get_ticks_usec() if profile_enabled else 0
 					var result: Variant = native.invoke(ref,obj,args,fiber)
-					if profile_enabled:
-						var native_key: String=ref.owner+"."+ref.name+ref.desc
-						profile_native_us[native_key]=int(profile_native_us.get(native_key,0))+Time.get_ticks_usec()-native_began
-						profile_native_calls[native_key]=int(profile_native_calls.get(native_key,0))+1
+					if profile_enabled: record_native_profile(ref.owner+"."+ref.name+ref.desc,native_began)
 					if ref["return"] != "V" and exception == null: stack.append(result)
 		187: stack.append(new_object(ins[1]))
 		188,189:
@@ -521,3 +527,9 @@ func step(fiber: Dictionary) -> void:
 			if (obj==null) == (op==198): frame.pc = int(ins[1])
 		_: fail("Unsupported opcode %d at %s.%s byte %s" % [op,frame.owner,frame.method.name,frame.method.offsets[pc]])
 	if exception != null: unwind(fiber)
+
+func record_native_profile(key: String, began: int) -> void:
+	var elapsed: int=Time.get_ticks_usec()-began
+	profile_native_us[key]=int(profile_native_us.get(key,0))+elapsed
+	profile_native_calls[key]=int(profile_native_calls.get(key,0))+1
+	profile_native_max_us[key]=maxi(int(profile_native_max_us.get(key,0)),elapsed)

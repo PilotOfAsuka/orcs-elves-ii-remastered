@@ -30,6 +30,12 @@ func invoke(key: String, args: Array) -> Variant:
 		"a.a(Ljavax/microedition/lcdui/Image;IIIIIII)V": return m15(args)
 	return null
 
+func timed(key: String, args: Array) -> Variant:
+	var began: int=Time.get_ticks_usec()
+	var value: Variant=invoke(key,args)
+	vm.record_native_profile("inner:k."+key,began)
+	return value
+
 func aload(array: Variant, index: int) -> Variant:
 	if vm.render_helpers.raster.destination!=null: vm.render_helpers.raster.before_access(array)
 	if array==null: vm.throw_exception("java/lang/NullPointerException");return null
@@ -239,7 +245,7 @@ func m2(args: Array) -> Variant:
 				var t24_0: Variant=0
 				var t24_1: Variant=local[1]
 				var t24_2: Variant=local[2]
-				m3([t24_0,t24_1,t24_2])
+				(timed("b(III)V",[t24_0,t24_1,t24_2]) if vm.profile_enabled else m3([t24_0,t24_1,t24_2]))
 				if vm.exception!=null: return null
 				pc=37
 				continue
@@ -253,7 +259,7 @@ func m2(args: Array) -> Variant:
 				var t31_2: Variant=OEVM.i32(-int(t31_1))
 				var t31_3: Variant=local[2]
 				var t31_4: Variant=OEVM.i32(-int(t31_3))
-				m3([t31_0,t31_2,t31_4])
+				(timed("b(III)V",[t31_0,t31_2,t31_4]) if vm.profile_enabled else m3([t31_0,t31_2,t31_4]))
 				if vm.exception!=null: return null
 				pc=37
 			37:
@@ -290,7 +296,7 @@ func m2(args: Array) -> Variant:
 				var t59_0: Variant=3
 				var t59_1: Variant=local[1]
 				var t59_2: Variant=local[2]
-				m3([t59_0,t59_1,t59_2])
+				(timed("b(III)V",[t59_0,t59_1,t59_2]) if vm.profile_enabled else m3([t59_0,t59_1,t59_2]))
 				if vm.exception!=null: return null
 				pc=72
 				continue
@@ -304,7 +310,7 @@ func m2(args: Array) -> Variant:
 				var t66_2: Variant=OEVM.i32(-int(t66_1))
 				var t66_3: Variant=local[2]
 				var t66_4: Variant=OEVM.i32(-int(t66_3))
-				m3([t66_0,t66_2,t66_4])
+				(timed("b(III)V",[t66_0,t66_2,t66_4]) if vm.profile_enabled else m3([t66_0,t66_2,t66_4]))
 				if vm.exception!=null: return null
 				pc=72
 			72:
@@ -335,7 +341,7 @@ func m2(args: Array) -> Variant:
 				var t90_0: Variant=3
 				var t90_1: Variant=local[1]
 				var t90_2: Variant=local[2]
-				m3([t90_0,t90_1,t90_2])
+				(timed("b(III)V",[t90_0,t90_1,t90_2]) if vm.profile_enabled else m3([t90_0,t90_1,t90_2]))
 				if vm.exception!=null: return null
 				pc=103
 				continue
@@ -349,7 +355,7 @@ func m2(args: Array) -> Variant:
 				var t97_2: Variant=OEVM.i32(-int(t97_1))
 				var t97_3: Variant=local[2]
 				var t97_4: Variant=OEVM.i32(-int(t97_3))
-				m3([t97_0,t97_2,t97_4])
+				(timed("b(III)V",[t97_0,t97_2,t97_4]) if vm.profile_enabled else m3([t97_0,t97_2,t97_4]))
 				if vm.exception!=null: return null
 				pc=103
 			103:
@@ -965,12 +971,12 @@ func m4(args: Array) -> Variant:
 				pc=367
 			367:
 				var t367_0: Variant=0
-				m0([t367_0])
+				(timed("h(I)V",[t367_0]) if vm.profile_enabled else m0([t367_0]))
 				if vm.exception!=null: return null
 				var t367_1: Variant=3
-				m0([t367_1])
+				(timed("h(I)V",[t367_1]) if vm.profile_enabled else m0([t367_1]))
 				if vm.exception!=null: return null
-				var t367_2: Variant=m2([])
+				var t367_2: Variant=(timed("i()Z",[]) if vm.profile_enabled else m2([]))
 				if vm.exception!=null: return null
 				pc=375 if int(t367_2)!=0 else 373
 				continue
@@ -979,10 +985,10 @@ func m4(args: Array) -> Variant:
 				return t373_0
 			375:
 				var t375_0: Variant=0
-				m1([t375_0])
+				(timed("i(I)V",[t375_0]) if vm.profile_enabled else m1([t375_0]))
 				if vm.exception!=null: return null
 				var t375_1: Variant=3
-				m1([t375_1])
+				(timed("i(I)V",[t375_1]) if vm.profile_enabled else m1([t375_1]))
 				if vm.exception!=null: return null
 				var t375_2: Variant=local[2]
 				var t375_3: Variant=0
@@ -1011,6 +1017,9 @@ func m4(args: Array) -> Variant:
 				local[4]=t391_6
 				pc=399
 			399:
+				if vm.render_helpers.fast_visibility:
+					var scan: Variant=vm.render_helpers.visibility_scan(int(local[3]),int(local[4]))
+					if scan!=null: return scan
 				var t399_0: Variant=local[3]
 				var t399_1: Variant=local[4]
 				pc=411 if t399_0>=t399_1 else 402
@@ -1045,7 +1054,7 @@ func m5(args: Array) -> Variant:
 		match pc:
 			0:
 				var t0_0: Variant=local[0]
-				var t0_1: Variant=m4([t0_0])
+				var t0_1: Variant=(timed("b(I)Z",[t0_0]) if vm.profile_enabled else m4([t0_0]))
 				if vm.exception!=null: return null
 				pc=4 if int(t0_1)==0 else 3
 				continue
@@ -1261,7 +1270,7 @@ func m5(args: Array) -> Variant:
 				vm.statics["k"]["aR:I"]=t71_74
 				var t71_75: Variant=0
 				vm.statics["k"]["aQ:I"]=t71_75
-				var t71_76: Variant=m6([])
+				var t71_76: Variant=(timed("k()Z",[]) if vm.profile_enabled else m6([]))
 				if vm.exception!=null: return null
 				local[5]=OEVM.i32(int(local[5])+(1))
 				pc=68
@@ -1690,7 +1699,7 @@ func m5(args: Array) -> Variant:
 				var t446_3: Variant=OEVM.i32(int(t446_1)+int(t446_2))
 				var t446_4: Variant=aload(t446_0,int(t446_3))
 				if vm.exception!=null: return null
-				m5([t446_4])
+				(timed("a(S)V",[t446_4]) if vm.profile_enabled else m5([t446_4]))
 				if vm.exception!=null: return null
 				var t446_5: Variant=vm.statics["k"]["d:[S"]
 				var t446_6: Variant=vm.statics["k"]["k:I"]
@@ -1698,7 +1707,7 @@ func m5(args: Array) -> Variant:
 				var t446_8: Variant=OEVM.i32(int(t446_6)+int(t446_7))
 				var t446_9: Variant=aload(t446_5,int(t446_8))
 				if vm.exception!=null: return null
-				m5([t446_9])
+				(timed("a(S)V",[t446_9]) if vm.profile_enabled else m5([t446_9]))
 				if vm.exception!=null: return null
 				return null
 			459:
@@ -1708,7 +1717,7 @@ func m5(args: Array) -> Variant:
 				var t459_3: Variant=OEVM.i32(int(t459_1)+int(t459_2))
 				var t459_4: Variant=aload(t459_0,int(t459_3))
 				if vm.exception!=null: return null
-				m5([t459_4])
+				(timed("a(S)V",[t459_4]) if vm.profile_enabled else m5([t459_4]))
 				if vm.exception!=null: return null
 				var t459_5: Variant=vm.statics["k"]["d:[S"]
 				var t459_6: Variant=vm.statics["k"]["j:I"]
@@ -1716,7 +1725,7 @@ func m5(args: Array) -> Variant:
 				var t459_8: Variant=OEVM.i32(int(t459_6)+int(t459_7))
 				var t459_9: Variant=aload(t459_5,int(t459_8))
 				if vm.exception!=null: return null
-				m5([t459_9])
+				(timed("a(S)V",[t459_9]) if vm.profile_enabled else m5([t459_9]))
 				if vm.exception!=null: return null
 				return null
 	return null
@@ -1824,12 +1833,12 @@ func m6(args: Array) -> Variant:
 				continue
 			74:
 				var t74_0: Variant=0
-				m0([t74_0])
+				(timed("h(I)V",[t74_0]) if vm.profile_enabled else m0([t74_0]))
 				if vm.exception!=null: return null
 				var t74_1: Variant=3
-				m0([t74_1])
+				(timed("h(I)V",[t74_1]) if vm.profile_enabled else m0([t74_1]))
 				if vm.exception!=null: return null
-				var t74_2: Variant=m7([])
+				var t74_2: Variant=(timed("j()Z",[]) if vm.profile_enabled else m7([]))
 				if vm.exception!=null: return null
 				return t74_2
 	return null
@@ -1848,7 +1857,7 @@ func m7(args: Array) -> Variant:
 				pc=6 if int(t0_2)!=0 else 4
 				continue
 			4:
-				var t4_0: Variant=m2([])
+				var t4_0: Variant=(timed("i()Z",[]) if vm.profile_enabled else m2([]))
 				if vm.exception!=null: return null
 				pc=8 if int(t4_0)!=0 else 6
 				continue
@@ -1859,10 +1868,10 @@ func m7(args: Array) -> Variant:
 				var t8_0: Variant=0
 				local[0]=t8_0
 				var t8_1: Variant=0
-				m1([t8_1])
+				(timed("i(I)V",[t8_1]) if vm.profile_enabled else m1([t8_1]))
 				if vm.exception!=null: return null
 				var t8_2: Variant=3
-				m1([t8_2])
+				(timed("i(I)V",[t8_2]) if vm.profile_enabled else m1([t8_2]))
 				if vm.exception!=null: return null
 				var t8_3: Variant=vm.statics["k"]["ag:I"]
 				var t8_4: Variant=8388608
@@ -1882,7 +1891,7 @@ func m7(args: Array) -> Variant:
 				pc=28 if int(t21_2)==0 else 25
 				continue
 			25:
-				var t25_0: Variant=m8([])
+				var t25_0: Variant=(timed("g()Z",[]) if vm.profile_enabled else m8([]))
 				if vm.exception!=null: return null
 				local[0]=t25_0
 				pc=30
@@ -2573,7 +2582,7 @@ func m9(args: Array) -> Variant:
 				var t0_11: Variant=OEVM.i32(int(t0_9)-int(t0_10))
 				var t0_12: Variant=vm.statics["k"]["g:[I"]
 				var t0_13: Variant=vm.statics["k"]["m:[I"]
-				m10([t0_8,t0_11,t0_12,t0_13])
+				(timed("a(II[I[I)V",[t0_8,t0_11,t0_12,t0_13]) if vm.profile_enabled else m10([t0_8,t0_11,t0_12,t0_13]))
 				if vm.exception!=null: return null
 				var t0_14: Variant=vm.statics["k"]["c:I"]
 				var t0_15: Variant=vm.statics["k"]["o:[I"]
@@ -2602,7 +2611,7 @@ func m9(args: Array) -> Variant:
 				var t30_5: Variant=local[1]
 				var t30_6: Variant=vm.statics["k"]["h:[I"]
 				var t30_7: Variant=vm.statics["k"]["m:[I"]
-				m10([t30_4,t30_5,t30_6,t30_7])
+				(timed("a(II[I[I)V",[t30_4,t30_5,t30_6,t30_7]) if vm.profile_enabled else m10([t30_4,t30_5,t30_6,t30_7]))
 				if vm.exception!=null: return null
 				return null
 	return null
@@ -2785,7 +2794,7 @@ func m11(args: Array) -> Variant:
 				astore(t12_3,int(t12_4),t12_5,79)
 				if vm.exception!=null: return null
 				var t12_6: Variant=0
-				m0([t12_6])
+				(timed("h(I)V",[t12_6]) if vm.profile_enabled else m0([t12_6]))
 				if vm.exception!=null: return null
 				var t12_7: Variant=local[8]
 				var t12_8: Variant=16
@@ -3090,7 +3099,7 @@ func m11(args: Array) -> Variant:
 				var t217_17: Variant=OEVM.i32(int(t217_13)+int(t217_16))
 				astore(t217_9,int(t217_10),t217_17,79)
 				if vm.exception!=null: return null
-				var t217_18: Variant=m7([])
+				var t217_18: Variant=(timed("j()Z",[]) if vm.profile_enabled else m7([]))
 				if vm.exception!=null: return null
 				local[10]=t217_18
 				pc=413
@@ -3331,7 +3340,7 @@ func m11(args: Array) -> Variant:
 				if vm.exception!=null: return null
 				pc=411
 			411:
-				var t411_0: Variant=m6([])
+				var t411_0: Variant=(timed("k()Z",[]) if vm.profile_enabled else m6([]))
 				if vm.exception!=null: return null
 				local[10]=t411_0
 				pc=413

@@ -3,18 +3,27 @@ extends RefCounted
 ## Exact binary readers, identity lookups and loader loops (shapes, texels, strings).
 ## File selection, reads, allocation, progress and all game decisions stay in
 ## bytecode. Locals and the exit PC are preserved for snapshots and fallback.
+var fast_text: bool=true
+var prepared_text: Variant=null
 var vm: OEVM
 
 func _init(machine: OEVM) -> void:
 	vm=machine
 
-func accepts(owner: String, key: String) -> bool:
+func accepts(owner: String, key: String, args: Array=[]) -> bool:
+	if owner=="a" and key=="a(SSLjava/lang/StringBuffer;)V" and fast_text:
+		var began: int=Time.get_ticks_usec() if vm.profile_enabled else 0
+		prepared_text=plan_text(args)
+		if vm.profile_enabled: vm.record_native_profile("text:decode",began)
+		return prepared_text!=null
 	if owner=="p": return key in ["a(I)Lg;","a(II)Lg;","a(III)Lg;"]
 	if owner=="n": return key in ["a()B","a()S","a(I)S","b(I)S","b()S","a()I","b()I","c()S"]
 	if owner=="s" and key=="a()S": return vm.initialized.has("l") and int(vm.get_static("l","e","I"))<=32767
 	return false
 
 func invoke_method(owner: String, key: String, object: Variant, args: Array) -> Variant:
+	if owner=="a":
+		args[2].data=prepared_text;prepared_text=null;return null
 	if owner=="p": return lookup(key,args)
 	if owner=="s": return entity_index(object)
 	return read_number(key,args)
@@ -218,3 +227,51 @@ func string_offsets(frame: Dictionary) -> void:
 			output.data[cursor]=OEVM.signed(OEVM.i32(offset+1),16);cursor+=1
 	frame.locals[7]=cursor;frame.locals[9]=bytes.data.size()
 	frame.pc=141;frame.last=126
+
+func plan_text(args: Array) -> Variant:
+	# Original a.a(short,short,StringBuffer). Plan without side effects; every
+	# exceptional or unsupported input runs the original bytecode, including
+	# partially appended output and signed-short cursor wrap.
+	if args.size()!=3 or not args[2] is JObject or args[2].type!="java/lang/StringBuffer" or not args[2].data is String: return null
+	var group: int=args[0];var index: int=args[1]
+	var texts: Variant=vm.get_static("a","a","[[B")
+	var positions: Variant=vm.get_static("a","a","[[S")
+	if not texts is JObject or not positions is JObject or group<0 or group>=texts.data.size() or group>=positions.data.size(): return null
+	var bytes: Variant=texts.data[group];var offsets: Variant=positions.data[group]
+	if not bytes is JObject or not offsets is JObject or index<0 or index>=offsets.data.size() or index>bytes.data.size(): return null
+	var objects: Variant=vm.get_static("a","a","[Ljava/lang/Object;")
+	var integers: Variant=vm.get_static("a","g","[I")
+	var pixel_array: Variant=vm.render_helpers.raster.destination
+	if pixel_array!=null and pixel_array in [texts,positions,bytes,offsets,objects,integers]: return null
+	var cursor: int=int(offsets.data[index]);var pieces: PackedStringArray=[]
+	var budget: int=bytes.data.size()+1
+	while budget>0:
+		budget-=1
+		if cursor<0 or cursor>=bytes.data.size(): return null
+		var letter: int=int(bytes.data[cursor])&255
+		if letter==0: return str(args[2].data)+"".join(pieces)
+		if letter==92 or letter==37:
+			cursor=OEVM.signed(cursor+1,16)
+			if cursor<0 or cursor>=bytes.data.size(): return null
+			var escaped: int=int(bytes.data[cursor])
+			if letter==92:
+				if escaped==37: pieces.append("%")
+				elif escaped==110: pieces.append("\n")
+				else: pieces.append("\\"+String.chr(escaped&65535))
+			else:
+				var argument: int=escaped-49
+				if argument>=0 and argument<int(vm.get_static("a","ab","I")):
+					if not objects is JObject or argument>=objects.data.size(): return null
+					var value: Variant=objects.data[argument]
+					if value is JObject and value==args[2]: return null
+					if value!=null:
+						if value is JObject:
+							if value.type not in ["java/lang/StringBuffer","java/lang/Integer"]: return null
+							value=value.data
+						pieces.append("null" if value==null else str(value))
+					else:
+						if not integers is JObject or argument>=integers.data.size(): return null
+						pieces.append(str(integers.data[argument]))
+		else: pieces.append(String.chr(letter))
+		cursor=OEVM.signed(cursor+1,16)
+	return null

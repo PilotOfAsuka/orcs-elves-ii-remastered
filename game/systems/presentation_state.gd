@@ -4,6 +4,11 @@ extends RefCounted
 var vm: OEVM
 var font_map: Dictionary = {}
 var font_language: int = -999
+var menu_cache_enabled: bool=true
+var menu_cache_key: Array=[]
+var menu_cache: Dictionary={}
+var menu_cache_hits: int=0
+var menu_cache_misses: int=0
 
 func _init(machine: OEVM) -> void:
 	vm=machine
@@ -85,6 +90,14 @@ func menu() -> Dictionary:
 	var count: int=vm.get_static("w","f","I")
 	var selected: int=vm.get_static("w","j","I")
 	var sentinel: int=vm.get_static("w","b","I")
+	if menu_cache_enabled:
+		var cache_key: Array=menu_inputs(items,count,selected,sentinel)
+		if cache_key==menu_cache_key and not menu_cache.is_empty():
+			menu_cache_hits+=1
+			return menu_cache.duplicate(true)
+		menu_cache_misses+=1;menu_cache_key=cache_key.duplicate(true)
+		# A restored or edited source font table must be decoded again too.
+		font_language=-999
 	var rows: Array[Dictionary]=[]
 	var description: String=""
 	for index in mini(count,items.data.size()):
@@ -101,7 +114,11 @@ func menu() -> Dictionary:
 		if index==selected:
 			var help_id: int=vm.get_field(row,"t","d","I")
 			if help_id!=sentinel: description=text_id(help_id)
-	return {"id":vm.get_static("w","g","I"),"selected":selected,"rows":rows,"description":description}
+	var result: Dictionary={"id":vm.get_static("w","g","I"),"selected":selected,"rows":rows,"description":description}
+	if menu_cache_enabled:
+		menu_cache=result
+		return menu_cache.duplicate(true)
+	return result
 
 func buffer(owner: String, name: String) -> String:
 	var value: Variant=vm.get_static(owner,name,"Ljava/lang/StringBuffer;")
@@ -288,3 +305,38 @@ func lockpick() -> Dictionary:
 	var current: int=vm.get_static("v","H","I")
 	var began: int=vm.get_static("v","I","I")
 	return {"length":length,"completed":int(vm.get_static("a","ax","I")),"partial":int(vm.get_static("a","aw","I"))==1,"finished":int(vm.get_static("a","w","Z"))!=0,"attempts":(current>>16)-(began>>16),"correct":(current&65535)-(began&65535)}
+
+func menu_inputs(items: JObject, count: int, selected: int, sentinel: int) -> Array:
+	# Compare source values, including mutable byte/offset tables, rather than
+	# assuming resource identity means immutable data. The cached copy owns no
+	# Java references and never writes into the VM graph.
+	var key: Array=[OEText.language,vm.get_static("a","a","B"),vm.get_static("w","g","I"),count,selected,sentinel,buffer_raw("w","a")]
+	var groups: Dictionary={}
+	for index in mini(count,items.data.size()):
+		var row: Variant=items.data[index]
+		if not row is JObject: key.append(null);continue
+		var values: Array=[]
+		for name in ["b","c","d","e"]: values.append(vm.get_field(row,"t",name,"I"))
+		key.append(values)
+		for part in [[values[0],int(values[3])&4096],[values[1],int(values[3])&8192],[values[2],0]]:
+			if int(part[0])!=sentinel and int(part[1])==0: groups[(int(part[0])>>10)*5]=true
+	for pair in [["a","a","[[B"],["a","a","[[S"]]:
+		var table: Variant=vm.get_static(pair[0],pair[1],pair[2])
+		for group: int in groups:
+			var block: Variant=table.data[group] if table is JObject and group>=0 and group<table.data.size() else null
+			key.append(block.data if block is JObject else null)
+	for name in ["a","b"]:
+		var table: Variant=vm.get_static("b",name,"[S")
+		key.append(table.data if table is JObject else null)
+	var arguments: int=int(vm.get_static("a","ab","I"));key.append(arguments)
+	var objects: Variant=vm.get_static("a","a","[Ljava/lang/Object;")
+	var integers: Variant=vm.get_static("a","g","[I")
+	for index in arguments:
+		var value: Variant=objects.data[index] if objects is JObject and index<objects.data.size() else null
+		key.append([value!=null,str(value.data if value is JObject else value)])
+		key.append(integers.data[index] if integers is JObject and index<integers.data.size() else null)
+	return key
+
+func buffer_raw(owner: String, name: String) -> String:
+	var value: Variant=vm.get_static(owner,name,"Ljava/lang/StringBuffer;")
+	return str(value.data) if value is JObject and value.data is String else ""

@@ -4,10 +4,12 @@ extends RefCounted
 var enabled: bool=false
 var events: Array=[]
 var pending: Dictionary={}
+var last_report: Dictionary={}
 var last_publish: int=0
 var ticks: int=0
 var vm_us: int=0
 var ui_us: int=0
+var ui_frames: int=0
 var max_gap: int=0
 var last_tick: int=0
 var max_vm: int=0
@@ -44,10 +46,11 @@ func tick(vm: OEVM, screen: JObject, elapsed_us: int) -> void:
 
 func publish(extra_ui_us: int) -> void:
 	if not enabled: return
-	ui_us+=extra_ui_us
+	ui_us+=extra_ui_us;ui_frames+=1
 	var now: int=Time.get_ticks_msec()
 	if now-last_publish<500: return
-	var report: Dictionary={"version":ProjectSettings.get_setting("application/config/version"),"vm_ms":snappedf(vm_us/float(maxi(1,ticks))/1000.0,0.1),"ui_ms":snappedf(ui_us/float(maxi(1,ticks))/1000.0,0.1),"worst_vm_ms":snappedf(max_vm/1000.0,0.1),"frame_gap_ms":snappedf(max_gap/1000.0,0.1),"inputs":events}
+	var report: Dictionary={"version":ProjectSettings.get_setting("application/config/version"),"vm_ms":snappedf(vm_us/float(maxi(1,ticks))/1000.0,0.1),"ui_ms":snappedf(ui_us/float(maxi(1,ui_frames))/1000.0,0.1),"worst_vm_ms":snappedf(max_vm/1000.0,0.1),"frame_gap_ms":snappedf(max_gap/1000.0,0.1),"inputs":events}
+	last_report=report.duplicate(true)
 	if OS.has_feature("web"):
 		var label: String="VM %.1f мс · UI %.1f мс"%[report.vm_ms,report.ui_ms]
 		for index in range(events.size()-1,-1,-1):
@@ -56,4 +59,4 @@ func publish(extra_ui_us: int) -> void:
 				label+="\nОтклик %.0f мс · ход %.0f мс"%[event.first_ms,event.elapsed_ms]
 				break
 		JavaScriptBridge.eval("document.getElementById('oe-perf').textContent="+JSON.stringify(JSON.stringify(report))+";{const p=document.getElementById('oe-perf-view');if(p)p.textContent="+JSON.stringify(label)+";}")
-	last_publish=now;ticks=0;vm_us=0;ui_us=0;max_gap=0;max_vm=0
+	last_publish=now;ticks=0;vm_us=0;ui_us=0;ui_frames=0;max_gap=0;max_vm=0
