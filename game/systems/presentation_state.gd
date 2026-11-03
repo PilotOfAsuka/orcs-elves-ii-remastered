@@ -29,6 +29,17 @@ func chars(text: String) -> String:
 	return result.strip_edges()
 
 func text_id(id: int, dynamic: bool=false, raw: bool=false) -> String:
+	if OEText.language=="en" and not dynamic:
+		OEText.ensure_catalog()
+		if OEText.entries.has(str(id)):
+			var localized: String=OEText.english(id)
+			var objects: Variant=vm.get_static("a","a","[Ljava/lang/Object;")
+			var integers: Variant=vm.get_static("a","g","[I")
+			for n in int(vm.get_static("a","ab","I")):
+				var object: Variant=objects.data[n] if objects is JObject else null
+				var value: String=str(object.data if object is JObject else object) if object!=null else str(integers.data[n] if integers is JObject else 0)
+				localized=localized.replace("%"+str(n+1),OEText.localize(chars(value)))
+			return localized
 	var result: String=""
 	if dynamic:
 		var pool: Variant=vm.get_static("w","a","Ljava/lang/StringBuffer;")
@@ -65,7 +76,7 @@ func text_id(id: int, dynamic: bool=false, raw: bool=false) -> String:
 					elif integers is JObject: result+=str(integers.data[argument])
 			else: result+=String.chr(code)
 	if not raw: result=result.replace("--","\ue000").replace("-","").replace("\ue000","-")
-	return chars(result)
+	return OEText.localize(chars(result))
 
 func menu() -> Dictionary:
 	if int(vm.get_static("a","H","I"))!=2: return {}
@@ -93,14 +104,14 @@ func menu() -> Dictionary:
 
 func buffer(owner: String, name: String) -> String:
 	var value: Variant=vm.get_static(owner,name,"Ljava/lang/StringBuffer;")
-	return chars(str(value.data)) if value is JObject and value.data is String else ""
+	return OEText.localize(chars(str(value.data))) if value is JObject and value.data is String else ""
 
 func field(object: Variant, owner: String, name: String, desc: String) -> Variant:
 	return vm.get_field(object,owner,name,desc) if object is JObject else vm.default_value(desc)
 
 func hud() -> Dictionary:
 	var state: int=vm.get_static("a","H","I")
-	if state not in [3,4,7]: return {}
+	if state not in [3,4,7,9,12,17,19]: return {}
 	var player: Variant=vm.get_static("v","b","Lq;")
 	if not player is JObject: return {}
 	var weapon: int=field(player,"q","g","I")
@@ -129,7 +140,7 @@ func hud() -> Dictionary:
 	var context: String=""
 	var events: Variant=vm.get_static("e","a","[Ljava/lang/StringBuffer;")
 	if int(vm.get_static("e","c","I"))>0 and events is JObject and events.data[0] is JObject:
-		context=chars(str(events.data[0].data))
+		context=OEText.localize(chars(str(events.data[0].data)))
 	elif not buffer("e","d").is_empty(): context=buffer("e","d")
 	elif not buffer("e","c").is_empty(): context=buffer("e","c")
 	var target: Variant=vm.get_static("v","a","Ls;")
@@ -150,7 +161,7 @@ func hud() -> Dictionary:
 	var bubbles: Variant=vm.get_static("e","b","[Ljava/lang/StringBuffer;")
 	if bubbles is JObject:
 		for index in mini(int(vm.get_static("e","e","I")),bubbles.data.size()):
-			if bubbles.data[index] is JObject: notices.append(chars(str(bubbles.data[index].data)))
+			if bubbles.data[index] is JObject: notices.append(OEText.localize(chars(str(bubbles.data[index].data))))
 	return {"health":field(player,"q","e","I"),"max_health":field(player,"q","f","I"),"armor":armor,"max_armor":armor_max,"weapon":weapon,"weapon_name":weapon_name,"ammo":ammo,"context":context if context!="\"" else "","target_health":target_health,"target_max":target_max,"notices":"\n".join(notices)}
 
 func readable(text: String) -> String:
@@ -159,6 +170,8 @@ func readable(text: String) -> String:
 
 func reader() -> Dictionary:
 	var state: int=vm.get_static("a","H","I")
+	if state==14:
+		return {"kind":"credits","text":OEText.english(2*1024) if OEText.language=="en" else readable(buffer("a","b")),"left":buffer("a","d"),"right":buffer("a","e")}
 	if state in [8,13]:
 		var source: Variant=vm.get_static("a","f","Ljava/lang/StringBuffer;")
 		var pages: Variant=vm.get_static("a","n","[I")
@@ -170,7 +183,14 @@ func reader() -> Dictionary:
 		var began: int=vm.get_static("a","aQ","I")
 		var clock: int=vm.now_ms+vm.epoch_ms-OEVM.number(vm.get_static("App","b","J"))
 		var shown: int=clampi((clock-began)/50,0,length) if began!=-1 else 0
-		return {"kind":"story","page":page,"pages":count,"text":readable(source.data.substr(start,shown)),"full_text":readable(source.data.substr(start,length)),"complete":shown>=length,"left":text_id((10<<10)|78) if state==8 or page>0 else "","right":text_id(63 if page<count-1 else 44) if shown>=length else "Показать целиком"}
+		var full: String=readable(source.data)
+		var translated: String=OEText.localize(full)
+		var page_text: String=readable(source.data.substr(start,length))
+		var displayed: String=readable(source.data.substr(start,shown))
+		if OEText.language=="en" and translated!=full:
+			page_text=OEText.segment(source.data,translated,start,start+length)
+			displayed=page_text.substr(0,roundi(page_text.length()*float(shown)/maxi(1,length)))
+		return {"kind":"story","page":page,"pages":count,"text":displayed,"full_text":page_text,"complete":shown>=length,"left":text_id((10<<10)|78) if state==8 or page>0 else "","right":text_id(63 if page<count-1 else 44) if shown>=length else "Показать целиком"}
 	if state==7:
 		var source: Variant=vm.get_static("a","b","Ljava/lang/StringBuffer;")
 		if not source is JObject or not source.data is String: return {}
@@ -193,7 +213,65 @@ func reader() -> Dictionary:
 				elif row>revealed: shown=0
 				if shown<length: complete=false
 				text+=source.data.substr(start,shown)+"\n"
+		if OEText.language=="en" and positions is JObject:
+			var full: String=readable(source.data)
+			var translated: String=OEText.localize(full)
+			if translated!=full:
+				var first: int=int(positions.data[view*2])
+				var last_line: int=mini(lines-1,view+visible-1)
+				var end: int=int(positions.data[last_line*2])+int(positions.data[last_line*2+1])
+				var page_text: String=OEText.segment(source.data,translated,first,end)
+				text=page_text if complete else page_text.substr(0,roundi(page_text.length()*float(text.length())/maxi(1,end-first+visible)))
 		var choice: bool=(flags&4)!=0
 		var more: bool=view<lines-visible
 		return {"kind":"dialogue","text":readable(text),"choice":choice and not more and complete,"selected_choice":selected_choice,"choices":text_id(33).split(" ",false,1),"complete":complete,"can_back":(flags&1)==0,"more":more,"left":"Назад" if buffer("a","d")=="PgUp" else buffer("a","d"),"right":"Пропустить" if more else "Закрыть","primary":"Показать целиком" if not complete else ("Далее" if more else "Продолжить")}
 	return {}
+
+func cinematic() -> bool:
+	return int(vm.get_static("l","k","Z"))!=0 and vm.get_static("l","a","Lh;")!=null
+
+func map_state() -> Dictionary:
+	if int(vm.get_static("a","H","I"))!=5: return {}
+	var tiles: Variant=vm.get_static("k","b","[B")
+	var lines: Variant=vm.get_static("k","a","[I")
+	var coordinates: Variant=vm.get_static("k","a","[S")
+	if not tiles is JObject: return {}
+	var walls: Array=[]
+	if lines is JObject and coordinates is JObject:
+		for index in int(vm.get_static("k","v","I")):
+			var flags: int=int(lines.data[index])
+			if (flags&0x200000)==0 or (flags&0x100000)!=0: continue
+			var endpoints: Array=[]
+			for offset in ["p","q","s","t"]:
+				endpoints.append(int(coordinates.data[int(vm.get_static("k",offset,"I"))+index])/64.0)
+			walls.append(endpoints)
+	var markers: Array=[]
+	var cells: Variant=vm.get_static("l","c","[Ls;")
+	if cells is JObject:
+		for cell in mini(1024,cells.data.size()):
+			var entity: Variant=cells.data[cell]
+			var flags: int=int(tiles.data[cell])
+			var known_floor: bool=(flags&0x20)!=0 and (flags&9)==0 and (flags&4)==0
+			while entity is JObject:
+				var definition: Variant=field(entity,"s","a","Lg;")
+				var kind: int=field(definition,"g","a","B")
+				var subtype: int=field(definition,"g","b","B")
+				if known_floor and (kind==3 or (kind==7 and subtype!=7) or kind in [4,10]):
+					markers.append([cell%32+0.5,cell/32+0.5,"door" if kind==3 else "item"])
+				entity=field(entity,"s","a","Ls;")
+	# Key-coloured visible door segments, same visibility flags as a.d(Z)V.
+	var entities: Variant=vm.get_static("l","b","[Ls;")
+	if entities is JObject and lines is JObject and coordinates is JObject:
+		for index in range(int(vm.get_static("l","i","I")),int(vm.get_static("l","j","I"))+1):
+			var entity: Variant=entities.data[index]
+			var definition: Variant=field(entity,"s","a","Lg;")
+			if field(definition,"g","a","B") not in [5,10] and field(definition,"g","b","B")!=1: continue
+			var segment: int=(int(field(entity,"s","b","I"))&65535)-1
+			if segment<0 or segment>=lines.data.size(): continue
+			var flags: int=int(lines.data[segment])
+			if (flags&0x200000)==0 or (flags&0x400000)!=0: continue
+			var endpoints: Array=[]
+			for offset in ["p","q","s","t"]: endpoints.append(int(coordinates.data[int(vm.get_static("k",offset,"I"))+segment])/64.0)
+			endpoints.append(int(field(definition,"g","a","S")))
+			walls.append(endpoints)
+	return {"level_id":tiles.get_instance_id(),"tiles":tiles.data,"walls":walls,"markers":markers,"x":int(vm.get_static("a","h","I"))/64.0,"y":int(vm.get_static("a","i","I"))/64.0,"angle":int(vm.get_static("a","q","I")),"hidden":int(vm.get_static("l","j","Z"))!=0}

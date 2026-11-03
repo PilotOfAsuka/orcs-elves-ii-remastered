@@ -29,7 +29,7 @@ func run() -> void:
 		ui.arrange()
 		if ui.view_frame.position.x<0 or ui.view_frame.position.y<0: failures.append("world outside viewport")
 		if ui.controls.position.y+ui.controls.size.y>dims.y: failures.append("controls outside viewport")
-		if ui.keypad.visible and ui.keypad.position.y+ui.keypad.size.y>ui.auxiliary.position.y: failures.append("overlapping controls")
+		if ui.keypad.visible and ui.auxiliary.visible and ui.keypad.position.y+ui.keypad.size.y>ui.auxiliary.position.y: failures.append("overlapping controls")
 	for path in paths:
 		if FileAccess.file_exists(path): DirAccess.remove_absolute(path)
 	ui.queue_free()

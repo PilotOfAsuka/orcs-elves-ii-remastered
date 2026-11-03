@@ -13,17 +13,19 @@ func run() -> void:
 	ui.paused=true
 	viewport.add_child(ui)
 	var shots: Array=[]
-	for sample in [["world",390,844,0],["world",390,844,1],["world",1280,720,1],["dialogue",390,844,0],["story",390,844,0]]:
-		if not OESnapshot.new().load_game(ui.session,"res://../build/fixtures/"+str(sample[0])+".oe2"): quit(1);return
-		if sample[0]!="world":
+	for sample in [["world",390,844,0],["world",390,844,1],["world",1280,720,1],["dialogue",390,844,0],["story",390,844,0],["map",390,844,1],["world",1280,720,1,"en"],["dialogue",390,844,1,"en"],["story",390,844,1,"en"]]:
+		ui.select_language(str(sample[4]) if sample.size()>4 else "ru")
+		if not OESnapshot.new().load_game(ui.session,"res://../build/fixtures/"+("world" if sample[0]=="map" else str(sample[0]))+".oe2"): quit(1);return
+		if sample[0] not in ["world","map"]:
 			ui.session.key(-7 if sample[0]=="story" else 53)
 			for n in 12: ui.session.tick(50)
+		if sample[0]=="map": ui.session.vm.set_static("a","H","I",5)
 		viewport.size=Vector2i(sample[1],sample[2])
 		ui._process(0.0)
 		ui.set_render_mode(sample[3])
 		await create_timer(0.3).timeout
 		await RenderingServer.frame_post_draw
-		var path: String="res://../build/preview_%s_%dx%d_%d.png" % [sample[0],sample[1],sample[2],sample[3]]
+		var path: String="res://../build/preview_%s_%dx%d_%d.png" % [str(sample[0])+("_en" if sample.size()>4 else ""),sample[1],sample[2],sample[3]]
 		var result: Error=viewport.get_texture().get_image().save_png(path)
 		shots.append({"path":path,"error":result,"state":ui.session.report().state})
 	ui.queue_free()

@@ -52,6 +52,7 @@ func draw_rgb(g: OEMidpGraphics, args: Array) -> void:
 			var packed: int=int(source[start+pixel])
 			bytes.encode_u32(pixel*4,0xff000000|((packed&255)<<16)|(packed&0xff00)|((packed>>16)&255))
 		var image:=Image.create_from_data(width,height,false,Image.FORMAT_RGBA8,bytes)
+		cached=image
 		g.surface.blit_rect(image,Rect2i(rect.position-Vector2i(x,y),rect.size),rect.position)
 	else:
 		for yy in range(rect.position.y,rect.end.y):
@@ -67,6 +68,18 @@ func draw_rgb(g: OEMidpGraphics, args: Array) -> void:
 		var world_rect := Rect2i(x,y,width,height)
 		if Rect2i(Vector2i.ZERO,g.surface.get_size()).encloses(world_rect) and g.clip.encloses(world_rect):
 			screen.extra.world_surface=g.surface.get_region(world_rect)
+			screen.extra.world_revision=int(screen.extra.get("world_revision",0))+1
+		elif width>0 and height>0 and start>=0 and scan==width and start+width*height<=source.size():
+			# Cinematic mode 17 clips drawRGB to the phone's letterbox. The new UI
+			# needs the complete world, before that clip and before all old overlays.
+			if cached!=null and cached.get_width()==width and cached.get_height()>=height:
+				screen.extra.world_surface=cached.get_region(Rect2i(0,0,width,height))
+			else:
+				var bytes:=PackedByteArray();bytes.resize(width*height*4)
+				for pixel in width*height:
+					var packed: int=int(source[start+pixel])
+					bytes.encode_u32(pixel*4,0xff000000|((packed&255)<<16)|(packed&0xff00)|((packed>>16)&255))
+				screen.extra.world_surface=Image.create_from_data(width,height,false,Image.FORMAT_RGBA8,bytes)
 			screen.extra.world_revision=int(screen.extra.get("world_revision",0))+1
 
 func draw_region(g: OEMidpGraphics, args: Array) -> void:
