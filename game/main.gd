@@ -176,6 +176,10 @@ func _ready() -> void:
 		qa_check=preload("res://qa/web_sprite_check.gd").new()
 		qa_check.call_deferred("run",self)
 
+	if OS.has_feature("web") and bool(JavaScriptBridge.eval("location.search.includes('weaponcheck=1')")):
+		qa_check=preload("res://qa/web_weapon_check.gd").new()
+		qa_check.call_deferred("run",self)
+
 func make_theme() -> void:
 	theme = Theme.new()
 	theme.default_font_size = 15

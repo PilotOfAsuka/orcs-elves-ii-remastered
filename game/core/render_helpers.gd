@@ -10,7 +10,7 @@ func _init(machine: OEVM) -> void:
 	raster=OEWebRaster.new(vm)
 
 func accepts(owner: String, key: String) -> bool:
-	return owner=="k" and key in ["a(IIIII)V","b(IIII)V","b(II)V","f()Z","h()Z","a(IIIIIIII)Z"]
+	return owner=="k" and key in ["a(IIIII)V","b(IIII)V","b(II)V","f()Z","h()Z","a(IIIIIIII)Z","g()V"]
 
 func data(name: String, desc: String) -> Array:
 	var object: Variant=vm.get_static("k",name,desc)
@@ -27,6 +27,7 @@ func invoke(key: String, args: Array) -> Variant:
 		"f()Z": return int(wall_columns())
 		"h()Z": return int(sprite_columns())
 		"a(IIIIIIII)Z": return int(sprite_2d(args))
+		"g()V": tint()
 	return null
 
 func number(name: String, desc: String="I") -> int:
@@ -130,6 +131,9 @@ func wall_columns() -> bool:
 	return empty
 
 func sprite_2d(args: Array) -> bool:
+	if raster.enabled:
+		var result: Variant=raster.sprite_2d(args)
+		if result!=null: return bool(result)
 	if number("j","Z")!=0: return true
 	var width: int=number("b")
 	var unit: int=32768/width
@@ -343,3 +347,10 @@ func sprite(args: Array) -> void:
 				destination[pixel]=OEVM.i32(0xff000000|((((old>>16)&255)*((color>>16)&255)<<8)&0xff0000)|((((old>>8)&255)*((color>>8)&255))&0xff00)|(((old&255)*(color&255)>>8)&255))
 		if mode!=8: position=OEVM.i32(position+step)
 		pixel=OEVM.i32(pixel+stride)
+
+func tint() -> void:
+	# Original k.g()V: OR the same mask into every Java framebuffer pixel.
+	if raster.tint(): return
+	var output: JObject=vm.get_static("k","m","[I")
+	raster.before_access(output,true)
+	for index in output.data.size(): output.data[index]=OEVM.i32(int(output.data[index])|0xff480080)

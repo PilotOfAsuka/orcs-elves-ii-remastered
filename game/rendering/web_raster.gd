@@ -5,9 +5,12 @@ extends RefCounted
 var vm: OEVM
 var enabled: bool=false
 var defer_present: bool=true
+var fast_2d: bool=true
 var image_dirty: bool=true
 var wall_jobs: int=0
 var span_jobs: int=0
+var weapon_jobs: int=0
+var weapon_fallbacks: int=0
 var batch_jobs: int=0
 var sync_jobs: int=0
 var texture_switches: int=0
@@ -56,6 +59,15 @@ func enqueue(mode: int, args: Array) -> bool:
 	span_jobs+=1
 	commands.append_array(PackedInt32Array([mode,args[0],args[1],args[2],stride,count]))
 	commands.append_array(PackedInt32Array(palette.data) if mode!=8 else PackedInt32Array([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]))
+	return true
+
+func tint() -> bool:
+	if not enabled: return false
+	var output: Variant=vm.get_static("k","m","[I")
+	if not output is JObject: return false
+	if destination!=null and destination!=output: sync()
+	destination=output;image_dirty=true
+	commands.append_array(PackedInt32Array([11,OEVM.i32(0xff480080)]))
 	return true
 
 func rows(args: Array) -> bool:
@@ -178,14 +190,47 @@ func sprite_columns() -> Variant:
 	var input: Dictionary={"vertices":vertices.data,"depth":vm.get_static("k","p","[I").data,"lower":vm.get_static("k","n","[I").data,"upper":vm.get_static("k","o","[I").data,"flags":vm.get_static("k","ag","I"),"shape":materials[material*2],"palette":vm.get_static("k","q","[I").data}
 	for pair in [["shift","aR","I"],["floor","c","S"],["ceiling","d","S"],["center","as","I"],["camera","aG","I"],["width","b","I"],["scale","aS","I"],["effects","aQ","I"],["mode","ba","I"]]: input[pair[0]]=vm.get_static("k",pair[1],pair[2])
 	prepare()
-	var edges: JObject=vm.get_static("k","e","[S")
-	if edges!=last_edges:
-		JavaScriptBridge.eval("OERaster.edges=OERaster.decode("+JSON.stringify(Marshalls.raw_to_base64(PackedInt32Array(edges.data).to_byte_array()))+")",true)
-		last_edges=edges
+	prepare_edges()
 	var result: Variant=JavaScriptBridge.eval("OERaster.sprites("+JSON.stringify(JSON.stringify(input))+")",true)
 	if not result is String: vm.fail("Browser sprite columns failed");return false
 	record("sprites",began)
 	return bool(JSON.parse_string(result).empty)
+
+func prepare_edges() -> void:
+	var edges: JObject=vm.get_static("k","e","[S")
+	if edges!=last_edges:
+		JavaScriptBridge.eval("OERaster.edges=OERaster.decode("+JSON.stringify(Marshalls.raw_to_base64(PackedInt32Array(edges.data).to_byte_array()))+")",true)
+		last_edges=edges
+
+func sprite_2d(args: Array) -> Variant:
+	if not enabled or not fast_2d: return null
+	if int(vm.get_static("k","j","Z"))!=0: return true
+	var width: int=vm.get_static("k","b","I")
+	if width<=0 or width>4096 or int(args[7])<0 or int(args[7])>4096: return null
+	var sprites: Variant=vm.get_static("k","j","[S")
+	var materials: Variant=vm.get_static("k","i","[S")
+	if not sprites is JObject or not materials is JObject or int(args[0])<0 or int(args[0])>=sprites.data.size(): return null
+	var material: int=OEVM.i32(int(sprites.data[int(args[0])])+int(args[1]))
+	if material<0 or material*2+1>=materials.data.size(): return null
+	var output: Variant=vm.get_static("k","m","[I")
+	var texels: Variant=vm.get_static("k","c","[B")
+	if not output is JObject or not texels is JObject: return null
+	var began: int=Time.get_ticks_usec() if profile_enabled else 0
+	if destination!=null and (destination!=output or (texture!=null and texture!=texels)): sync()
+	destination=output;texture=texels;image_dirty=true
+	vm.set_static("k","aQ","I",args[5])
+	vm.render_helpers.colors(int(materials.data[material*2+1]),int(args[4]))
+	var input: Dictionary={"shape":materials.data[material*2],"width":width,"height":vm.get_static("k","c","I"),"x":args[2],"y":args[3],"scale":args[7],"flags":args[6],"mode":vm.get_static("k","ba","I"),"palette":vm.get_static("k","q","[I").data,"lower":vm.get_static("k","n","[I").data,"upper":vm.get_static("k","o","[I").data}
+	prepare();prepare_edges()
+	var result: Variant=JavaScriptBridge.eval("OERaster.weapon("+JSON.stringify(JSON.stringify(input))+")",true)
+	if not result is String: vm.fail("Browser 2D sprite failed");return false
+	var report: Dictionary=JSON.parse_string(result)
+	record("sprite_2d",began)
+	if report.get("unsupported",false):
+		weapon_fallbacks+=1
+		return null
+	weapon_jobs+=1
+	return bool(report.empty)
 
 func preview(array: Variant, width: int, height: int) -> Image:
 	# drawRGB only needs the displayed image. Keep Java pixels buffered until a

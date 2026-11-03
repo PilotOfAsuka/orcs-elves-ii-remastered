@@ -10,10 +10,11 @@ func run(ui: Control) -> void:
 	var passed: bool=OESnapshot.new().load_game(session,ui.saved_path)
 	if passed: passed=OESnapshot.new().save_game(session,base)
 	if passed:
-		for angle in [0,64,128,192,32,96,160,224,0,64,128,192,0,64,0,64]:
+		for angle in [0,64,128,192,32,96,160,224,0,64,128,192,0,64,0,64,0,64]:
 			var probe: bool=reports.size()>=8 and reports.size()<12
 			var repeat: bool=reports.size()>=12 and reports.size()<14
-			var texture_probe: bool=reports.size()>=14
+			var texture_probe: bool=reports.size()>=14 and reports.size()<16
+			var tint: bool=reports.size()>=16
 			var outputs: Array=[]
 			for js in [false,true]:
 				OESnapshot.new().load_game(session,base)
@@ -75,6 +76,7 @@ func run(ui: Control) -> void:
 						var result: Variant=session.platform.invoke({"owner":"java/io/InputStream","name":"read","desc":"([BII)I"},stream,[texels,index,1],session.vm.active)
 						if result!=1: passed=false
 					session.vm.render_helpers.wall([1,index<<12,0,1,1])
+				if tint: session.vm.render_helpers.tint()
 				var width: int=session.vm.get_static("k","b","I")
 				var height: int=session.vm.get_static("k","c","I")
 				session.platform.draw_rgb(session.platform.screen.data,[session.vm.get_static("k","m","[I"),0,width,0,0,width,height,0])
@@ -96,7 +98,7 @@ func run(ui: Control) -> void:
 				outputs.append({"compiled":session.vm.geometry.accepts("k","a(S)V"),"instructions":session.vm.instructions-before,"wall_jobs":session.vm.render_helpers.raster.wall_jobs,"span_jobs":session.vm.render_helpers.raster.span_jobs,"raster_us":present_us,"present_syncs":present_syncs,"batches":session.vm.render_helpers.raster.batch_jobs,"syncs":session.vm.render_helpers.raster.sync_jobs,"texture_switches":session.vm.render_helpers.raster.texture_switches,"us":elapsed,"graph":FileAccess.open(result_path,FileAccess.READ).get_var(false).checksum})
 			var equal: bool=outputs.size()==2 and outputs[0].graph==outputs[1].graph
 			passed=passed and equal and session.vm.errors.is_empty()
-			reports.append({"probe":probe,"repeat":repeat,"texture_probe":texture_probe,"angle":angle,"equal":equal,"runs":outputs})
+			reports.append({"probe":probe,"repeat":repeat,"texture_probe":texture_probe,"tint":tint,"angle":angle,"equal":equal,"runs":outputs})
 	var report: Dictionary={"passed":passed,"scenes":reports,"errors":session.vm.errors.duplicate()}
 	JavaScriptBridge.eval("(()=>{let p=document.createElement('pre');p.id='oe-render-check';p.style='position:fixed;inset:0;background:#101820;color:white;z-index:999;white-space:pre-wrap;overflow:auto';p.textContent="+JSON.stringify(JSON.stringify(report))+";document.body.appendChild(p)})()",true)
 	if FileAccess.file_exists(base): OESnapshot.new().load_game(session,base)

@@ -33,4 +33,10 @@ const pair=raster.finishBytes();
 assert.equal(raster.encode(new Int32Array(pair.buffer,0,pair.byteLength/8)),imageCase.expected);
 assert.deepEqual(pair.subarray(pair.byteLength/2),directRGBA);
 assert.equal(raster.pixels,null);
+const tintCases=JSON.parse(fs.readFileSync('build/tint_cases.json'));
+for(const c of tintCases){
+ const pixels=Int32Array.from(c.base);
+ raster.render(pixels,null,[11,0xff480080|0]);
+ assert.deepEqual(Array.from(pixels),c.expected);
+}
 console.log(JSON.stringify({comparisons:cases.length,passed:true}));

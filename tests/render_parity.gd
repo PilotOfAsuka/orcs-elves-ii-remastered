@@ -73,7 +73,7 @@ func run() -> void:
 				var variant: Array=args.duplicate();variant[6]=flags
 				kernel(key,variant,0)
 			continue
-		if key in ["f()Z","h()Z"]:
+		if key in ["f()Z","h()Z","g()V"]:
 			kernel(key,args,0);continue
 		var index: int=4 if key=="a(IIIII)V" else 3
 		var counts: Dictionary={}

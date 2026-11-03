@@ -17,6 +17,7 @@
     let c=0;
     while(c<commands.length) {
       const mode=commands[c++];
+      if(mode===11){const mask=commands[c++];for(let i=0;i<pixels.length;i++)pixels[i]|=mask;continue;}
       if(mode===10){const start=commands[c++],rows=commands[c++],width=commands[c++];
         const row=commands.subarray(c,c+width);c+=width;
         for(let y=0;y<rows;y++)pixels.set(row,start+y*width);
@@ -160,11 +161,71 @@
     }
     return {empty};
   }
-  root.OERaster={decode,decodeTexels,encode,render,wallColumns,spriteColumns,edges:null,texels:new Int32Array(0),pixels:null,
+  // Original k.a(IIIIIIII)Z. Plan first: unsupported bounds must not partially
+  // paint before the portable fallback runs. Keep even the per-run step flip.
+  function plan2D(p,e) {
+    const w=x=>x|0,edge=i=>{if(i<0||i>=e.length)throw Error('shape bounds');return e[i];};
+    const unit=Math.trunc(32768/p.width),inverse=Math.trunc(65536/unit),scale=p.scale;
+    let vertical=scale?w(Math.imul(inverse,scale))>>8:inverse;
+    const advance=scale?Math.trunc((unit<<8)/scale):unit;
+    let step=scale?w(Math.trunc((unit<<8)/scale)<<4):unit<<4;
+    if(advance<=0)throw Error('unsupported scale');
+    const shape=p.shape,table=shape+4,start=edge(shape+2)-32,finish=edge(shape+3)-32;
+    const top=w(p.height-(Math.imul(w(p.y+64),vertical)>>8));
+    let offset=w((edge(shape)&65535)|(edge(shape+1)<<16));
+    let left=w(p.x+(w(Math.imul(start,inverse)+128)>>8)),right=w(p.x+(w(Math.imul(finish,inverse)+128)>>8));
+    const extent=w(finish-start+1),lo=p.lower,hi=p.upper,flags=p.flags;
+    let position=0,direction=1;
+    if(left<lo[0]){position=w(-Math.imul(advance,w(left-lo[0])));left=lo[0];}
+    if(right>hi[0])right=hi[0];
+    if(left<lo[0]){if((flags&0x20000)===0)position=w(position-Math.imul(advance,left));left=lo[0];}
+    if(right>=hi[0])right=hi[0]-1;
+    if((flags&0x20000)!==0){const swap=left;left=right;right=swap;direction=-1;}
+    let last=0,empty=1,guard=0;
+    const end=w(right+direction),commands=[];
+    while(left!==end&&(position>>8)<extent) {
+      if(++guard>65536)throw Error('unsupported shape extent');
+      const column=position>>8;position=w(position+advance);
+      while(last!==column) {
+        const movement=last<column?1:-1;
+        let i=shape+edge(last<column?table+last:table+last-1)+2,length=0;
+        while((edge(i)&255)!==127){length=w(length+(edge(i)>>8));i++;}
+        offset=w(offset+Math.imul(length,movement));last=w(last+movement);
+      }
+      let texel=offset,i=shape+edge(table+column)+2;
+      while((edge(i)&255)!==127) {
+        const run=edge(i++),length=run>>8,height=(flags&0x40000)!==0?64-(run&255)-length:run&255;
+        let count=Math.imul(vertical,length)>>8,screen=w(top+(Math.imul(vertical,height)>>8)),uv=texel<<12;
+        if(screen<lo[1]){uv=w(uv+Math.imul(step,w(lo[1]-screen)));count=w(count-w(lo[1]-screen));screen=lo[1];}
+        if(w(screen+count)>hi[1])count=w(hi[1]-screen);
+        if((flags&0x40000)!==0){uv=w(uv+Math.imul(unit,w(count-1)));step=w(-step);}
+        if(count>0){empty=0;if([0,1,3,4,8,9].includes(p.mode))commands.push(p.mode,w(left+Math.imul(screen,p.width)),uv,step,p.width,count,...p.palette);}
+        texel=w(texel+length);
+      }
+      left=w(left+direction);
+    }
+    return {empty,commands};
+  }
+  function sprite2D(p,pixels,texels,edges) {
+    let plan;
+    try {
+      plan=plan2D(p,edges);
+      for(let i=0;i<plan.commands.length;i+=22) {
+        const c=plan.commands,start=c[i+1],uv=c[i+2],step=c[i+3],stride=c[i+4],count=c[i+5];
+        const end=start+(count-1)*stride,last=uv+(count-1)*step;
+        if(Math.min(start,end)<0||Math.max(start,end)>=pixels.length)throw Error('pixel bounds');
+        if(c[i]!==8&&(Math.min(uv,last)<0||Math.max(uv,last)>2147483647||(Math.max(uv,last)>>13)>=texels.length))throw Error('texture bounds');
+      }
+    } catch(error) {return {unsupported:true};}
+    render(pixels,texels,plan.commands);
+    return {empty:plan.empty};
+  }
+  root.OERaster={decode,decodeTexels,encode,render,wallColumns,spriteColumns,sprite2D,edges:null,texels:new Int32Array(0),pixels:null,
     start(base){this.pixels=decode(base);},
     feed(commands){render(this.pixels,this.texels,decode(commands));},
     columns(input){return JSON.stringify(wallColumns(JSON.parse(input),this.pixels,this.texels));},
     sprites(input){return JSON.stringify(spriteColumns(JSON.parse(input),this.pixels,this.texels,this.edges));},
+    weapon(input){return JSON.stringify(sprite2D(JSON.parse(input),this.pixels,this.texels,this.edges));},
     rgba(){
       const pixels=this.pixels,rgba=new Int32Array(pixels.length);
       for(let i=0;i<pixels.length;i++){const p=pixels[i];rgba[i]=0xff000000|((p&255)<<16)|(p&0xff00)|((p>>>16)&255);}
