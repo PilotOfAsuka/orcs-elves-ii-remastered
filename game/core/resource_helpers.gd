@@ -1,6 +1,6 @@
 class_name OEResourceHelpers
 extends RefCounted
-## Exact inner loops in k.d()Z (shape run tables) and k.b()Z (wall nibbles).
+## Exact binary readers, identity lookups and loader loops (shapes, texels, strings).
 ## File selection, reads, allocation, progress and all game decisions stay in
 ## bytecode. Locals and the exit PC are preserved for snapshots and fallback.
 var vm: OEVM
@@ -9,7 +9,58 @@ func _init(machine: OEVM) -> void:
 	vm=machine
 
 func accepts(owner: String, key: String) -> bool:
-	return owner=="p" and key in ["a(I)Lg;","a(II)Lg;","a(III)Lg;"]
+	if owner=="p": return key in ["a(I)Lg;","a(II)Lg;","a(III)Lg;"]
+	if owner=="n": return key in ["a()B","a()S","a(I)S","b(I)S","b()S","a()I","b()I","c()S"]
+	if owner=="s" and key=="a()S": return vm.initialized.has("l") and int(vm.get_static("l","e","I"))<=32767
+	return false
+
+func invoke_method(owner: String, key: String, object: Variant, args: Array) -> Variant:
+	if owner=="p": return lookup(key,args)
+	if owner=="s": return entity_index(object)
+	return read_number(key,args)
+
+func byte_at(array: Variant, index: int) -> Variant:
+	if array==null: vm.throw_exception("java/lang/NullPointerException");return null
+	if index<0 or index>=array.data.size(): vm.throw_exception("java/lang/ArrayIndexOutOfBoundsException",str(index));return null
+	vm.render_helpers.raster.before_access(array)
+	return int(array.data[index])
+
+func read_number(key: String, args: Array) -> Variant:
+	var array: Variant=vm.get_static("n","a","[B")
+	var index: int=int(args[0]) if not args.is_empty() else int(vm.get_static("n","b","I"))
+	# The one-byte a() overloads increment BEFORE baload, even on exceptions.
+	if key in ["a()B","a()S"]: vm.set_static("n","b","I",OEVM.i32(index+1))
+	var value: int=0
+	if key=="b()I":
+		# Preserve reverse access order and fault index from the original bytecode.
+		for offset in [3,2,1,0]:
+			var byte: Variant=byte_at(array,OEVM.i32(index+offset))
+			if vm.exception!=null: return null
+			value=OEVM.i32(value|((int(byte)&255)<<(offset*8)))
+	else:
+		var first: Variant=byte_at(array,index)
+		if vm.exception!=null: return null
+		value=int(first) if key=="a()B" else int(first)&255
+		if key in ["b(I)S","b()S","a()I"]:
+			var second: Variant=byte_at(array,OEVM.i32(index+1))
+			if vm.exception!=null: return null
+			value+=((int(second)<<8)&65280)
+			if key!="a()I": value=OEVM.signed(value,16)
+		elif key=="c()S": value=OEVM.signed(value<<3,16)
+	if args.is_empty() and key not in ["a()B","a()S"]:
+		var count: int=4 if key=="b()I" else (2 if key in ["b()S","a()I"] else 1)
+		vm.set_static("n","b","I",OEVM.i32(index+count))
+	return value
+
+func entity_index(object: Variant) -> Variant:
+	var count: int=vm.get_static("l","e","I")
+	if count<=0: return -1
+	var table: Variant=vm.get_static("l","b","[Ls;")
+	if table==null: vm.throw_exception("java/lang/NullPointerException");return null
+	for index in count:
+		if index>=table.data.size(): vm.throw_exception("java/lang/ArrayIndexOutOfBoundsException",str(index));return null
+		if object==table.data[index]: return index
+	return -1
 
 func lookup(key: String, args: Array) -> Variant:
 	var count: int=vm.get_static("p","b","I")
@@ -38,9 +89,14 @@ func install() -> void:
 	assert(vm.classes.l.methods["b(I)V"].code[55]==[167,5])
 	vm.classes.k.methods["a(IIII)V"].resource_blocks={142:"depth_reset"}
 	vm.classes.l.methods["b(I)V"].resource_blocks={5:"inactive_threads"}
+	var strings: Dictionary=vm.classes.a.methods["e(I)V"]
+	assert(strings.code[104]==[167,94] and strings.code[140]==[167,123])
+	strings.resource_blocks={94:"string_count",123:"string_offsets"}
 
 func invoke(frame: Dictionary, key: String) -> void:
-	if key=="inactive_threads": inactive_threads(frame)
+	if key=="string_count": string_count(frame)
+	elif key=="string_offsets": string_offsets(frame)
+	elif key=="inactive_threads": inactive_threads(frame)
 	elif key=="depth_reset": depth_reset(frame)
 	elif key=="wall_nibbles": wall_nibbles(frame)
 	else: shape_runs(frame)
@@ -135,3 +191,30 @@ func inactive_threads(frame: Dictionary) -> void:
 		index+=1
 	frame.locals[1]=20;frame.locals[2]=previous
 	frame.pc=56;frame.last=7
+
+func string_count(frame: Dictionary) -> void:
+	var bytes: Variant=frame.locals[6]
+	var index: int=frame.locals[8]
+	if not bytes is JObject or index<0 or index>bytes.data.size(): return
+	var count: int=frame.locals[7]
+	for offset in range(index,bytes.data.size()):
+		if int(bytes.data[offset])==0: count=OEVM.i32(count+1)
+	frame.locals[7]=count;frame.locals[8]=bytes.data.size()
+	frame.pc=105;frame.last=97
+
+func string_offsets(frame: Dictionary) -> void:
+	var bytes: Variant=frame.locals[6]
+	var output: Variant=frame.locals[8]
+	var index: int=frame.locals[9]
+	var cursor: int=frame.locals[7]
+	if not bytes is JObject or not output is JObject or index<0 or index>bytes.data.size() or cursor<0 or cursor>output.data.size(): return
+	var required: int=0
+	for offset in range(index,bytes.data.size()):
+		if int(bytes.data[offset])==0: required+=1
+	if required>output.data.size()-cursor: return
+	vm.render_helpers.raster.before_access(output,true)
+	for offset in range(index,bytes.data.size()):
+		if int(bytes.data[offset])==0:
+			output.data[cursor]=OEVM.signed(OEVM.i32(offset+1),16);cursor+=1
+	frame.locals[7]=cursor;frame.locals[9]=bytes.data.size()
+	frame.pc=141;frame.last=126

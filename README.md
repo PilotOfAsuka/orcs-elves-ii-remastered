@@ -60,6 +60,8 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 В 0.0.10 добавлены `weapon_cases.gd` → `test_web_weapon.cjs` и
 `tint_parity.gd`; `?weaponcheck=1` сравнивает настоящее оружие тремя путями,
 включая его цветовые режимы, отражения и масштабы.
+Ускорения загрузки 0.0.11 проверяются `data_parity.gd`,
+`string_blocks_parity.gd` и тремя целыми методами `resource_parity.gd`.
 Для Web создать `build/web/`, выполнить импорт проекта и экспорт пресета Web.
 Готовые файлы публикуются как статический сайт через HTTP/HTTPS.
 

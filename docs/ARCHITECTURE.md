@@ -149,3 +149,21 @@ unsupported возвращается в существующий GDScript-пут
 Игровое условие вызова не переносилось и не менялось. `g()V` и многоярусные
 стены `g()Z` остаются разными полными ключами методов. Исходные framebuffer
 и сохранения публикуются через прежние барьеры.
+
+## Binary readers и строковые индексы, 0.0.11
+
+OEResourceHelpers.invoke_method расширяет исходный lookup p точными readers n
+и identity lookup s. Вызов проходит через тот же invokestatic/invokevirtual
+с проверкой инициализации и null receiver до dispatch. Read helpers сохраняют
+порядок baload, изменения n.b, int32 overflow и Java exception type/message.
+Поля различаются по полному owner/name/descriptor (особенно n.a()B/S/I).
+
+Сгенерированные k.b(I)I и k.a(II)S работают с теми же таблицами; кэш индексов
+не введён. Block intrinsics a.e(I)V оставляют внешнюю загрузку и Throwable
+handler в VM, меняя только два обратных перехода, привязанных к исходным PC.
+Они сохраняют locals, stack, last и signed short запись. Неподходящие границы
+исполняются прежним путём. Native-запись offsets соблюдает before_access.
+
+Identity fast path s.a()S включается только после инициализации l. Если l
+ещё не инициализирован, исходное тело выполняет getstatic и запускает его
+clinit. Сценарий с наблюдаемым эффектом clinit проверен тем же invoker harness.

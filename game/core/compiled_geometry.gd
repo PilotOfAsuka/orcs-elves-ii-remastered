@@ -8,7 +8,7 @@ func _init(machine: OEVM) -> void:
 	vm=machine
 
 func accepts(owner: String, key: String) -> bool:
-	return ((owner=="k" and key in ["h(I)V", "i(I)V", "i()Z", "b(III)V", "b(I)Z", "a(S)V", "k()Z", "j()Z", "g()Z", "j()V", "a(II[I[I)V", "a(IIIIIIIII)Z"]) or (owner=="l" and key=="e()Z")) and vm.initialized.has("k") and vm.initialized.has("l") and vm.initialized.has("App")
+	return ((owner=="k" and key in ["h(I)V", "i(I)V", "i()Z", "b(III)V", "b(I)Z", "a(S)V", "k()Z", "j()Z", "g()Z", "j()V", "a(II[I[I)V", "a(IIIIIIIII)Z", "b(I)I", "a(II)S"]) or (owner=="l" and key=="e()Z")) and vm.initialized.has("k") and vm.initialized.has("l") and vm.initialized.has("App")
 
 func invoke(key: String, args: Array) -> Variant:
 	match key:
@@ -25,6 +25,8 @@ func invoke(key: String, args: Array) -> Variant:
 		"a(II[I[I)V": return m10(args)
 		"a(IIIIIIIII)Z": return m11(args)
 		"l.e()Z": return m12(args)
+		"b(I)I": return m13(args)
+		"a(II)S": return m14(args)
 	return null
 
 func aload(array: Variant, index: int) -> Variant:
@@ -3391,4 +3393,201 @@ func m12(args: Array) -> Variant:
 			26:
 				var t26_0: Variant=0
 				return t26_0
+	return null
+
+func m13(args: Array) -> Variant:
+	var local: Array=[]
+	local.resize(9)
+	local[0]=args[0]
+	var stack: Array=[]
+	var pc: int=0
+	while true:
+		match pc:
+			0:
+				var t0_0: Variant=vm.statics["k"]["i:[S"]
+				var t0_1: Variant=local[0]
+				var t0_2: Variant=2
+				var t0_3: Variant=OEVM.i32(int(t0_1)*int(t0_2))
+				var t0_4: Variant=aload(t0_0,int(t0_3))
+				if vm.exception!=null: return null
+				local[1]=t0_4
+				var t0_5: Variant=vm.statics["k"]["e:[S"]
+				var t0_6: Variant=local[1]
+				var t0_7: Variant=2
+				var t0_8: Variant=OEVM.i32(int(t0_6)+int(t0_7))
+				var t0_9: Variant=aload(t0_5,int(t0_8))
+				if vm.exception!=null: return null
+				local[2]=t0_9
+				var t0_10: Variant=vm.statics["k"]["e:[S"]
+				var t0_11: Variant=local[1]
+				var t0_12: Variant=3
+				var t0_13: Variant=OEVM.i32(int(t0_11)+int(t0_12))
+				var t0_14: Variant=aload(t0_10,int(t0_13))
+				if vm.exception!=null: return null
+				local[3]=t0_14
+				var t0_15: Variant=0
+				local[4]=t0_15
+				var t0_16: Variant=local[1]
+				var t0_17: Variant=4
+				var t0_18: Variant=OEVM.i32(int(t0_16)+int(t0_17))
+				local[5]=t0_18
+				var t0_19: Variant=local[2]
+				local[6]=t0_19
+				pc=26
+			26:
+				var t26_0: Variant=local[6]
+				var t26_1: Variant=local[3]
+				pc=63 if t26_0>t26_1 else 29
+				continue
+			29:
+				var t29_0: Variant=local[1]
+				var t29_1: Variant=vm.statics["k"]["e:[S"]
+				var t29_2: Variant=local[5]
+				var t29_3: Variant=local[6]
+				var t29_4: Variant=local[2]
+				var t29_5: Variant=OEVM.i32(int(t29_3)-int(t29_4))
+				var t29_6: Variant=OEVM.i32(int(t29_2)+int(t29_5))
+				var t29_7: Variant=aload(t29_1,int(t29_6))
+				if vm.exception!=null: return null
+				var t29_8: Variant=OEVM.i32(int(t29_0)+int(t29_7))
+				var t29_9: Variant=2
+				var t29_10: Variant=OEVM.i32(int(t29_8)+int(t29_9))
+				local[7]=t29_10
+				pc=41
+			41:
+				var t41_0: Variant=vm.statics["k"]["e:[S"]
+				var t41_1: Variant=local[7]
+				var t41_2: Variant=aload(t41_0,int(t41_1))
+				if vm.exception!=null: return null
+				var t41_3: Variant=255
+				var t41_4: Variant=OEVM.i32(int(t41_2)&int(t41_3))
+				local[8]=t41_4
+				var t41_5: Variant=127
+				pc=51 if t41_4!=t41_5 else 50
+				continue
+			50:
+				pc=61
+				continue
+			51:
+				var t51_0: Variant=local[4]
+				var t51_1: Variant=vm.statics["k"]["e:[S"]
+				var t51_2: Variant=local[7]
+				var t51_3: Variant=aload(t51_1,int(t51_2))
+				if vm.exception!=null: return null
+				var t51_4: Variant=8
+				var t51_5: Variant=OEVM.i32(int(t51_3)>>(int(t51_4)&31))
+				var t51_6: Variant=OEVM.i32(int(t51_0)+int(t51_5))
+				local[4]=t51_6
+				local[7]=OEVM.i32(int(local[7])+(1))
+				pc=41
+				continue
+			61:
+				local[6]=OEVM.i32(int(local[6])+(1))
+				pc=26
+				continue
+			63:
+				var t63_0: Variant=local[4]
+				var t63_1: Variant=1
+				var t63_2: Variant=OEVM.i32(int(t63_0)+int(t63_1))
+				var t63_3: Variant=-2
+				var t63_4: Variant=OEVM.i32(int(t63_2)&int(t63_3))
+				local[4]=t63_4
+				return t63_4
+	return null
+
+func m14(args: Array) -> Variant:
+	var local: Array=[]
+	local.resize(4)
+	local[0]=args[0]
+	local[1]=args[1]
+	var stack: Array=[]
+	var pc: int=0
+	while true:
+		match pc:
+			0:
+				var t0_0: Variant=0
+				local[2]=t0_0
+				pc=2
+			2:
+				var t2_0: Variant=vm.statics["k"]["d:[S"]
+				var t2_1: Variant=vm.statics["k"]["i:I"]
+				var t2_2: Variant=local[2]
+				var t2_3: Variant=OEVM.i32(int(t2_1)+int(t2_2))
+				var t2_4: Variant=aload(t2_0,int(t2_3))
+				if vm.exception!=null: return null
+				var t2_5: Variant=3
+				var t2_6: Variant=OEVM.i32(int(t2_4)&int(t2_5))
+				pc=58 if int(t2_6)==0 else 10
+				continue
+			10:
+				var t10_0: Variant=vm.statics["k"]["d:[S"]
+				var t10_1: Variant=vm.statics["k"]["h:I"]
+				var t10_2: Variant=local[2]
+				var t10_3: Variant=OEVM.i32(int(t10_1)+int(t10_2))
+				var t10_4: Variant=aload(t10_0,int(t10_3))
+				if vm.exception!=null: return null
+				local[3]=t10_4
+				var t10_5: Variant=vm.statics["k"]["d:[S"]
+				var t10_6: Variant=vm.statics["k"]["i:I"]
+				var t10_7: Variant=local[2]
+				var t10_8: Variant=OEVM.i32(int(t10_6)+int(t10_7))
+				var t10_9: Variant=aload(t10_5,int(t10_8))
+				if vm.exception!=null: return null
+				var t10_10: Variant=1
+				var t10_11: Variant=OEVM.i32(int(t10_9)&int(t10_10))
+				pc=41 if int(t10_11)==0 else 24
+				continue
+			24:
+				var t24_0: Variant=local[0]
+				var t24_1: Variant=local[3]
+				pc=34 if t24_0<t24_1 else 27
+				continue
+			27:
+				var t27_0: Variant=vm.statics["k"]["d:[S"]
+				var t27_1: Variant=vm.statics["k"]["j:I"]
+				var t27_2: Variant=local[2]
+				var t27_3: Variant=OEVM.i32(int(t27_1)+int(t27_2))
+				var t27_4: Variant=aload(t27_0,int(t27_3))
+				if vm.exception!=null: return null
+				local[2]=t27_4
+				pc=2
+				continue
+			34:
+				var t34_0: Variant=vm.statics["k"]["d:[S"]
+				var t34_1: Variant=vm.statics["k"]["k:I"]
+				var t34_2: Variant=local[2]
+				var t34_3: Variant=OEVM.i32(int(t34_1)+int(t34_2))
+				var t34_4: Variant=aload(t34_0,int(t34_3))
+				if vm.exception!=null: return null
+				local[2]=t34_4
+				pc=2
+				continue
+			41:
+				var t41_0: Variant=local[1]
+				var t41_1: Variant=local[3]
+				pc=51 if t41_0<t41_1 else 44
+				continue
+			44:
+				var t44_0: Variant=vm.statics["k"]["d:[S"]
+				var t44_1: Variant=vm.statics["k"]["j:I"]
+				var t44_2: Variant=local[2]
+				var t44_3: Variant=OEVM.i32(int(t44_1)+int(t44_2))
+				var t44_4: Variant=aload(t44_0,int(t44_3))
+				if vm.exception!=null: return null
+				local[2]=t44_4
+				pc=2
+				continue
+			51:
+				var t51_0: Variant=vm.statics["k"]["d:[S"]
+				var t51_1: Variant=vm.statics["k"]["k:I"]
+				var t51_2: Variant=local[2]
+				var t51_3: Variant=OEVM.i32(int(t51_1)+int(t51_2))
+				var t51_4: Variant=aload(t51_0,int(t51_3))
+				if vm.exception!=null: return null
+				local[2]=t51_4
+				pc=2
+				continue
+			58:
+				var t58_0: Variant=local[2]
+				return t58_0
 	return null

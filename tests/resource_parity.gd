@@ -2,10 +2,10 @@ extends SceneTree
 
 func _initialize() -> void: call_deferred("run")
 
-func original(session: OEGameSession, key: String) -> Variant:
+func original(session: OEGameSession, owner: String, key: String,args: Array=[]) -> Variant:
 	var main: Array[Dictionary]=session.vm.fibers.duplicate()
 	session.vm.fibers.clear()
-	var fiber: Dictionary=session.vm.launch("k",key)
+	var fiber: Dictionary=session.vm.launch(owner,key,null,args)
 	for tick in 10000:
 		if fiber.frames.is_empty() or session.vm.halted: break
 		session.vm.tick(20 if fiber.wake>session.vm.now_ms else 0)
@@ -17,14 +17,15 @@ func run() -> void:
 	session.vm.max_slice=1000000
 	var scenes: Array=[]
 	var passed: bool=true
-	for kind in ["shapes","texels"]:
+	for kind in ["shapes","texels","strings"]:
 		var states: Array=[]
 		for fast in [false,true]:
 			if not OESnapshot.new().load_game(session,"res://../build/fixtures/resource_"+kind+".oe2"): quit(1);return
 			session.vm.fast_resources=fast
+			session.vm.fast_geometry=fast
 			var began: int=Time.get_ticks_usec()
 			var instructions: int=session.vm.instructions
-			var result: Variant=original(session,"d()Z" if kind=="shapes" else "b()Z")
+			var result: Variant=original(session,"a" if kind=="strings" else "k","d()Z" if kind=="shapes" else ("e(I)V" if kind=="strings" else "b()Z"),JSON.parse_string(FileAccess.get_file_as_string("res://../build/fixtures/resource_strings_args.json")) if kind=="strings" else [])
 			var elapsed: int=Time.get_ticks_usec()-began
 			var path: String="user://resource-parity.oe2"
 			if not OESnapshot.new().save_game(session,path): quit(1);return

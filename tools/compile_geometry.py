@@ -7,7 +7,7 @@ import json, hashlib
 ROOT=Path(__file__).resolve().parents[1]
 source=ROOT/'game/data/classes.json'
 classes=json.loads(source.read_text())
-keys=['h(I)V','i(I)V','i()Z','b(III)V','b(I)Z','a(S)V','k()Z','j()Z','g()Z','j()V','a(II[I[I)V','a(IIIIIIIII)Z','l.e()Z']
+keys=['h(I)V','i(I)V','i()Z','b(III)V','b(I)Z','a(S)V','k()Z','j()Z','g()Z','j()V','a(II[I[I)V','a(IIIIIIIII)Z','l.e()Z','b(I)I','a(II)S']
 methods=dict(classes['k']['methods'])
 methods['l.e()Z']=classes['l']['methods']['e()Z']
 ids={k:f'm{i}' for i,k in enumerate(keys)}

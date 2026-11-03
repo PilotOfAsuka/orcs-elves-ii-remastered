@@ -10,11 +10,12 @@ func run() -> void:
 	session.vm.profile_enabled=profile
 	var captures: Dictionary={}
 	if OS.get_cmdline_user_args().has("capture"):
-		session.vm.resource_observer=func(key: String,_args: Array):
+		session.vm.resource_observer=func(key: String,args: Array):
 			if not captures.has(key):
-				var path: String="res://../build/fixtures/resource_"+("shapes" if key=="d()Z" else "texels")+".oe2"
+				var path: String="res://../build/fixtures/resource_"+("shapes" if key=="d()Z" else ("strings" if key=="strings" else "texels"))+".oe2"
 				captures[key]=OESnapshot.new().save_game(session,path)
 				print("CAPTURE ",key," ",captures[key])
+				if key=="strings": FileAccess.open("res://../build/fixtures/resource_strings_args.json",FileAccess.WRITE).store_string(JSON.stringify(args))
 	var began: int=Time.get_ticks_usec()
 	var phase: int=0
 	var last_key: int=-100

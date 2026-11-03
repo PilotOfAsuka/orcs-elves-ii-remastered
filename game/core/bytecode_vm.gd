@@ -441,6 +441,7 @@ func step(fiber: Dictionary) -> void:
 				var owner: String = obj.type if op in [182,185] and obj is JObject else ref.owner
 				var found: Dictionary = find_method(owner, ref.name + ref.desc)
 				if resource_observer.is_valid() and found.owner=="k" and ref.name+ref.desc in ["d()Z","b()Z"]: resource_observer.call(ref.name+ref.desc,args)
+				if resource_observer.is_valid() and found.owner=="a" and ref.name+ref.desc=="e(I)V": resource_observer.call("strings",args)
 				if span_observer.is_valid() and render_helpers.accepts(found.owner,ref.name+ref.desc): span_observer.call(ref.name+ref.desc,args)
 				if not found.method.is_empty() and fast_geometry and geometry.accepts(found.owner,ref.name+ref.desc):
 					var value: Variant=geometry.invoke(("l." if found.owner=="l" else "")+ref.name+ref.desc,args)
@@ -449,7 +450,7 @@ func step(fiber: Dictionary) -> void:
 					var value: Variant=render_helpers.invoke(ref.name+ref.desc,args)
 					if ref["return"]!="V" and exception==null: stack.append(value)
 				elif not found.method.is_empty() and fast_resources and resource_helpers.accepts(found.owner,ref.name+ref.desc):
-					var value: Variant=resource_helpers.lookup(ref.name+ref.desc,args)
+					var value: Variant=resource_helpers.invoke_method(found.owner,ref.name+ref.desc,obj,args)
 					if exception==null: stack.append(value)
 				elif not found.method.is_empty() and fast_font and font_helpers.accepts(found.owner,ref.name+ref.desc,args):
 					var value: int=font_helpers.invoke(ref.name+ref.desc,args)
