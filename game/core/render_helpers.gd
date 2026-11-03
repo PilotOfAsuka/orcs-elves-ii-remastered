@@ -3,6 +3,7 @@ extends RefCounted
 ## Exact fixed-point software-rendering routines from original class k.
 ## Every array and rendering counter belongs to the original game state.
 var fast_visibility: bool=true
+var sprite_observer: Callable
 var vm: OEVM
 var raster: OEWebRaster
 
@@ -132,6 +133,7 @@ func wall_columns() -> bool:
 	return empty
 
 func sprite_2d(args: Array) -> bool:
+	if sprite_observer.is_valid(): sprite_observer.call(args)
 	if raster.enabled:
 		var result: Variant=raster.sprite_2d(args)
 		if result!=null: return bool(result)

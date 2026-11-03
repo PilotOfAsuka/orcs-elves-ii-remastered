@@ -88,6 +88,7 @@ func close() -> void:
 	vm.render_helpers.raster.last_edges=null
 	vm.render_helpers.raster.image=null
 	vm.render_helpers.raster.image_destination=null
+	vm.render_helpers.sprite_observer=Callable()
 	vm.render_helpers.vm=null
 	vm.span_observer=Callable()
 	vm.resource_helpers.vm=null

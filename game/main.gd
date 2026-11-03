@@ -41,6 +41,7 @@ var pending_menu: int = -1
 var pending_row: int = -1
 var menu_wait_selection: int = -1
 var menu_next_time: int = 0
+var hd_weapons: OEHDWeapons
 var world_texture: ImageTexture
 var world_revision: int = -1
 var world_graphics_id: int = 0
@@ -73,6 +74,7 @@ var previous_language_menu: int=-1
 
 func _ready() -> void:
 	if OS.has_feature("web") and bool(JavaScriptBridge.eval("location.search.includes('checkpointcheck=1')")): testing=true
+	if OS.has_feature("web") and bool(JavaScriptBridge.eval("location.search.includes('hdweaponcheck=1')")): testing=true
 	var locale_settings:=ConfigFile.new()
 	var preferred_language: String="ru"
 	if not testing and locale_settings.load("user://language.cfg")==OK: preferred_language=str(locale_settings.get_value("ui","language","ru"))
@@ -132,6 +134,9 @@ func _ready() -> void:
 	remastered_view.material = shader
 	remastered_view.modulate.a = 0.0
 	view_frame.add_child(remastered_view)
+	hd_weapons=OEHDWeapons.new()
+	remastered_view.add_child(hd_weapons)
+	session.vm.render_helpers.sprite_observer=func(args: Array): hd_weapons.capture(session.vm,session.platform.screen,args)
 	native_menu=PanelContainer.new()
 	native_menu.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	view_frame.add_child(native_menu)
@@ -280,6 +285,9 @@ func _ready() -> void:
 	if OS.has_feature("web") and bool(JavaScriptBridge.eval("location.search.includes('checkpointcheck=1')")):
 		qa_check=preload("res://qa/user_checkpoint_check.gd").new()
 		qa_check.call_deferred("run",self)
+	if OS.has_feature("web") and bool(JavaScriptBridge.eval("location.search.includes('hdweaponcheck=1')")):
+		qa_check=preload("res://qa/hd_weapon_check.gd").new()
+		qa_check.call_deferred("run",self)
 
 func select_language(language: String) -> void:
 	OEText.choose(language)
@@ -405,6 +413,7 @@ func arrange() -> void:
 	interaction_meter.position=Vector2((view_frame.size.x-interaction_meter.get_combined_minimum_size().x)/2,40)
 	subtitle.position=Vector2(24,maxf(40,view_frame.size.y-108))
 	subtitle.size=Vector2(maxf(20,view_frame.size.x-48),88)
+	hd_weapons.present(remastered_view.size,presentation_kind in ["world","dialogue"])
 	softkeys.position=Vector2.ZERO;softkeys.size=Vector2(controls.size.x,40)
 	var grid_height: float=controls.size.y
 	keypad.position=Vector2.ZERO;keypad.size=Vector2(controls.size.x,grid_height)
@@ -608,7 +617,9 @@ func update_adventure(now: int) -> void:
 	var using_world: bool=kind in ["world","dialogue","cinematic","death","interaction"] and world is Image
 	# The phone framebuffer stays a research reference. Never present its UI.
 	classic_view.texture=world_texture if using_world else null
-	remastered_view.texture=classic_view.texture
+	hd_weapons.publish(graphics,revision,world_texture.get_size() if world_texture!=null else Vector2.ZERO)
+	hd_weapons.present(remastered_view.size,using_world and kind in ["world","dialogue"])
+	remastered_view.texture=hd_weapons.background_texture if hd_weapons.visible else classic_view.texture
 	classic_view.visible=using_world;remastered_view.visible=using_world
 	var old_hud_visible: bool=hud.visible
 	if kind=="dialogue" and presentation_kind!="dialogue":

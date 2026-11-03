@@ -1,0 +1,37 @@
+{
+	"frames": [
+		{
+			"bounds": [
+				17,
+				2,
+				47,
+				62
+			],
+			"frame": 0,
+			"path": "res://assets/remastered/wand/reference/original_frame_00.png",
+			"shape": 0,
+			"shape_bounds": [
+				17,
+				63
+			],
+			"source_sprite": 1
+		},
+		{
+			"bounds": [
+				0,
+				15,
+				38,
+				49
+			],
+			"frame": 1,
+			"path": "res://assets/remastered/wand/reference/original_frame_01.png",
+			"shape": 151,
+			"shape_bounds": [
+				0,
+				37
+			],
+			"source_sprite": 1
+		}
+	],
+	"jar_sha256": "759213ee5ce194f1ac92ff5937ffe562200e2c01dcfd76890c5148cf57787a33"
+}

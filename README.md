@@ -99,3 +99,10 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 Результаты — в [PROGRESS.md](PROGRESS.md), оставшиеся задачи — в
 [REMAINING_WORK.md](REMAINING_WORK.md). Сохранения изолированы от WolfMoon.
 Исходный JAR и research исключены из Git и браузерной сборки.
+
+В 0.0.16 добавлен первый эксперимент с HD-графикой: золотистая палочка
+(Жезл / Wand) и деревянный посох (Staff), по два кадра 1254×1254 с прозрачностью.
+Они включаются в Remastered; Classic служит сравнением с оригиналом.
+Исходники и prompts: `game/assets/remastered/PROMPTS.md`.
+Проверка: `tests/hd_weapons.gd`; браузерная диагностика на копии F9 —
+`?hdweaponcheck=1`. Особые эффекты пока возвращают оригинальную отрисовку.
