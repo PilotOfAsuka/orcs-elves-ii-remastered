@@ -2,116 +2,34 @@
 
 **[▶ Играть в браузере / Play in your browser](https://pilotofasuka.github.io/orcs-elves-ii-remastered/)**
 
-Отдельный проект возрождения Java-игры Orcs & Elves II по образцу WolfMoon.
-**Цель: играть в браузере, полностью свой адаптивный интерфейс, два рендера
-Classic / Remastered на одном состоянии игры.** Полное задание: [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md).
+## Русский
 
-**Статус: ранняя браузерная сборка.** Оригинал загружается до первого уровня.
-Работают собственные меню, HUD с иконками, вступление, модальные сообщения и карта; подключены
-экранные кнопки, музыка, эффекты и быстрые сохранения. Полный ремастер ещё в разработке.
-В Remastered восстановлены все 11 видов оружия: 25 исходных поз, отдельные
-слои Боба, трёх магических сфер и огненной вспышки арбалетов. Classic сохраняет
-исходные спрайты. Графика создана по оригинальным кадрам встроенным image_gen;
-точные prompts и сведения о повторно используемых кадрах находятся в
-[GENERATION_017.json](game/assets/remastered/GENERATION_017.json).
+**Фанатский ремастер классической мобильной RPG Orcs & Elves II, созданный PilotOfAsuka совместно с ИИ Codex.**
 
-Публикация и обновление сайта: [docs/GITHUB_WEB.md](docs/GITHUB_WEB.md).
+Подземелья, орки, магия и сокровища снова ждут тебя. Исследуй мир, находи оружие, сражайся с монстрами и проходи знакомое приключение с кнопочного телефона прямо в браузере — на компьютере или телефоне, без установки.
 
-## Играть локально
+Выбирай Classic с оригинальной пиксельной графикой или Remastered с улучшенной картинкой и обновлённым оружием. Между ними можно переключаться во время игры. В обоих режимах — общий удобный интерфейс, карта с увеличением и управление клавиатурой, мышью или экранными кнопками.
 
-Открой `Играть в браузере.command`. Он запустит готовую Web-сборку и откроет
-её в браузере. Окно запускателя нужно оставить открытым во время игры.
-Публичная ссылка пока не опубликована. Java и загрузка JAR игроком не нужны.
+Игра доступна на русском и английском. Язык можно выбрать при запуске и изменить в настройках. Проект продолжает развиваться.
 
-Для запуска через Godot открой `Запустить Orcs & Elves II.command`.
-Для редактирования — `game/project.godot` в установленном Godot 4.7.2.
+**Управление:** WASD / стрелки — движение и повороты · Z / C — шаг вбок · Q / E — оружие · Enter / Пробел — действие · R — ждать · M — карта · Esc / I — меню · F2 — Classic / Remastered. На телефоне используй экранные кнопки.
 
-WASD / стрелки — направления; Enter / Пробел — действие; F1 — левая экранная
-клавиша; Esc — правая; M — карта; 0–9, * и # — оригинальная
-клавиатура. F2 переключает Classic / Remastered, F5 сохраняет, F9 загружает.
-Q / E — оружие; Z / C — шаг вбок; R — ждать; I — меню игры.
-Есть кнопки мышью, касания, свайпы и удержание направлений.
+**Сохранения:** F5 — быстро сохранить · F9 — загрузить. Эти действия также доступны в меню. Прогресс хранится в браузере, в котором ты играешь.
 
-В обоих режимах один интерфейс и одна игровая сессия. Первая версия Remastered
-обрабатывает контуры и свет исходного растра. Это ещё не законченная переработка
-графики. HUD отделён от исходного изображения мира и общий для двух рендеров.
-Вступление и сообщения используют читаемый шрифт с переносом текста. Рюкзак
-открывается через собственное меню; оформление предметов, карта и остальные
-специальные экраны ещё дорабатываются.
-При запуске выбирается Русский / English. Английские строки сопоставлены по
-1605 исходным идентификаторам; состояние игры при локализации не меняется.
-Карта увеличивается кнопками и колесом, перемещается мышью/пальцем; есть сброс вида.
-Сообщения накладываются поверх постоянного игрового вида; подписи предметов
-не изменяют размер сцены или расположение HUD.
+## English
 
-## Проверки и сборка
+**A fan-made remaster of the classic mobile RPG Orcs & Elves II, created by PilotOfAsuka together with Codex AI.**
 
-```sh
-python3 tools/analyze_jar.py
-python3 -m unittest discover -s tests -p 'test_*.py'
-```
+Dungeons, orcs, magic, and treasure await once again. Explore the world, discover weapons, battle monsters, and return to the adventure from your old Java phone. Play right in your browser on a computer or phone — no installation needed.
 
-Проверки Godot: `tests/platform.gd`, `tests/snapshot.gd`, `tests/presentation.gd`.
-`tests/journey.gd` создаёт локальные состояния вступления, сообщения и первого
-уровня в `build/fixtures/`. После этого `tests/adventure.gd` проверяет HUD, текст,
-переходы в рюкзак, ввод и неизменность состояния при F2; `tests/font_parity.gd`
-сравнивает ускорение шрифта с исходным байткодом. Для визуальной проверки
-`tests/render_adventure.gd` запускается с графикой, без `--headless`.
-Проверки базовых ускорений 0.0.3: `render_parity.gd`, `resource_parity.gd`,
-`entity_parity.gd`, `action_parity.gd`, `scheduling.gd`; подробности и результаты —
-[docs/PERFORMANCE.md](docs/PERFORMANCE.md). Для resource fixtures запусти
-`tests/journey.gd` с пользовательскими аргументами `-- profile capture`.
-Запускать с `--headless --path game --script ../tests/ИМЯ.gd`.
-Ускорения 0.0.8: `geometry_parity.gd`, `game_loop_parity.gd`,
-`action_parity.gd -- geometry`, `web_raster_cases.gd` и `test_web_raster.cjs`.
-Сгенерированная геометрия обновляется `python3 tools/compile_geometry.py`,
-участки подготовки объектов — `python3 tools/compile_sprite_blocks.py`.
-В браузере `?perf=1` включает реальные замеры реакции, а `?rastercheck=1`
-и `?spritecheck=1` — сравнения отрисовки на существующем quick save.
-В 0.0.9 показ использует прямые бинарные буферы, сохранения и обращения игры
-публикуют точный исходный массив. Браузерные сравнения дополнены последовательными
-кадрами и изменением texels между операциями. Результаты и ограничения
-приведены в документе производительности.
-В 0.0.10 добавлены `weapon_cases.gd` → `test_web_weapon.cjs` и
-`tint_parity.gd`; `?weaponcheck=1` сравнивает настоящее оружие тремя путями,
-включая его цветовые режимы, отражения и масштабы.
-Ускорения загрузки 0.0.11 проверяются `data_parity.gd`,
-`string_blocks_parity.gd` и тремя целыми методами `resource_parity.gd`.
-Интерфейс 0.0.13: `own_ui.gd` (границы, стабильность HUD, модальные окна,
-камера карты, отсутствие телефонного интерфейса) и `localization.gd`
-(каталог, английское вступление/сообщения, неизменность полного графа).
-В 0.0.14 добавлены `interaction_ui.gd` (запуск с графикой),
-`sprite_setup_parity.gd`, `tiled_paint_parity.gd` и профиль
-`user_checkpoint_profile.gd` на локальной копии F9
-`build/fixtures/user_f9_014.oe2`. Браузерная проверка
-`?checkpointcheck=1&checkpointprofile=1&perf=1` читает существующий F9,
-работает на отдельной копии и не изменяет пользовательские RMS/F9.
-Для сравнения планировщика добавить `&checkpointscheduled=1`.
-Проверки 0.0.15: `visibility_parity.gd`, `text_decode_parity.gd`,
-`menu_cache.gd`, `metrics.gd`. Для текущей локальной копии F9 используются
-`build/fixtures/user_f9_015.oe2` и производный `user_world_015.oe2`.
-`&checkpointstage15=1` сравнивает новые ускорения, `&checkpointworld=1`
-возвращает диагностическую копию из меню в мир исходным методом.
-`?checkpointcheck=1&checkpointuibench=1&perf=1` измеряет отдельно UI меню.
-Для Web создать `build/web/`, выполнить импорт проекта и экспорт пресета Web.
-Готовые файлы публикуются как статический сайт через HTTP/HTTPS.
+Choose Classic for the original pixel graphics or Remastered for enhanced visuals and redrawn weapons. Switch between them while playing. Both modes share a modern interface, a zoomable map, and keyboard, mouse, and on-screen controls.
 
-## Папки
+The game is available in Russian and English. Choose a language at startup or change it in settings. The project is still being developed.
 
-- `game/` — самостоятельный Godot-проект и ядро совместимости.
-- `research/` — локальный JAR, ресурсы, декомпиляция и отчёты.
-- `tools/` — разбор исходной игры, запуск и локальный Web-сервер.
-- `tests/` — проверки ресурсов, платформы, сохранений и представления.
-- `build/` — локальные сборки, логи и снимки.
-- `docs/` — задание, архитектура и происхождение материалов.
+**Controls:** WASD / arrows — move and turn · Z / C — sidestep · Q / E — weapons · Enter / Space — act · R — wait · M — map · Esc / I — menu · F2 — Classic / Remastered. Use the on-screen buttons on your phone.
 
-Результаты — в [PROGRESS.md](PROGRESS.md), оставшиеся задачи — в
-[REMAINING_WORK.md](REMAINING_WORK.md). Сохранения изолированы от WolfMoon.
-Исходный JAR и research исключены из Git и браузерной сборки.
+**Saves:** F5 — quick save · F9 — load. Both are also available in the menu. Progress is stored in the browser you play in.
 
-В 0.0.16 добавлен первый эксперимент с HD-графикой: золотистая палочка
-(Жезл / Wand) и деревянный посох (Staff), по два кадра 1254×1254 с прозрачностью.
-Они включаются в Remastered; Classic служит сравнением с оригиналом.
-Исходники и prompts: `game/assets/remastered/PROMPTS.md`.
-Проверка: `tests/hd_weapons.gd`; браузерная диагностика на копии F9 —
-`?hdweaponcheck=1`. Особые эффекты пока возвращают оригинальную отрисовку.
+---
+
+[Разработка / Development](docs/DEVELOPMENT.md)
