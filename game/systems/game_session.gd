@@ -15,7 +15,7 @@ func _init(persistent: bool = true, sound: Node = null) -> void:
 	if OS.has_feature("web"): vm.max_slice=12000
 	if persistent:
 		vm.frame_budget_us=10000
-		vm.paint_budget_us=60000
+		vm.paint_budget_us=24000
 	if not persistent: vm.epoch_ms = 1170000000000
 	saves = OESaveManager.new()
 	saves.persistent = persistent

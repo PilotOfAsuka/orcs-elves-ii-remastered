@@ -6,6 +6,9 @@ var fast_render: bool = true
 var render_helpers: OERenderHelpers
 var fast_geometry: bool=true
 var geometry: OECompiledGeometry
+var fast_tiled_paint: bool=true
+var fast_sprite_setup: bool=true
+var sprite_blocks: OESpriteBlocks
 var span_observer: Callable
 var fast_resources: bool = true
 var resource_helpers: OEResourceHelpers
@@ -29,6 +32,8 @@ var max_slice: int = 45000
 ## Runtime scheduling only; zero retains deterministic instruction-based test runs.
 var frame_budget_us: int = 0
 var paint_budget_us: int = 0
+var native_budget_checks: bool=true
+var native_boundary: bool=false
 var resume_after: int = 0
 var profile_enabled: bool = false
 var profile_instructions: Dictionary = {}
@@ -54,6 +59,7 @@ func _init() -> void:
 	resource_helpers=OEResourceHelpers.new(self)
 	resource_helpers.install()
 	geometry=OECompiledGeometry.new(self)
+	sprite_blocks=OESpriteBlocks.new(self)
 
 func normalize(value: Variant) -> Variant:
 	if value is float: return int(value)
@@ -237,7 +243,9 @@ func tick(delta_ms: int) -> void:
 		while not fiber.frames.is_empty() and not fiber.yielded and not halted and count < max_slice:
 			step(fiber)
 			count += 1
-			if frame_budget_us>0 and (count&127)==0 and Time.get_ticks_usec()-began>=current_budget(fiber): break
+			if frame_budget_us>0 and ((count&(31 if native_budget_checks else 127))==0 or (native_budget_checks and native_boundary)):
+				var elapsed: int=Time.get_ticks_usec()-began
+				if elapsed>=frame_budget_us and elapsed>=current_budget(fiber): break
 		if frame_budget_us>0 and Time.get_ticks_usec()-began>=current_budget(fiber):
 			resume_after=int(fiber.id);break
 	# Pixel work stays buffered until an actual array access, drawRGB or snapshot.
@@ -275,6 +283,7 @@ func unwind(fiber: Dictionary) -> void:
 	fail("Uncaught " + thrown.type + ": " + str(thrown.data))
 
 func step(fiber: Dictionary) -> void:
+	native_boundary=false
 	var frame: Dictionary = fiber.frames.back()
 	if not frame.entered:
 		if int(frame.method.flags) & 32:
@@ -287,6 +296,16 @@ func step(fiber: Dictionary) -> void:
 			frame.lock = lock
 		frame.entered = true
 	var pc: int = int(frame.pc)
+	if fast_sprite_setup and frame.method.has("sprite_blocks") and frame.method.sprite_blocks.has(pc) and sprite_blocks.ready():
+		var began: int=Time.get_ticks_usec() if profile_enabled else 0
+		native_boundary=true
+		sprite_blocks.invoke(frame)
+		instructions+=1
+		if profile_enabled:
+			profile_native_us["k.g(I)V:blocks"]=int(profile_native_us.get("k.g(I)V:blocks",0))+Time.get_ticks_usec()-began
+			profile_native_calls["k.g(I)V:blocks"]=int(profile_native_calls.get("k.g(I)V:blocks",0))+1
+		if exception!=null: unwind(fiber)
+		return
 	var code: Array = frame.method.code
 	if pc < 0 or pc >= code.size(): fail("PC out of range " + frame.owner); return
 	var ins: Array = code[pc]
@@ -411,6 +430,7 @@ func step(fiber: Dictionary) -> void:
 		167,200:
 			frame.pc=int(ins[1])
 			if fast_resources and frame.method.has("resource_blocks") and frame.method.resource_blocks.has(frame.pc):
+				native_boundary=true
 				resource_helpers.invoke(frame,frame.method.resource_blocks[frame.pc])
 		170,171:
 			var key: int = int(stack.pop_back()); frame.pc = int(ins[1])
@@ -443,20 +463,25 @@ func step(fiber: Dictionary) -> void:
 				if resource_observer.is_valid() and found.owner=="k" and ref.name+ref.desc in ["d()Z","b()Z"]: resource_observer.call(ref.name+ref.desc,args)
 				if resource_observer.is_valid() and found.owner=="a" and ref.name+ref.desc=="e(I)V": resource_observer.call("strings",args)
 				if span_observer.is_valid() and render_helpers.accepts(found.owner,ref.name+ref.desc): span_observer.call(ref.name+ref.desc,args)
-				if not found.method.is_empty() and fast_geometry and geometry.accepts(found.owner,ref.name+ref.desc):
-					var value: Variant=geometry.invoke(("l." if found.owner=="l" else "")+ref.name+ref.desc,args)
+				if not found.method.is_empty() and fast_geometry and (found.owner!="a" or fast_tiled_paint) and geometry.accepts(found.owner,ref.name+ref.desc):
+					native_boundary=true
+					var value: Variant=geometry.invoke((found.owner+"." if found.owner in ["a","l"] else "")+ref.name+ref.desc,args)
 					if ref["return"]!="V" and exception==null: stack.append(value)
 				elif not found.method.is_empty() and fast_render and render_helpers.accepts(found.owner,ref.name+ref.desc):
+					native_boundary=true
 					var value: Variant=render_helpers.invoke(ref.name+ref.desc,args)
 					if ref["return"]!="V" and exception==null: stack.append(value)
 				elif not found.method.is_empty() and fast_resources and resource_helpers.accepts(found.owner,ref.name+ref.desc):
+					native_boundary=true
 					var value: Variant=resource_helpers.invoke_method(found.owner,ref.name+ref.desc,obj,args)
 					if exception==null: stack.append(value)
 				elif not found.method.is_empty() and fast_font and font_helpers.accepts(found.owner,ref.name+ref.desc,args):
+					native_boundary=true
 					var value: int=font_helpers.invoke(ref.name+ref.desc,args)
 					if ref["return"]!="V" and exception==null: stack.append(value)
 				elif not found.method.is_empty(): push_frame(fiber,found.owner,found.method,obj,args)
 				else:
+					native_boundary=true
 					var native_began: int=Time.get_ticks_usec() if profile_enabled else 0
 					var result: Variant = native.invoke(ref,obj,args,fiber)
 					if profile_enabled:

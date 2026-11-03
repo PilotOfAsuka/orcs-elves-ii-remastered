@@ -55,7 +55,8 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 Запускать с `--headless --path game --script ../tests/ИМЯ.gd`.
 Ускорения 0.0.8: `geometry_parity.gd`, `game_loop_parity.gd`,
 `action_parity.gd -- geometry`, `web_raster_cases.gd` и `test_web_raster.cjs`.
-Сгенерированная геометрия обновляется `python3 tools/compile_geometry.py`.
+Сгенерированная геометрия обновляется `python3 tools/compile_geometry.py`,
+участки подготовки объектов — `python3 tools/compile_sprite_blocks.py`.
 В браузере `?perf=1` включает реальные замеры реакции, а `?rastercheck=1`
 и `?spritecheck=1` — сравнения отрисовки на существующем quick save.
 В 0.0.9 показ использует прямые бинарные буферы, сохранения и обращения игры
@@ -70,6 +71,13 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 Интерфейс 0.0.13: `own_ui.gd` (границы, стабильность HUD, модальные окна,
 камера карты, отсутствие телефонного интерфейса) и `localization.gd`
 (каталог, английское вступление/сообщения, неизменность полного графа).
+В 0.0.14 добавлены `interaction_ui.gd` (запуск с графикой),
+`sprite_setup_parity.gd`, `tiled_paint_parity.gd` и профиль
+`user_checkpoint_profile.gd` на локальной копии F9
+`build/fixtures/user_f9_014.oe2`. Браузерная проверка
+`?checkpointcheck=1&checkpointprofile=1&perf=1` читает существующий F9,
+работает на отдельной копии и не изменяет пользовательские RMS/F9.
+Для сравнения планировщика добавить `&checkpointscheduled=1`.
 Для Web создать `build/web/`, выполнить импорт проекта и экспорт пресета Web.
 Готовые файлы публикуются как статический сайт через HTTP/HTTPS.
 

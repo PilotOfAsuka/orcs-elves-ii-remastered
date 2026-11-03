@@ -7,6 +7,8 @@ static var lookup: Dictionary={}
 static var templates: Array=[]
 static var cache: Dictionary={}
 const UI={
+	"ВЗЛОМ ЗАМКА":"PICK LOCK","Вверх":"Up","Вниз":"Down","Влево":"Left","Вправо":"Right","Попытки":"Attempts","Отменить взлом":"Cancel lockpicking",
+	"Выберите направление. Верное направление подтвердите повторным нажатием.":"Choose a direction. Confirm a correct direction by pressing it again.","БЫСТРЫЕ ДЕЙСТВИЯ":"QUICK ACTIONS",
 	"Здоровье":"Health","Броня":"Armor","Заряды":"Charges","Оружие":"Weapon",
 	"Меню":"Menu","Карта":"Map","Назад":"Back","Выбрать":"Select",
 	"Шаг влево":"Strafe left","Вперёд":"Forward","Шаг вправо":"Strafe right",

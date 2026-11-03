@@ -1,7 +1,6 @@
 class_name OEAdventureHUD
 extends PanelContainer
 
-signal key_requested(key: int)
 var context: Label
 var health: ProgressBar
 var armor: ProgressBar
@@ -60,7 +59,6 @@ func _ready() -> void:
 	var weapon:=HBoxContainer.new()
 	weapon.add_theme_constant_override("separation",8)
 	box.add_child(weapon)
-	weapon_button(weapon,"left",42,"Предыдущее оружие","Q")
 	weapon_icon=symbol(weapon,"attack",OESkin.GOLD,20)
 	weapon_text=Label.new()
 	weapon_text.size_flags_horizontal=Control.SIZE_EXPAND_FILL
@@ -70,16 +68,6 @@ func _ready() -> void:
 	symbol(weapon,"gem",Color("a3b3a2"),17)
 	ammo_text=Label.new();ammo_text.add_theme_font_size_override("font_size",14)
 	ammo_text.custom_minimum_size.x=22;weapon.add_child(ammo_text)
-	weapon_button(weapon,"right",55,"Следующее оружие","E")
-
-func weapon_button(parent: Control, icon: String, key: int, caption: String, shortcut: String) -> void:
-	var button:=Button.new()
-	button.custom_minimum_size=Vector2(32,30)
-	button.focus_mode=Control.FOCUS_NONE
-	OESkin.decorate(button,icon,caption,shortcut)
-	button.add_theme_constant_override("icon_max_width",16)
-	button.pressed.connect(func(): key_requested.emit(key))
-	parent.add_child(button)
 
 func show_state(data: Dictionary) -> void:
 	visible=not data.is_empty()

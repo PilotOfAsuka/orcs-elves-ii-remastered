@@ -8,7 +8,7 @@ func _init(machine: OEVM) -> void:
 	vm=machine
 
 func accepts(owner: String, key: String) -> bool:
-	return ((owner=="k" and key in ["h(I)V", "i(I)V", "i()Z", "b(III)V", "b(I)Z", "a(S)V", "k()Z", "j()Z", "g()Z", "j()V", "a(II[I[I)V", "a(IIIIIIIII)Z", "b(I)I", "a(II)S"]) or (owner=="l" and key=="e()Z")) and vm.initialized.has("k") and vm.initialized.has("l") and vm.initialized.has("App")
+	return ((owner=="k" and key in ["h(I)V", "i(I)V", "i()Z", "b(III)V", "b(I)Z", "a(S)V", "k()Z", "j()Z", "g()Z", "j()V", "a(II[I[I)V", "a(IIIIIIIII)Z", "b(I)I", "a(II)S"]) or (owner=="l" and key=="e()Z") or (owner=="a" and key=="a(Ljavax/microedition/lcdui/Image;IIIIIII)V")) and vm.initialized.has("k") and vm.initialized.has("l") and vm.initialized.has("App") and vm.initialized.has("a")
 
 func invoke(key: String, args: Array) -> Variant:
 	match key:
@@ -27,18 +27,19 @@ func invoke(key: String, args: Array) -> Variant:
 		"l.e()Z": return m12(args)
 		"b(I)I": return m13(args)
 		"a(II)S": return m14(args)
+		"a.a(Ljavax/microedition/lcdui/Image;IIIIIII)V": return m15(args)
 	return null
 
 func aload(array: Variant, index: int) -> Variant:
+	if vm.render_helpers.raster.destination!=null: vm.render_helpers.raster.before_access(array)
 	if array==null: vm.throw_exception("java/lang/NullPointerException");return null
 	if index<0 or index>=array.data.size(): vm.throw_exception("java/lang/ArrayIndexOutOfBoundsException",str(index));return null
-	if vm.render_helpers.raster.destination!=null: vm.render_helpers.raster.before_access(array)
 	return array.data[index]
 
 func astore(array: Variant, index: int, value: Variant, opcode: int) -> void:
+	vm.render_helpers.raster.before_access(array,true)
 	if array==null: vm.throw_exception("java/lang/NullPointerException");return
 	if index<0 or index>=array.data.size(): vm.throw_exception("java/lang/ArrayIndexOutOfBoundsException",str(index));return
-	if vm.render_helpers.raster.enabled: vm.render_helpers.raster.before_access(array,true)
 	if opcode==86: value=OEVM.signed(int(value),16)
 	array.data[index]=value
 
@@ -3590,4 +3591,206 @@ func m14(args: Array) -> Variant:
 			58:
 				var t58_0: Variant=local[2]
 				return t58_0
+	return null
+
+func m15(args: Array) -> Variant:
+	var local: Array=[]
+	local.resize(16)
+	local[0]=args[0]
+	local[1]=args[1]
+	local[2]=args[2]
+	local[3]=args[3]
+	local[4]=args[4]
+	local[5]=args[5]
+	local[6]=args[6]
+	local[7]=args[7]
+	var stack: Array=[]
+	var pc: int=0
+	while true:
+		match pc:
+			0:
+				var t0_0: Variant=local[0]
+				if t0_0==null: vm.throw_exception("java/lang/NullPointerException");return null
+				var t0_1: Variant=vm.native.invoke({"owner": "javax/microedition/lcdui/Image", "name": "getWidth", "desc": "()I", "params": [], "return": "I"},t0_0,[],vm.active)
+				if vm.exception!=null: return null
+				local[8]=t0_1
+				var t0_2: Variant=local[0]
+				if t0_2==null: vm.throw_exception("java/lang/NullPointerException");return null
+				var t0_3: Variant=vm.native.invoke({"owner": "javax/microedition/lcdui/Image", "name": "getHeight", "desc": "()I", "params": [], "return": "I"},t0_2,[],vm.active)
+				if vm.exception!=null: return null
+				local[9]=t0_3
+				var t0_4: Variant=0
+				var t0_5: Variant=local[3]
+				pc=11 if t0_4!=t0_5 else 9
+				continue
+			9:
+				var t9_0: Variant=local[8]
+				local[3]=t9_0
+				pc=11
+			11:
+				var t11_0: Variant=0
+				var t11_1: Variant=local[4]
+				pc=16 if t11_0!=t11_1 else 14
+				continue
+			14:
+				var t14_0: Variant=local[9]
+				local[4]=t14_0
+				pc=16
+			16:
+				var t16_0: Variant=local[8]
+				var t16_1: Variant=local[3]
+				pc=21 if t16_0<=t16_1 else 19
+				continue
+			19:
+				var t19_0: Variant=local[3]
+				local[8]=t19_0
+				pc=21
+			21:
+				var t21_0: Variant=local[9]
+				var t21_1: Variant=local[4]
+				pc=26 if t21_0<=t21_1 else 24
+				continue
+			24:
+				var t24_0: Variant=local[4]
+				local[9]=t24_0
+				pc=26
+			26:
+				var t26_0: Variant=local[7]
+				var t26_1: Variant=16
+				var t26_2: Variant=OEVM.i32(int(t26_0)&int(t26_1))
+				pc=37 if int(t26_2)==0 else 30
+				continue
+			30:
+				var t30_0: Variant=local[5]
+				var t30_1: Variant=local[3]
+				var t30_2: Variant=2
+				if int(t30_2)==0: vm.throw_exception("java/lang/ArithmeticException");return null
+				var t30_3: Variant=OEVM.i32(int(t30_1)/int(t30_2))
+				var t30_4: Variant=OEVM.i32(int(t30_0)-int(t30_3))
+				local[5]=t30_4
+				pc=45
+				continue
+			37:
+				var t37_0: Variant=local[7]
+				var t37_1: Variant=8
+				var t37_2: Variant=OEVM.i32(int(t37_0)&int(t37_1))
+				pc=45 if int(t37_2)==0 else 41
+				continue
+			41:
+				var t41_0: Variant=local[5]
+				var t41_1: Variant=local[3]
+				var t41_2: Variant=OEVM.i32(int(t41_0)-int(t41_1))
+				local[5]=t41_2
+				pc=45
+			45:
+				var t45_0: Variant=local[7]
+				var t45_1: Variant=32
+				var t45_2: Variant=OEVM.i32(int(t45_0)&int(t45_1))
+				pc=56 if int(t45_2)==0 else 49
+				continue
+			49:
+				var t49_0: Variant=local[6]
+				var t49_1: Variant=local[4]
+				var t49_2: Variant=2
+				if int(t49_2)==0: vm.throw_exception("java/lang/ArithmeticException");return null
+				var t49_3: Variant=OEVM.i32(int(t49_1)/int(t49_2))
+				var t49_4: Variant=OEVM.i32(int(t49_0)-int(t49_3))
+				local[6]=t49_4
+				pc=64
+				continue
+			56:
+				var t56_0: Variant=local[7]
+				var t56_1: Variant=2
+				var t56_2: Variant=OEVM.i32(int(t56_0)&int(t56_1))
+				pc=64 if int(t56_2)==0 else 60
+				continue
+			60:
+				var t60_0: Variant=local[6]
+				var t60_1: Variant=local[4]
+				var t60_2: Variant=OEVM.i32(int(t60_0)-int(t60_1))
+				local[6]=t60_2
+				pc=64
+			64:
+				var t64_0: Variant=local[6]
+				local[11]=t64_0
+				var t64_1: Variant=local[4]
+				local[13]=t64_1
+				pc=68
+			68:
+				var t68_0: Variant=local[3]
+				local[12]=t68_0
+				var t68_1: Variant=local[5]
+				local[10]=t68_1
+				pc=72
+			72:
+				var t72_0: Variant=local[8]
+				local[14]=t72_0
+				var t72_1: Variant=local[12]
+				var t72_2: Variant=local[8]
+				pc=79 if t72_1>=t72_2 else 77
+				continue
+			77:
+				var t77_0: Variant=local[12]
+				local[14]=t77_0
+				pc=79
+			79:
+				var t79_0: Variant=local[9]
+				local[15]=t79_0
+				var t79_1: Variant=local[13]
+				var t79_2: Variant=local[9]
+				pc=86 if t79_1>=t79_2 else 84
+				continue
+			84:
+				var t84_0: Variant=local[13]
+				local[15]=t84_0
+				pc=86
+			86:
+				var t86_0: Variant=vm.statics["a"]["a:Ljavax/microedition/lcdui/Graphics;"]
+				var t86_1: Variant=local[0]
+				var t86_2: Variant=local[1]
+				var t86_3: Variant=local[2]
+				var t86_4: Variant=local[14]
+				var t86_5: Variant=local[15]
+				var t86_6: Variant=0
+				var t86_7: Variant=local[10]
+				var t86_8: Variant=vm.statics["a"]["b:[I"]
+				var t86_9: Variant=0
+				var t86_10: Variant=aload(t86_8,int(t86_9))
+				if vm.exception!=null: return null
+				var t86_11: Variant=OEVM.i32(int(t86_7)+int(t86_10))
+				var t86_12: Variant=local[11]
+				var t86_13: Variant=vm.statics["a"]["b:[I"]
+				var t86_14: Variant=1
+				var t86_15: Variant=aload(t86_13,int(t86_14))
+				if vm.exception!=null: return null
+				var t86_16: Variant=OEVM.i32(int(t86_12)+int(t86_15))
+				var t86_17: Variant=20
+				if t86_0==null: vm.throw_exception("java/lang/NullPointerException");return null
+				vm.native.invoke({"owner": "javax/microedition/lcdui/Graphics", "name": "drawRegion", "desc": "(Ljavax/microedition/lcdui/Image;IIIIIIII)V", "params": ["Ljavax/microedition/lcdui/Image;", "I", "I", "I", "I", "I", "I", "I", "I"], "return": "V"},t86_0,[t86_1,t86_2,t86_3,t86_4,t86_5,t86_6,t86_11,t86_16,t86_17],vm.active)
+				if vm.exception!=null: return null
+				var t86_18: Variant=local[12]
+				var t86_19: Variant=local[8]
+				var t86_20: Variant=OEVM.i32(int(t86_18)-int(t86_19))
+				local[12]=t86_20
+				var t86_21: Variant=local[10]
+				var t86_22: Variant=local[8]
+				var t86_23: Variant=OEVM.i32(int(t86_21)+int(t86_22))
+				local[10]=t86_23
+				var t86_24: Variant=local[12]
+				pc=72 if int(t86_24)>0 else 115
+				continue
+			115:
+				var t115_0: Variant=local[13]
+				var t115_1: Variant=local[9]
+				var t115_2: Variant=OEVM.i32(int(t115_0)-int(t115_1))
+				local[13]=t115_2
+				var t115_3: Variant=local[11]
+				var t115_4: Variant=local[9]
+				var t115_5: Variant=OEVM.i32(int(t115_3)+int(t115_4))
+				local[11]=t115_5
+				var t115_6: Variant=local[13]
+				pc=68 if int(t115_6)>0 else 125
+				continue
+			125:
+				return null
 	return null

@@ -11,7 +11,9 @@ func run() -> void:
 	var path: String = "user://test-snapshot.oe2"
 	if not OESnapshot.new().save_game(session,path): failures.append("save")
 	for n in 12: session.tick(50)
+	session.vm.resume_after=99999
 	if not OESnapshot.new().load_game(session,path): failures.append("load")
+	if session.vm.resume_after!=0 or not session.vm.active.is_empty(): failures.append("reset obsolete scheduler state")
 	var after: Dictionary = session.report()
 	for key in ["clock_ms","state","menu","stacks","errors"]:
 		if before[key]!=after[key]: failures.append("restore "+key)

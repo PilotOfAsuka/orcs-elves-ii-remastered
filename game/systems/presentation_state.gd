@@ -96,6 +96,7 @@ func menu() -> Dictionary:
 		var label: String=text_id(id,(flags&4096)!=0,(flags&2)!=0)
 		var value_id: int=vm.get_field(row,"t","c","I")
 		var value: String="" if value_id==sentinel else text_id(value_id,(flags&8192)!=0,(flags&2)!=0)
+		if int(vm.get_static("w","g","I")) in [17,102] and index==2: value="Русский" if OEText.language=="ru" else "English"
 		rows.append({"index":index,"text":label,"value":value,"readonly":(flags&1)!=0,"disabled":(flags&5)!=0,"adjustable":(flags&32)!=0})
 		if index==selected:
 			var help_id: int=vm.get_field(row,"t","d","I")
@@ -275,3 +276,15 @@ func map_state() -> Dictionary:
 			endpoints.append(int(field(definition,"g","a","S")))
 			walls.append(endpoints)
 	return {"level_id":tiles.get_instance_id(),"tiles":tiles.data,"walls":walls,"markers":markers,"x":int(vm.get_static("a","h","I"))/64.0,"y":int(vm.get_static("a","i","I"))/64.0,"angle":int(vm.get_static("a","q","I")),"hidden":int(vm.get_static("l","j","Z"))!=0}
+
+func lockpick() -> Dictionary:
+	if int(vm.get_static("a","H","I"))!=19: return {}
+	var code: Variant=vm.get_static("l","a","[C")
+	var length: int=0
+	if code is JObject:
+		for letter: Variant in code.data:
+			if int(letter)==0: break
+			length+=1
+	var current: int=vm.get_static("v","H","I")
+	var began: int=vm.get_static("v","I","I")
+	return {"length":length,"completed":int(vm.get_static("a","ax","I")),"partial":int(vm.get_static("a","aw","I"))==1,"finished":int(vm.get_static("a","w","Z"))!=0,"attempts":(current>>16)-(began>>16),"correct":(current&65535)-(began&65535)}

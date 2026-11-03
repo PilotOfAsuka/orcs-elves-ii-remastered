@@ -66,8 +66,13 @@ var interaction_meter: HBoxContainer
 var dialogue_base_kind: String="world"
 var language_ready: bool=false
 var language_picker: OEStartupLanguage
+var lockpick_panel: OELockpickPanel
+var game_input_blocked: bool=false
+var language_menu_cursor: int=0
+var previous_language_menu: int=-1
 
 func _ready() -> void:
+	if OS.has_feature("web") and bool(JavaScriptBridge.eval("location.search.includes('checkpointcheck=1')")): testing=true
 	var locale_settings:=ConfigFile.new()
 	var preferred_language: String="ru"
 	if not testing and locale_settings.load("user://language.cfg")==OK: preferred_language=str(locale_settings.get_value("ui","language","ru"))
@@ -153,9 +158,13 @@ func _ready() -> void:
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	modal_layer.add_child(shade)
 	modal_layer.visible=false
-	reader_panel.key_requested.connect(func(key: int): session.key(key))
+	reader_panel.key_requested.connect(dialogue_key)
 	reader_panel.choice_requested.connect(choose_dialogue)
-	reader_panel.continue_requested.connect(func(): session.key(53))
+	reader_panel.continue_requested.connect(func(): dialogue_key(53))
+	lockpick_panel=OELockpickPanel.new()
+	modal_layer.add_child(lockpick_panel)
+	lockpick_panel.visible=false
+	lockpick_panel.key_requested.connect(lockpick_key)
 	map_view=OEDungeonMap.new()
 	view_frame.add_child(map_view)
 	map_view.visible=false
@@ -200,7 +209,6 @@ func _ready() -> void:
 	hud=OEAdventureHUD.new()
 	add_child(hud)
 	hud.visible=false
-	hud.key_requested.connect(func(key: int): session.key(key))
 	controls = Control.new()
 	add_child(controls)
 	softkeys = HBoxContainer.new()
@@ -245,6 +253,7 @@ func _ready() -> void:
 	hint.add_theme_font_size_override("font_size",12)
 	hint.add_theme_color_override("font_color",Color("a2a397"))
 	add_child(hint)
+	move_child(modal_layer,get_child_count()-1)
 	resized.connect(arrange)
 	var settings := ConfigFile.new()
 	var preferred: int = 1
@@ -266,6 +275,10 @@ func _ready() -> void:
 
 	if OS.has_feature("web") and bool(JavaScriptBridge.eval("location.search.includes('weaponcheck=1')")):
 		qa_check=preload("res://qa/web_weapon_check.gd").new()
+		qa_check.call_deferred("run",self)
+
+	if OS.has_feature("web") and bool(JavaScriptBridge.eval("location.search.includes('checkpointcheck=1')")):
+		qa_check=preload("res://qa/user_checkpoint_check.gd").new()
 		qa_check.call_deferred("run",self)
 
 func select_language(language: String) -> void:
@@ -318,7 +331,7 @@ func arrange() -> void:
 	var text_screen: bool=layout_kind in ["menu","story","loading","credits","map","cinematic","death"]
 	var expanded: bool=selected_mode==1 and play
 	var header: float=62
-	var footer: float=44
+	var footer: float=28
 	heading.visible=size.x>850 or presentation_kind in ["menu","story","loading","credits"]
 	heading.position=Vector2(pad,17)
 	heading.size=Vector2(220,26)
@@ -383,6 +396,8 @@ func arrange() -> void:
 		reader_panel.position=(size-reader_panel.size)/2
 	else:
 		reader_panel.position=Vector2.ZERO;reader_panel.size=view_frame.size
+	lockpick_panel.size=Vector2(minf(size.x-pad*2,480),minf(size.y-24,380))
+	lockpick_panel.position=(size-lockpick_panel.size)/2
 	map_view.position=Vector2(10,34);map_view.size=view_frame.size-Vector2(20,94)
 	map_tools.position=Vector2((view_frame.size.x-196)/2,view_frame.size.y-48)
 	map_tools.size=Vector2(196,38)
@@ -394,11 +409,12 @@ func arrange() -> void:
 	var grid_height: float=controls.size.y
 	keypad.position=Vector2.ZERO;keypad.size=Vector2(controls.size.x,grid_height)
 	for button in keypad.get_children(): button.custom_minimum_size.y=(grid_height-12)/3
+	actions_row.visible=false
 	actions_row.position=Vector2(size.x/2-100,size.y-footer)
 	actions_row.size=Vector2(200,34)
 	for button in actions_row.get_children(): button.custom_minimum_size=Vector2(42,32);button.add_theme_constant_override("icon_max_width",19)
-	status.position=Vector2(pad,size.y-footer-24);status.size=Vector2(size.x-pad*2,22)
-	hint.visible=wide and size.x>1000
+	status.position=Vector2(pad,size.y-28);status.size=Vector2(size.x-pad*2,22)
+	hint.visible=wide and size.x>1000 and status.text.is_empty()
 	hint.position=Vector2(pad,size.y-30);hint.size=Vector2(maxf(50,size.x/2-130),20)
 	hint.add_theme_font_size_override("font_size",10)
 	version_badge.position=Vector2(size.x-76,size.y-26);version_badge.size=Vector2(54,14)
@@ -453,7 +469,7 @@ func _process(_delta: float) -> void:
 	if not paused: session.tick(clampi(now-last_time,1,100))
 	last_time = now
 	var ui_began: int=Time.get_ticks_usec()
-	if held_key!=0 and now>=next_repeat and not paused:
+	if held_key!=0 and now>=next_repeat and not paused and int(session.vm.get_static("a","H","I")) not in [7,19]:
 		if int(session.vm.get_static("a","aJ","I"))==0: session.key(held_key)
 		next_repeat = now+180
 	var state: int = session.vm.get_static("a","H","I")
@@ -472,10 +488,11 @@ func _process(_delta: float) -> void:
 	if not reader_data.is_empty():
 		left_key.text=OEText.localize(str(reader_data.left))
 		right_key.text=OEText.localize(str(reader_data.right))
-	left_key.disabled=left_key.text.is_empty()
-	right_key.disabled=right_key.text.is_empty()
+	left_key.disabled=game_input_blocked or left_key.text.is_empty()
+	right_key.disabled=game_input_blocked or right_key.text.is_empty()
 	if toast_until>0 and now>toast_until: status.text="";toast_until=0
 	if session.vm.halted: status.text = session.vm.errors[-1] if not session.vm.errors.is_empty() else "Игра завершена"
+	hint.visible=size.x>size.y*1.2 and size.x>1000 and status.text.is_empty()
 
 	session.metrics.publish(Time.get_ticks_usec()-ui_began)
 
@@ -484,6 +501,12 @@ func clean_caption(text: String) -> String:
 
 func update_native_menu(now: int) -> void:
 	var menu: Dictionary=presenter.menu()
+	if not menu.is_empty() and int(menu.id) in [24,119]:
+		if previous_language_menu!=int(menu.id): language_menu_cursor=0 if OEText.language=="ru" else 1
+		previous_language_menu=int(menu.id)
+		menu.rows=[{"index":0,"text":"Русский","value":"✓" if OEText.language=="ru" else "","disabled":false},{"index":1,"text":"English","value":"✓" if OEText.language=="en" else "","disabled":false},{"index":2,"text":OEText.localize("Назад"),"value":"","disabled":false}]
+		menu.selected=language_menu_cursor;menu.description=""
+	else: previous_language_menu=-1
 	var active: bool=not menu.is_empty() and not menu.rows.is_empty()
 	var show_menu: bool=int(session.vm.get_static("a","H","I"))==2 and active
 	var changed: bool=native_menu.visible!=show_menu
@@ -522,6 +545,10 @@ func update_native_menu(now: int) -> void:
 			button.custom_minimum_size.y=44
 			button.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 			menu_buttons[index]=button
+		if int(menu.id) in [3,100,17,102]:
+			var port_title:=Label.new();port_title.text=OEText.localize("БЫСТРЫЕ ДЕЙСТВИЯ");port_title.add_theme_color_override("font_color",OESkin.GOLD);native_rows.add_child(port_title)
+			for item in [["Быстро сохранить · F5",save_game],["Быстро загрузить · F9",load_game],["Включить / выключить звук",func(): audio.set_muted(not audio.muted)],["Полный экран",toggle_fullscreen]]:
+				make_button(native_rows,OEText.localize(item[0]),item[1]).custom_minimum_size.y=42
 		if not str(menu.description).is_empty():
 			var description:=Label.new()
 			description.text=menu.description
@@ -542,6 +569,11 @@ func update_native_menu(now: int) -> void:
 			menu_next_time=now+160
 
 func choose_menu_row(menu: int, index: int) -> void:
+	if menu in [24,119]:
+		if index in [0,1]:
+			language_menu_cursor=index;select_language("ru" if index==0 else "en")
+		else: session.key(-6)
+		return
 	pending_menu=menu
 	pending_row=index
 	menu_wait_selection=-1
@@ -590,30 +622,16 @@ func update_adventure(now: int) -> void:
 	elif not modal and reader_panel.get_parent()!=view_frame:
 		reader_panel.reparent(view_frame,false)
 		view_frame.move_child(reader_panel,view_frame.get_child_count()-2)
-	modal_layer.visible=modal
+	lockpick_panel.show_state(presenter.lockpick())
+	modal_layer.visible=modal or lockpick_panel.visible
+	move_child(modal_layer,get_child_count()-1)
+	set_game_input_blocked(modal_layer.visible)
 	reader_panel.show_state(reader_data)
 	map_view.show_state(presenter.map_state())
 	map_tools.visible=kind=="map"
 	stage_caption.text="КАРТА ПОДЗЕМЕЛЬЯ" if kind=="map" else ("СЮЖЕТНАЯ СЦЕНА" if is_cinematic else ("ПУТЬ ОКОНЧЕН" if kind=="death" else ""))
 	stage_caption.text=OEText.localize(stage_caption.text)
-	interaction_meter.visible=kind=="interaction"
-	if kind=="interaction":
-		var code: Variant=session.vm.get_static("l","a","[C")
-		var length: int=0
-		if code is JObject:
-			for letter: Variant in code.data:
-				if int(letter)==0: break
-				length+=1
-		if interaction_meter.get_child_count()!=length:
-			for child in interaction_meter.get_children(): child.free()
-			for index in length:
-				var pip:=ColorRect.new();pip.custom_minimum_size=Vector2(18,8)
-				interaction_meter.add_child(pip)
-			interaction_meter.position.x=(view_frame.size.x-length*23+5)/2
-		for index in interaction_meter.get_child_count():
-			var completed: int=session.vm.get_static("a","ax","I")
-			interaction_meter.get_child(index).color=Color("7e9a57") if index<completed else (OESkin.GOLD if index==completed and int(session.vm.get_static("a","aw","I"))==1 else Color("454f3d"))
-		stage_caption.text="%s   %d / %d" % [presenter.text_id(55),int(session.vm.get_static("a","ax","I")),length]
+	interaction_meter.visible=false
 	subtitle.text=""
 	if is_cinematic:
 		var lines: PackedStringArray=[]
@@ -640,11 +658,13 @@ func update_adventure(now: int) -> void:
 		arrange()
 
 func choose_dialogue(index: int) -> void:
+	if int(session.vm.get_static("a","H","I"))!=7 or not reader_data.get("choice",false): return
 	pending_choice=index
 	choice_wait=-1
 	menu_next_time=0
 
 func view_input(event: InputEvent) -> void:
+	if game_input_blocked or not language_ready or int(session.vm.get_static("a","H","I")) in [7,19]: return
 	if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT:
 		if event.pressed: touch_start=event.position
 		else:
@@ -661,6 +681,17 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			KEY_F2: set_render_mode(1-selected_mode);get_viewport().set_input_as_handled();return
 			KEY_F5: save_game();get_viewport().set_input_as_handled();return
 			KEY_F9: load_game();get_viewport().set_input_as_handled();return
+	if game_input_blocked:
+		if event.pressed:
+			if lockpick_panel.visible:
+				var lock_mapping: Dictionary={KEY_W:50,KEY_UP:50,KEY_S:56,KEY_DOWN:56,KEY_A:52,KEY_LEFT:52,KEY_D:54,KEY_RIGHT:54,KEY_ESCAPE:53}
+				var raw: int=lock_mapping.get(event.physical_keycode,lock_mapping.get(event.keycode,0))
+				if raw!=0: lockpick_key(raw)
+			elif reader_panel.visible:
+				if event.keycode in [KEY_ENTER,KEY_SPACE]: dialogue_key(53)
+				elif event.keycode==KEY_ESCAPE: dialogue_key(-7)
+				elif reader_data.get("choice",false) and event.keycode in [KEY_LEFT,KEY_RIGHT]: choose_dialogue(0 if event.keycode==KEY_LEFT else 1)
+		get_viewport().set_input_as_handled();return
 	var mapping := {KEY_W:50,KEY_UP:50,KEY_S:56,KEY_DOWN:56,KEY_A:52,KEY_LEFT:52,KEY_D:54,KEY_RIGHT:54,KEY_ENTER:53,KEY_SPACE:53,KEY_ESCAPE:-7,KEY_F1:-6,KEY_M:35,KEY_Q:42,KEY_E:55,KEY_Z:49,KEY_C:51,KEY_R:57,KEY_I:48}
 	var raw: int = mapping.get(event.physical_keycode,mapping.get(event.keycode,0))
 	if event.keycode>=KEY_0 and event.keycode<=KEY_9: raw=int(event.keycode)
@@ -672,6 +703,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func begin_key(raw: int) -> void:
+	if game_input_blocked or not language_ready or int(session.vm.get_static("a","H","I")) in [7,19]: return
+	if is_language_menu():
+		language_menu_key(raw);return
 	session.key(raw)
 	held_key=raw if raw in [49,50,51,52,54,56] and presentation_kind!="dialogue" else 0
 	next_repeat=Time.get_ticks_msec()+350
@@ -692,3 +726,32 @@ func _notification(what: int) -> void:
 
 func _exit_tree() -> void:
 	if session!=null: session.close()
+
+func set_game_input_blocked(blocked: bool) -> void:
+	if blocked==game_input_blocked: return
+	game_input_blocked=blocked;held_key=0
+	for branch in [controls,hud,header_tools,actions_row,mode_row,native_menu]: block_buttons(branch,blocked)
+
+func block_buttons(node: Node, blocked: bool) -> void:
+	if node is Button:
+		if blocked and not node.has_meta("modal_disabled"):
+			node.set_meta("modal_disabled",node.disabled);node.disabled=true
+		elif not blocked and node.has_meta("modal_disabled"):
+			node.disabled=bool(node.get_meta("modal_disabled"));node.remove_meta("modal_disabled")
+	for child in node.get_children(): block_buttons(child,blocked)
+
+func dialogue_key(raw: int) -> void:
+	if int(session.vm.get_static("a","H","I")) in [7,14] and raw in [53,-7,-6]: session.key(raw)
+
+func lockpick_key(raw: int) -> void:
+	if int(session.vm.get_static("a","H","I"))==19 and raw in [50,56,52,54,53]: session.key(raw)
+
+func is_language_menu() -> bool:
+	return int(session.vm.get_static("a","H","I"))==2 and int(session.vm.get_static("w","g","I")) in [24,119]
+
+func language_menu_key(raw: int) -> void:
+	if raw in [50,52,56,54]: language_menu_cursor=1-language_menu_cursor;menu_signature=""
+	elif raw==53:
+		select_language("ru" if language_menu_cursor==0 else "en")
+		session.key(-6)
+	elif raw in [-6,-7]: session.key(-6)

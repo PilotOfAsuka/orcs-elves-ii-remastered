@@ -119,6 +119,7 @@ func load_file(game: OEGameSession,path: String) -> bool:
 	game.vm.class_locks=roots.locks
 	game.vm.now_ms=roots.now; game.vm.epoch_ms=roots.epoch; game.vm.next_id=roots.next_id
 	game.vm.halted=false; game.vm.errors.clear()
+	game.vm.resume_after=0;game.vm.active={};game.vm.exception=null;game.vm.native_boundary=false
 	game.platform.exit_requested=false
 	game.platform.screen=roots.screen; game.platform.display=roots.display
 	game.platform.native_statics=roots.get("native_statics",{}); game.platform.random_serial=roots.random_serial; game.platform.image_cache=roots.images
