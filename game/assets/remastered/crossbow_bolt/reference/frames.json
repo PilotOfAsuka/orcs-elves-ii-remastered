@@ -1,0 +1,21 @@
+{
+	"frames": [
+		{
+			"bounds": [
+				1,
+				0,
+				62,
+				64
+			],
+			"frame": 0,
+			"path": "res://assets/remastered/crossbow_bolt/reference/original_frame_00.png",
+			"shape": 4030,
+			"shape_bounds": [
+				1,
+				62
+			],
+			"source_sprite": 130
+		}
+	],
+	"jar_sha256": "759213ee5ce194f1ac92ff5937ffe562200e2c01dcfd76890c5148cf57787a33"
+}

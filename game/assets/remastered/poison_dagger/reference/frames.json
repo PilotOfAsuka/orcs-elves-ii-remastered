@@ -1,0 +1,53 @@
+{
+	"frames": [
+		{
+			"bounds": [
+				0,
+				27,
+				63,
+				37
+			],
+			"frame": 0,
+			"path": "res://assets/remastered/poison_dagger/reference/original_frame_00.png",
+			"shape": 731,
+			"shape_bounds": [
+				0,
+				62
+			],
+			"source_sprite": 4
+		},
+		{
+			"bounds": [
+				0,
+				24,
+				63,
+				40
+			],
+			"frame": 1,
+			"path": "res://assets/remastered/poison_dagger/reference/original_frame_01.png",
+			"shape": 936,
+			"shape_bounds": [
+				0,
+				62
+			],
+			"source_sprite": 4
+		},
+		{
+			"bounds": [
+				9,
+				10,
+				52,
+				54
+			],
+			"frame": 2,
+			"path": "res://assets/remastered/poison_dagger/reference/original_frame_02.png",
+			"shape": 1133,
+			"shape_bounds": [
+				9,
+				60
+			],
+			"source_sprite": 4
+		}
+	],
+	"jar_sha256": "759213ee5ce194f1ac92ff5937ffe562200e2c01dcfd76890c5148cf57787a33"
+}

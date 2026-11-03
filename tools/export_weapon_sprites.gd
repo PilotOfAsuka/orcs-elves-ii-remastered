@@ -18,13 +18,16 @@ func run() -> void:
 	vm.set_static("k","m","[I",vm.new_array("[I",16384))
 	vm.set_static("k","c","Z",0);vm.set_static("k","l","Z",0);vm.set_static("k","j","Z",0)
 	var frames: Array=[]
-	for frame in int(sprites[sprite+1])-int(sprites[sprite]):
-		var pixels: Array=vm.get_static("k","m","[I").data;pixels.fill(0);vm.set_static("k","aX","I",-1)
+	var end: int=materials.size()/2
+	for start in sprites:
+		if int(start)!=32767 and int(start)>int(sprites[sprite]): end=mini(end,int(start))
+	for frame in end-int(sprites[sprite]):
+		var pixels: Array=vm.get_static("k","m","[I").data;pixels.fill(0x12345678);vm.set_static("k","aX","I",-1)
 		game.vm.render_helpers.sprite_2d([sprite,frame,32,64,0,0,0,0])
 		var bytes:=PackedByteArray();bytes.resize(16384*4)
 		for n in 16384:
 			var packed: int=pixels[n]
-			bytes.encode_u32(n*4,((packed&255)<<16)|(packed&0xff00)|((packed>>16)&255)|(0xff000000 if packed!=0 else 0))
+			bytes.encode_u32(n*4,0 if packed==0x12345678 else ((packed&255)<<16)|(packed&0xff00)|((packed>>16)&255)|0xff000000)
 		var image:=Image.create_from_data(128,128,false,Image.FORMAT_RGBA8,bytes)
 		var source: Image=image.get_region(Rect2i(0,0,64,64))
 		source.save_png(folder+"/source_frame_%02d.png"%frame)

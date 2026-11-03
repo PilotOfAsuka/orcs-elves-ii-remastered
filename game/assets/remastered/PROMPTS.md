@@ -1,5 +1,10 @@
 # Original weapon restoration experiment
 
+For the complete 0.0.17 arsenal, see [GENERATION_017.json](GENERATION_017.json):
+18 additional unique images cover every remaining weapon and its auxiliary
+layers. Original identical crossbow frames, spell hands and the dagger's third
+pose share HD textures to preserve visual continuity and memory.
+
 Generated 2026-11-04 with the built-in image_gen tool, using extracted original animation frames as references. The gold Wand (weapon 0, sprite 1) and wooden Staff (weapon 1, sprite 2) each have two frames. Source RGBA canvases are 64 × 64; generated transparent RGBA images are 1254 × 1254. No original game assets are overwritten. This is an AI restoration experiment, with inferred fine detail.
 
 ## Staff, resting

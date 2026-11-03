@@ -1,0 +1,21 @@
+{
+	"frames": [
+		{
+			"bounds": [
+				0,
+				0,
+				64,
+				64
+			],
+			"frame": 0,
+			"path": "res://assets/remastered/freeze_orb/reference/original_frame_00.png",
+			"shape": 2730,
+			"shape_bounds": [
+				0,
+				63
+			],
+			"source_sprite": 14
+		}
+	],
+	"jar_sha256": "759213ee5ce194f1ac92ff5937ffe562200e2c01dcfd76890c5148cf57787a33"
+}

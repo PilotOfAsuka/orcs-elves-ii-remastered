@@ -1,0 +1,53 @@
+{
+	"frames": [
+		{
+			"bounds": [
+				10,
+				33,
+				44,
+				31
+			],
+			"frame": 0,
+			"path": "res://assets/remastered/bob/reference/original_frame_00.png",
+			"shape": 1297,
+			"shape_bounds": [
+				10,
+				53
+			],
+			"source_sprite": 5
+		},
+		{
+			"bounds": [
+				23,
+				21,
+				21,
+				32
+			],
+			"frame": 1,
+			"path": "res://assets/remastered/bob/reference/original_frame_01.png",
+			"shape": 1437,
+			"shape_bounds": [
+				23,
+				43
+			],
+			"source_sprite": 5
+		},
+		{
+			"bounds": [
+				16,
+				35,
+				31,
+				29
+			],
+			"frame": 2,
+			"path": "res://assets/remastered/bob/reference/original_frame_02.png",
+			"shape": 1518,
+			"shape_bounds": [
+				16,
+				46
+			],
+			"source_sprite": 5
+		}
+	],
+	"jar_sha256": "759213ee5ce194f1ac92ff5937ffe562200e2c01dcfd76890c5148cf57787a33"
+}

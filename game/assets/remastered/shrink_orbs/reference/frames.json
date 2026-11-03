@@ -1,0 +1,37 @@
+{
+	"frames": [
+		{
+			"bounds": [
+				1,
+				20,
+				62,
+				44
+			],
+			"frame": 0,
+			"path": "res://assets/remastered/shrink_orbs/reference/original_frame_00.png",
+			"shape": 2169,
+			"shape_bounds": [
+				1,
+				62
+			],
+			"source_sprite": 9
+		},
+		{
+			"bounds": [
+				0,
+				14,
+				62,
+				50
+			],
+			"frame": 1,
+			"path": "res://assets/remastered/shrink_orbs/reference/original_frame_01.png",
+			"shape": 2391,
+			"shape_bounds": [
+				0,
+				61
+			],
+			"source_sprite": 9
+		}
+	],
+	"jar_sha256": "759213ee5ce194f1ac92ff5937ffe562200e2c01dcfd76890c5148cf57787a33"
+}

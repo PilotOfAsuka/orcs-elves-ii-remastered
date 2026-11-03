@@ -1,0 +1,37 @@
+{
+	"frames": [
+		{
+			"bounds": [
+				0,
+				29,
+				64,
+				33
+			],
+			"frame": 0,
+			"path": "res://assets/remastered/kinetic_crossbow/reference/original_frame_00.png",
+			"shape": 1639,
+			"shape_bounds": [
+				0,
+				63
+			],
+			"source_sprite": 7
+		},
+		{
+			"bounds": [
+				0,
+				29,
+				64,
+				33
+			],
+			"frame": 1,
+			"path": "res://assets/remastered/kinetic_crossbow/reference/original_frame_01.png",
+			"shape": 1639,
+			"shape_bounds": [
+				0,
+				63
+			],
+			"source_sprite": 7
+		}
+	],
+	"jar_sha256": "759213ee5ce194f1ac92ff5937ffe562200e2c01dcfd76890c5148cf57787a33"
+}
