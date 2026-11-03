@@ -42,6 +42,7 @@ func decode(value: Variant) -> Variant:
 	return value
 
 func save_game(game: OEGameSession, path: String) -> bool:
+	game.vm.render_helpers.raster.sync()
 	if game.vm.halted: return false
 	ids.clear(); nodes.clear()
 	var fibers: Array = []

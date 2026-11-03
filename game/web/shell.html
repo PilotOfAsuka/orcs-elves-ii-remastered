@@ -116,6 +116,8 @@ body {
 		$GODOT_HEAD_INCLUDE
 	</head>
 	<body>
+<pre id="oe-perf" style="display:none;position:fixed;right:0;top:0;max-width:700px;white-space:pre-wrap;color:white;background:#101820ee;z-index:99;pointer-events:none;font:11px monospace"></pre>
+<script>if(location.search.includes("perf=1"))document.getElementById("oe-perf").style.display="block";</script>
 		<main id="game-frame">
 		<canvas id="canvas">
 			Для игры нужен браузер с поддержкой canvas.
@@ -254,7 +256,7 @@ const engine = new Engine({...GODOT_CONFIG, onProgress: function (current, total
 		setStatusMode('progress');
 		const pack = GODOT_CONFIG.executable + '.pck';
 		// Keep the runtime filename stable while fetching this exported revision.
-		const revision = 'orcs-elves-2-001-' + GODOT_CONFIG.fileSizes[pack];
+		const revision = 'orcs-elves-2-' + Date.now();
 		Promise.all([
 			engine.init(GODOT_CONFIG.executable),
 			engine.preloadFile(pack + '?v=' + revision, pack),

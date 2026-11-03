@@ -4,6 +4,8 @@ var fast_font: bool = true
 var font_helpers: OEFontHelpers
 var fast_render: bool = true
 var render_helpers: OERenderHelpers
+var fast_geometry: bool=true
+var geometry: OECompiledGeometry
 var span_observer: Callable
 var fast_resources: bool = true
 var resource_helpers: OEResourceHelpers
@@ -26,6 +28,7 @@ var halted: bool = false
 var max_slice: int = 45000
 ## Runtime scheduling only; zero retains deterministic instruction-based test runs.
 var frame_budget_us: int = 0
+var paint_budget_us: int = 0
 var resume_after: int = 0
 var profile_enabled: bool = false
 var profile_instructions: Dictionary = {}
@@ -50,6 +53,7 @@ func _init() -> void:
 				statics[cl][field.name + ":" + field.desc] = constant(field.constant) if field.has("constant") else default_value(field.desc)
 	resource_helpers=OEResourceHelpers.new(self)
 	resource_helpers.install()
+	geometry=OECompiledGeometry.new(self)
 
 func normalize(value: Variant) -> Variant:
 	if value is float: return int(value)
@@ -233,11 +237,18 @@ func tick(delta_ms: int) -> void:
 		while not fiber.frames.is_empty() and not fiber.yielded and not halted and count < max_slice:
 			step(fiber)
 			count += 1
-			if frame_budget_us>0 and (count&127)==0 and Time.get_ticks_usec()-began>=frame_budget_us: break
-		if frame_budget_us>0 and Time.get_ticks_usec()-began>=frame_budget_us:
+			if frame_budget_us>0 and (count&127)==0 and Time.get_ticks_usec()-began>=current_budget(fiber): break
+		if frame_budget_us>0 and Time.get_ticks_usec()-began>=current_budget(fiber):
 			resume_after=int(fiber.id);break
+	# Pixel work stays buffered until an actual array access, drawRGB or snapshot.
 	for k: int in range(fibers.size()-1,-1,-1):
 		if fibers[k].frames.is_empty(): fibers.remove_at(k)
+
+func current_budget(fiber: Dictionary) -> int:
+	if paint_budget_us>frame_budget_us:
+		for frame: Dictionary in fiber.frames:
+			if frame.get("profile_key","")=="a.n()V": return paint_budget_us
+	return frame_budget_us
 
 func fail(message: String) -> void:
 	errors.append(message)
@@ -310,6 +321,7 @@ func step(fiber: Dictionary) -> void:
 		46,47,50,51,52,53:
 			var index: int = int(stack.pop_back())
 			var arr: Variant = stack.pop_back()
+			if render_helpers.raster.destination!=null: render_helpers.raster.before_access(arr)
 			if arr == null: throw_exception("java/lang/NullPointerException")
 			elif index < 0 or index >= arr.data.size(): throw_exception("java/lang/ArrayIndexOutOfBoundsException",str(index))
 			else: stack.append(arr.data[index])
@@ -321,6 +333,7 @@ func step(fiber: Dictionary) -> void:
 			var value: Variant = stack.pop_back()
 			var index: int = int(stack.pop_back())
 			var arr: Variant = stack.pop_back()
+			render_helpers.raster.before_access(arr,true)
 			if arr == null: throw_exception("java/lang/NullPointerException")
 			elif index < 0 or index >= arr.data.size(): throw_exception("java/lang/ArrayIndexOutOfBoundsException",str(index))
 			else:
@@ -429,7 +442,10 @@ func step(fiber: Dictionary) -> void:
 				var found: Dictionary = find_method(owner, ref.name + ref.desc)
 				if resource_observer.is_valid() and found.owner=="k" and ref.name+ref.desc in ["d()Z","b()Z"]: resource_observer.call(ref.name+ref.desc,args)
 				if span_observer.is_valid() and render_helpers.accepts(found.owner,ref.name+ref.desc): span_observer.call(ref.name+ref.desc,args)
-				if not found.method.is_empty() and fast_render and render_helpers.accepts(found.owner,ref.name+ref.desc):
+				if not found.method.is_empty() and fast_geometry and geometry.accepts(found.owner,ref.name+ref.desc):
+					var value: Variant=geometry.invoke(("l." if found.owner=="l" else "")+ref.name+ref.desc,args)
+					if ref["return"]!="V" and exception==null: stack.append(value)
+				elif not found.method.is_empty() and fast_render and render_helpers.accepts(found.owner,ref.name+ref.desc):
 					var value: Variant=render_helpers.invoke(ref.name+ref.desc,args)
 					if ref["return"]!="V" and exception==null: stack.append(value)
 				elif not found.method.is_empty() and fast_resources and resource_helpers.accepts(found.owner,ref.name+ref.desc):

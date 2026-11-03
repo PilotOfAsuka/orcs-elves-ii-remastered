@@ -3,9 +3,11 @@ extends RefCounted
 ## Exact fixed-point software-rendering routines from original class k.
 ## Every array and rendering counter belongs to the original game state.
 var vm: OEVM
+var raster: OEWebRaster
 
 func _init(machine: OEVM) -> void:
 	vm=machine
+	raster=OEWebRaster.new(vm)
 
 func accepts(owner: String, key: String) -> bool:
 	return owner=="k" and key in ["a(IIIII)V","b(IIII)V","b(II)V","f()Z","h()Z","a(IIIIIIII)Z"]
@@ -67,6 +69,9 @@ func colors(offset: int, mode: int) -> void:
 	vm.set_static("k","ba","I",4 if mode in [5,6,7] else mode)
 
 func wall_columns() -> bool:
+	if raster.enabled:
+		var result: Variant=raster.wall_columns()
+		if result!=null: return bool(result)
 	var vertices: Array=data("l","[I")
 	var flags: int=number("ag")
 	var extent: int=OEVM.i32(int(vertices[3])-int(vertices[0]))
@@ -198,6 +203,9 @@ func sprite_2d(args: Array) -> bool:
 	return empty
 
 func sprite_columns() -> bool:
+	if raster.enabled:
+		var result: Variant=raster.sprite_columns()
+		if result!=null: return bool(result)
 	var vertices: Array=data("l","[I")
 	var flags: int=number("ag")
 	var extent: int=OEVM.i32(int(vertices[3])-int(vertices[0]))
@@ -273,6 +281,8 @@ func wall(args: Array) -> void:
 	if int(vm.get_static("k","c","Z"))!=0: return
 	var count: int=args[4]
 	if count<=0: return
+	if raster.enqueue(-1,args): return
+	raster.before_access(vm.get_static("k","m","[I"),true)
 	var destination: Array=data("m","[I")
 	var texels: Array=data("c","[B")
 	var palette: Array=data("q","[I")
@@ -295,6 +305,8 @@ func sprite(args: Array) -> void:
 	var mode: int=vm.get_static("k","ba","I")
 	var count: int=args[3]
 	if count<=0 or mode not in [0,1,3,4,8,9]: return
+	if raster.enqueue(mode,args): return
+	raster.before_access(vm.get_static("k","m","[I"),true)
 	var destination: Array=data("m","[I")
 	var texels: Array=[]
 	var palette: Array=[]

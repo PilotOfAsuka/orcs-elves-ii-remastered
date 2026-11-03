@@ -43,11 +43,17 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 переходы в рюкзак, ввод и неизменность состояния при F2; `tests/font_parity.gd`
 сравнивает ускорение шрифта с исходным байткодом. Для визуальной проверки
 `tests/render_adventure.gd` запускается с графикой, без `--headless`.
-Проверки ускорений 0.0.3: `render_parity.gd`, `resource_parity.gd`,
+Проверки базовых ускорений 0.0.3: `render_parity.gd`, `resource_parity.gd`,
 `entity_parity.gd`, `action_parity.gd`, `scheduling.gd`; подробности и результаты —
 [docs/PERFORMANCE.md](docs/PERFORMANCE.md). Для resource fixtures запусти
 `tests/journey.gd` с пользовательскими аргументами `-- profile capture`.
 Запускать с `--headless --path game --script ../tests/ИМЯ.gd`.
+Ускорения 0.0.8: `geometry_parity.gd`, `game_loop_parity.gd`,
+`action_parity.gd -- geometry`, `web_raster_cases.gd` и `test_web_raster.cjs`.
+Сгенерированная геометрия обновляется `python3 tools/compile_geometry.py`.
+В браузере `?perf=1` включает реальные замеры реакции, а `?rastercheck=1`
+и `?spritecheck=1` — сравнения отрисовки на существующем quick save.
+Результаты и ограничения приведены в документе производительности.
 Для Web создать `build/web/`, выполнить импорт проекта и экспорт пресета Web.
 Готовые файлы публикуются как статический сайт через HTTP/HTTPS.
 

@@ -28,6 +28,7 @@ func get_static(owner: String, name: String, desc: String) -> Variant:
 	return null
 
 func draw_rgb(g: OEMidpGraphics, args: Array) -> void:
+	vm.render_helpers.raster.before_access(args[0])
 	var source: Array = args[0].data
 	var start: int = int(args[1])
 	var scan: int = int(args[2])
@@ -37,7 +38,10 @@ func draw_rgb(g: OEMidpGraphics, args: Array) -> void:
 	var height: int = int(args[6])
 	var alpha: bool = int(args[7])!=0
 	var rect := Rect2i(x,y,maxi(0,width),maxi(0,height)).intersection(g.clip)
-	if fast_rgb and not alpha and scan==width and rect.has_area() and start>=0 and start+width*height<=source.size():
+	var cached: Image=vm.render_helpers.raster.image if args[0]==vm.render_helpers.raster.image_destination else null
+	if fast_rgb and not alpha and cached!=null and start==0 and scan==width and cached.get_width()==width and cached.get_height()>=height:
+		if rect.has_area(): g.surface.blit_rect(cached,Rect2i(rect.position-Vector2i(x,y),rect.size),rect.position)
+	elif fast_rgb and not alpha and scan==width and rect.has_area() and start>=0 and start+width*height<=source.size():
 		# encode_u32 writes little endian explicitly, independent of host byte order.
 		var bytes:=PackedByteArray()
 		bytes.resize(width*height*4)
@@ -242,6 +246,8 @@ func invoke(ref: Dictionary, o: Variant, args: Array, fiber: Dictionary) -> Vari
 			"getProperty": return "ru" if args[0]=="microedition.locale" else ""
 			"gc": return null
 			"arraycopy":
+				vm.render_helpers.raster.before_access(args[0])
+				vm.render_helpers.raster.before_access(args[2],true)
 				var segment: Array = args[0].data.slice(int(args[1]),int(args[1])+int(args[4]))
 				for n: int in segment.size(): args[2].data[int(args[3])+n] = segment[n]
 				return null

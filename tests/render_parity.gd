@@ -51,6 +51,7 @@ func run() -> void:
 	session=OEGameSession.new(false)
 	if not OESnapshot.new().load_game(session,"res://../build/fixtures/world.oe2"): quit(1);return
 	session.vm.max_slice=1000000
+	session.vm.fast_geometry=false
 	session.vm.fast_render=false
 	session.vm.span_observer=observe
 	var position: Array=[session.vm.get_static("a","h","I"),session.vm.get_static("a","i","I"),session.vm.get_static("a","j","I"),session.vm.get_static("a","k","I")]

@@ -1,5 +1,6 @@
 extends Control
 
+var qa_check: RefCounted
 var session: OEGameSession
 var audio: OEAudioManager
 var classic_view: TextureRect
@@ -16,6 +17,7 @@ var left_key: Button
 var right_key: Button
 var status: Label
 var hint: Label
+var version_badge: Label
 var classic_button: Button
 var remastered_button: Button
 var shader: ShaderMaterial
@@ -26,6 +28,7 @@ var held_key: int = 0
 var next_repeat: int = 0
 var touch_start := Vector2.ZERO
 var paused: bool = false
+var backgrounded: bool = false
 var saved_path: String = "user://quick-save.oe2"
 var toast_until: int = 0
 var testing: bool = false
@@ -148,6 +151,12 @@ func _ready() -> void:
 	status.add_theme_font_size_override("font_size",12)
 	add_child(status)
 	hint = Label.new()
+	version_badge=Label.new()
+	version_badge.text="v"+str(ProjectSettings.get_setting("application/config/version"))
+	version_badge.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
+	version_badge.add_theme_font_size_override("font_size",10)
+	version_badge.add_theme_color_override("font_color",Color("a2a397"))
+	add_child(version_badge)
 	hint.text = "WASD — ход · Z/C — шаг вбок · Q/E — оружие · Enter — действие · M — карта"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_size_override("font_size",12)
@@ -159,6 +168,13 @@ func _ready() -> void:
 	if not testing and settings.load("user://view.cfg")==OK: preferred=int(settings.get_value("view","mode",0))
 	set_render_mode(clampi(preferred,0,1))
 	arrange()
+
+	if OS.has_feature("web") and bool(JavaScriptBridge.eval("location.search.includes('rastercheck=1')")):
+		qa_check=preload("res://qa/web_render_check.gd").new()
+		qa_check.call_deferred("run",self)
+	if OS.has_feature("web") and bool(JavaScriptBridge.eval("location.search.includes('spritecheck=1')")):
+		qa_check=preload("res://qa/web_sprite_check.gd").new()
+		qa_check.call_deferred("run",self)
 
 func make_theme() -> void:
 	theme = Theme.new()
@@ -257,6 +273,8 @@ func arrange() -> void:
 	hint.visible = size.x>650
 	hint.position = Vector2(pad,size.y-19)
 	hint.size = Vector2(size.x-pad*2,16)
+	version_badge.position=Vector2(size.x-66,size.y-16)
+	version_badge.size=Vector2(54,14)
 
 func fit_frame(area: Rect2) -> void:
 	if presentation_kind in ["menu","story","loading"]:
@@ -295,9 +313,13 @@ func toggle_fullscreen() -> void:
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if DisplayServer.window_get_mode()==DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_FULLSCREEN)
 
 func _process(_delta: float) -> void:
+	if backgrounded:
+		last_time=Time.get_ticks_msec()
+		return
 	var now := Time.get_ticks_msec()
 	if not paused: session.tick(clampi(now-last_time,1,100))
 	last_time = now
+	var ui_began: int=Time.get_ticks_usec()
 	if held_key!=0 and now>=next_repeat and not paused:
 		if int(session.vm.get_static("a","aJ","I"))==0: session.key(held_key)
 		next_repeat = now+180
@@ -320,6 +342,8 @@ func _process(_delta: float) -> void:
 	right_key.disabled=right_key.text.is_empty()
 	if toast_until>0 and now>toast_until: status.text="";toast_until=0
 	if session.vm.halted: status.text = session.vm.errors[-1] if not session.vm.errors.is_empty() else "Игра завершена"
+
+	session.metrics.publish(Time.get_ticks_usec()-ui_began)
 
 func clean_caption(text: String) -> String:
 	return presenter.chars(text)
@@ -474,7 +498,15 @@ func end_key(raw: int) -> void:
 	if held_key==raw: held_key=0
 
 func _notification(what: int) -> void:
-	if what==NOTIFICATION_APPLICATION_FOCUS_OUT: held_key=0
+	if what==NOTIFICATION_APPLICATION_FOCUS_OUT:
+		held_key=0
+		if not testing:
+			backgrounded=true
+			Engine.max_fps=10
+	elif what==NOTIFICATION_APPLICATION_FOCUS_IN and not testing:
+		backgrounded=false
+		Engine.max_fps=60
+		last_time=Time.get_ticks_msec()
 
 func _exit_tree() -> void:
 	if session!=null: session.close()

@@ -34,9 +34,15 @@ func install() -> void:
 	assert(texels.code[254]==[167,226] and texels.code[228]==[162,255])
 	shapes.resource_blocks={369:"shape_runs"}
 	texels.resource_blocks={226:"wall_nibbles"}
+	assert(vm.classes.k.methods["a(IIII)V"].code[149]==[167,142])
+	assert(vm.classes.l.methods["b(I)V"].code[55]==[167,5])
+	vm.classes.k.methods["a(IIII)V"].resource_blocks={142:"depth_reset"}
+	vm.classes.l.methods["b(I)V"].resource_blocks={5:"inactive_threads"}
 
 func invoke(frame: Dictionary, key: String) -> void:
-	if key=="wall_nibbles": wall_nibbles(frame)
+	if key=="inactive_threads": inactive_threads(frame)
+	elif key=="depth_reset": depth_reset(frame)
+	elif key=="wall_nibbles": wall_nibbles(frame)
 	else: shape_runs(frame)
 
 func wall_nibbles(frame: Dictionary) -> void:
@@ -103,3 +109,27 @@ func shape_runs(frame: Dictionary) -> void:
 	locals[17]=column
 	frame.pc=478
 	frame.last=371
+
+func depth_reset(frame: Dictionary) -> void:
+	var object: Variant=vm.get_static("k","p","[I")
+	var count: int=frame.locals[4]
+	if not object is JObject or count<0 or count>object.data.size(): return
+	for index in count: object.data[index]=2147483647
+	frame.locals[4]=-1
+	frame.pc=150;frame.last=144
+
+func inactive_threads(frame: Dictionary) -> void:
+	var pool: Variant=vm.get_static("l","a","[Lc;")
+	var index: int=frame.locals[1]
+	if not pool is JObject or pool.data.size()<20 or index<0 or index>20: return
+	var previous: Variant=frame.locals[2]
+	while index<20:
+		var record: Variant=pool.data[index]
+		if not record is JObject: return
+		previous=record
+		if int(record.fields.get("c.a:Z",0))!=0:
+			frame.locals[1]=index;frame.locals[2]=record
+			frame.pc=16;frame.last=14;return
+		index+=1
+	frame.locals[1]=20;frame.locals[2]=previous
+	frame.pc=56;frame.last=7

@@ -14,10 +14,13 @@ func run() -> void:
 	DirAccess.copy_absolute(ProjectSettings.globalize_path("res://../build/fixtures/world.oe2"),ProjectSettings.globalize_path(fixture))
 	for fast in [false,true]:
 		if not OESnapshot.new().load_game(session,fixture): quit(1);return
+		session.vm.fast_geometry=fast
 		session.vm.fast_render=fast
 		session.vm.fast_font=fast
 		session.vm.fast_resources=fast
 		session.platform.fast_rgb=fast
+		if OS.get_cmdline_user_args().has("geometry"):
+			session.vm.fast_render=true;session.vm.fast_font=true;session.vm.fast_resources=fast;session.platform.fast_rgb=true
 		var started: int=Time.get_ticks_usec()
 		var steps: Array=[]
 		for key in [54,53,50]:

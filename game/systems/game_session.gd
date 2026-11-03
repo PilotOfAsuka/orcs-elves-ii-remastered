@@ -6,12 +6,16 @@ var platform: OEJavaNative
 var saves: OESaveManager
 var texture: ImageTexture
 var last_flush: int = -1
+var metrics:=OERuntimeMetrics.new()
 
 func _init(persistent: bool = true, sound: Node = null) -> void:
 	vm = OEVM.new()
+	if OS.has_feature("web"): metrics.enabled=bool(JavaScriptBridge.eval("location.search.includes('perf=1')"))
 	# Bound main-thread work so touch/key events can be processed between slices.
 	if OS.has_feature("web"): vm.max_slice=12000
-	if persistent: vm.frame_budget_us=6000
+	if persistent:
+		vm.frame_budget_us=10000
+		vm.paint_budget_us=60000
 	if not persistent: vm.epoch_ms = 1170000000000
 	saves = OESaveManager.new()
 	saves.persistent = persistent
@@ -24,12 +28,15 @@ func _init(persistent: bool = true, sound: Node = null) -> void:
 	vm.launch("App", "startApp()V", app)
 
 func tick(delta_ms: int) -> void:
+	var began: int=Time.get_ticks_usec() if metrics.enabled else 0
 	vm.tick(delta_ms)
+	if metrics.enabled: metrics.tick(vm,platform.screen,Time.get_ticks_usec()-began)
 	if platform.flush_count != last_flush:
 		texture.update(platform.screen.data.surface)
 		last_flush = platform.flush_count
 
 func key(raw: int) -> void:
+	metrics.key(vm,platform.screen,raw)
 	var canvas: Variant = platform.display.data
 	if canvas is JObject and canvas.type == "a":
 		vm.launch("a", "keyPressed(I)V", canvas, [raw])
@@ -44,6 +51,7 @@ func report() -> Dictionary:
 	return {"clock_ms":vm.now_ms,"instructions":vm.instructions,"flushes":platform.flush_count,"errors":vm.errors.duplicate(),"unsupported":platform.unsupported.keys(),"stacks":stacks,"state":vm.get_static("a","H","I"),"menu":vm.get_static("w","g","I")}
 
 func release_state() -> void:
+	vm.render_helpers.raster.discard()
 	# Break Java object cycles before releasing Godot's reference-counted session.
 	var pending: Array = [vm.statics, vm.fibers, vm.class_locks, vm.active, platform.screen, platform.display, platform.image_cache]
 	var seen: Dictionary = {}
@@ -72,7 +80,13 @@ func release_state() -> void:
 
 func close() -> void:
 	release_state()
+	vm.geometry.vm=null
 	vm.font_helpers.vm=null
+	vm.render_helpers.raster.vm=null
+	vm.render_helpers.raster.last_texture=null
+	vm.render_helpers.raster.last_edges=null
+	vm.render_helpers.raster.image=null
+	vm.render_helpers.raster.image_destination=null
 	vm.render_helpers.vm=null
 	vm.span_observer=Callable()
 	vm.resource_helpers.vm=null
