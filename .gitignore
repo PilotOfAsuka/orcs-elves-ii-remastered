@@ -1,0 +1,10 @@
+game/.godot/
+build/
+research/
+tools/vendor/
+__pycache__/
+*.pyc
+.DS_Store
+*.jar
+*.keystore
+*.jks
