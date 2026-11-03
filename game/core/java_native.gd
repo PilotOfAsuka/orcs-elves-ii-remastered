@@ -43,6 +43,13 @@ func draw_rgb(g: OEMidpGraphics, args: Array) -> void:
 			if color.a8==255: g.surface.set_pixel(xx,yy,color)
 			elif color.a8>0: g.surface.set_pixel(xx,yy,g.surface.get_pixel(xx,yy).blend(color))
 	g.dirty = true
+	# Preserve the actual world paint before the original HUD/dialogue overlays.
+	# Store it in the Java graphics object's extra data so graph snapshots retain it.
+	if g==screen.data and args[0]==vm.get_static("k","m","[I"):
+		var world_rect := Rect2i(x,y,width,height)
+		if Rect2i(Vector2i.ZERO,g.surface.get_size()).encloses(world_rect) and g.clip.encloses(world_rect):
+			screen.extra.world_surface=g.surface.get_region(world_rect)
+			screen.extra.world_revision=int(screen.extra.get("world_revision",0))+1
 
 func draw_region(g: OEMidpGraphics, args: Array) -> void:
 	var image: Image = args[0].data

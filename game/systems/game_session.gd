@@ -9,6 +9,8 @@ var last_flush: int = -1
 
 func _init(persistent: bool = true, sound: Node = null) -> void:
 	vm = OEVM.new()
+	# Bound main-thread work so touch/key events can be processed between slices.
+	if OS.has_feature("web"): vm.max_slice=12000
 	if not persistent: vm.epoch_ms = 1170000000000
 	saves = OESaveManager.new()
 	saves.persistent = persistent
@@ -69,5 +71,6 @@ func release_state() -> void:
 
 func close() -> void:
 	release_state()
+	vm.font_helpers.vm=null
 	platform.vm = null
 	vm.native = null

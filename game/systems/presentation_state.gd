@@ -90,3 +90,110 @@ func menu() -> Dictionary:
 			var help_id: int=vm.get_field(row,"t","d","I")
 			if help_id!=sentinel: description=text_id(help_id)
 	return {"id":vm.get_static("w","g","I"),"selected":selected,"rows":rows,"description":description}
+
+func buffer(owner: String, name: String) -> String:
+	var value: Variant=vm.get_static(owner,name,"Ljava/lang/StringBuffer;")
+	return chars(str(value.data)) if value is JObject and value.data is String else ""
+
+func field(object: Variant, owner: String, name: String, desc: String) -> Variant:
+	return vm.get_field(object,owner,name,desc) if object is JObject else vm.default_value(desc)
+
+func hud() -> Dictionary:
+	var state: int=vm.get_static("a","H","I")
+	if state not in [3,4,7]: return {}
+	var player: Variant=vm.get_static("v","b","Lq;")
+	if not player is JObject: return {}
+	var weapon: int=field(player,"q","g","I")
+	var ammo_type: int=0
+	var ammo: int=-1
+	var weapon_table: Variant=vm.get_static("u","a","[B")
+	if weapon_table is JObject and weapon*10+5<weapon_table.data.size():
+		ammo_type=int(weapon_table.data[weapon*10+5])
+	var ammunition: Variant=vm.get_static("v","b","[B")
+	var effects: Variant=vm.get_static("v","a","[B")
+	if ammo_type>0 and ammunition is JObject and ammo_type<ammunition.data.size():
+		ammo=int(ammunition.data[ammo_type])
+		if effects is JObject and int(effects.data[0])>0: ammo+=int(effects.data[0])
+	var weapon_name: String=""
+	var definitions: Variant=vm.get_static("p","a","[Lg;")
+	if definitions is JObject:
+		for definition: Variant in definitions.data:
+			if field(definition,"g","a","B")==6 and field(definition,"g","b","B")==1 and field(definition,"g","c","B")==weapon:
+				weapon_name=text_id((1<<10)|int(field(definition,"g","b" if weapon==4 else "c","S")))
+				break
+	var armor: int=vm.get_static("v","J","I")
+	var armor_kind: int=vm.get_static("v","K","I")
+	var armor_table: Variant=vm.get_static("App","e","[S")
+	var armor_max: int=0
+	if armor_table is JObject and armor_kind*2+1<armor_table.data.size(): armor_max=int(armor_table.data[armor_kind*2+1])
+	var context: String=""
+	var events: Variant=vm.get_static("e","a","[Ljava/lang/StringBuffer;")
+	if int(vm.get_static("e","c","I"))>0 and events is JObject and events.data[0] is JObject:
+		context=chars(str(events.data[0].data))
+	elif not buffer("e","d").is_empty(): context=buffer("e","d")
+	elif not buffer("e","c").is_empty(): context=buffer("e","c")
+	var target: Variant=vm.get_static("v","a","Ls;")
+	var target_health: int=-1
+	var target_max: int=0
+	if target is JObject:
+		if context.is_empty(): context=buffer("e","e")
+		var stats: Variant=field(target,"s","a","Ld;")
+		var definition: Variant=field(target,"s","a","Lg;")
+		var flags: int=field(target,"s","b","I")
+		# Original e.l(): do not reveal health where the original hides it.
+		if stats is JObject and (int(field(definition,"g","a","S"))&256)==0 and (field(definition,"g","b","B")!=2 or (flags&0x200000)!=0):
+			var attributes: Variant=field(stats,"d","a","Lq;")
+			if attributes is JObject:
+				target_health=int(field(attributes,"q","e","I"))
+				target_max=int(field(attributes,"q","f","I"))
+	var notices: PackedStringArray=[]
+	var bubbles: Variant=vm.get_static("e","b","[Ljava/lang/StringBuffer;")
+	if bubbles is JObject:
+		for index in mini(int(vm.get_static("e","e","I")),bubbles.data.size()):
+			if bubbles.data[index] is JObject: notices.append(chars(str(bubbles.data[index].data)))
+	return {"health":field(player,"q","e","I"),"max_health":field(player,"q","f","I"),"armor":armor,"max_armor":armor_max,"weapon":weapon,"weapon_name":weapon_name,"ammo":ammo,"context":context if context!="\"" else "","target_health":target_health,"target_max":target_max,"notices":"\n".join(notices)}
+
+func readable(text: String) -> String:
+	# Original text was wrapped for a 15-pixel glyph grid. Let native text wrap again.
+	return chars(text.replace("-\n","").replace("-|","").replace("\n"," ").replace("|"," "))
+
+func reader() -> Dictionary:
+	var state: int=vm.get_static("a","H","I")
+	if state in [8,13]:
+		var source: Variant=vm.get_static("a","f","Ljava/lang/StringBuffer;")
+		var pages: Variant=vm.get_static("a","n","[I")
+		var page: int=vm.get_static("a","af","I")
+		var count: int=vm.get_static("a","ag","I")
+		if not source is JObject or not source.data is String or not pages is JObject or page<0 or page>=count: return {}
+		var start: int=int(pages.data[page*2])
+		var length: int=int(pages.data[page*2+1])
+		var began: int=vm.get_static("a","aQ","I")
+		var clock: int=vm.now_ms+vm.epoch_ms-OEVM.number(vm.get_static("App","b","J"))
+		var shown: int=clampi((clock-began)/50,0,length) if began!=-1 else 0
+		return {"kind":"story","page":page,"pages":count,"text":readable(source.data.substr(start,shown)),"full_text":readable(source.data.substr(start,length)),"complete":shown>=length,"left":text_id((10<<10)|78) if state==8 or page>0 else "","right":text_id(63 if page<count-1 else 44) if shown>=length else "Показать целиком"}
+	if state==7:
+		var source: Variant=vm.get_static("a","b","Ljava/lang/StringBuffer;")
+		if not source is JObject or not source.data is String: return {}
+		var flags: int=vm.get_static("a","at","I")
+		var selected_choice: int=1 if int(vm.get_static("a","v","Z"))!=0 else 0
+		var view: int=vm.get_static("a","av","I")
+		var lines: int=vm.get_static("a","au","I")
+		var visible: int=vm.get_static("a","ap","I")
+		var revealed: int=vm.get_static("a","as","I")
+		var positions: Variant=vm.get_static("a","b","[S")
+		var text: String=""
+		var complete: bool=true
+		if positions is JObject:
+			for row in mini(visible,lines-view):
+				var index: int=(view+row)*2
+				var start: int=int(positions.data[index])
+				var length: int=int(positions.data[index+1])
+				var shown: int=length
+				if row==revealed: shown=clampi((int(vm.get_static("App","b","I"))-int(vm.get_static("a","aq","I")))/25,0,length)
+				elif row>revealed: shown=0
+				if shown<length: complete=false
+				text+=source.data.substr(start,shown)+"\n"
+		var choice: bool=(flags&4)!=0
+		var more: bool=view<lines-visible
+		return {"kind":"dialogue","text":readable(text),"choice":choice and not more and complete,"selected_choice":selected_choice,"choices":text_id(33).split(" ",false,1),"complete":complete,"can_back":(flags&1)==0,"more":more,"left":"Назад" if buffer("a","d")=="PgUp" else buffer("a","d"),"right":"Пропустить" if more else "Закрыть","primary":"Показать целиком" if not complete else ("Далее" if more else "Продолжить")}
+	return {}

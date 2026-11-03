@@ -1,5 +1,7 @@
 class_name OEVM
 extends RefCounted
+var fast_font: bool = true
+var font_helpers: OEFontHelpers
 ## Portable interpreter for this JAR's integer CLDC bytecode. Game algorithms are
 ## executed from the original methods, never substituted by guessed game rules.
 ## Source mapping: data/classes.json methods retain all byte offsets and handlers.
@@ -26,6 +28,7 @@ var opcode_hits: Dictionary = {}
 var class_locks: Dictionary = {}
 
 func _init() -> void:
+	font_helpers=OEFontHelpers.new(self)
 	epoch_ms = int(Time.get_unix_time_from_system()*1000.0)
 	classes = normalize(JSON.parse_string(FileAccess.get_file_as_string("res://data/classes.json")))
 	for cl: String in classes:
@@ -394,7 +397,10 @@ func step(fiber: Dictionary) -> void:
 			else:
 				var owner: String = obj.type if op in [182,185] and obj is JObject else ref.owner
 				var found: Dictionary = find_method(owner, ref.name + ref.desc)
-				if not found.method.is_empty(): push_frame(fiber,found.owner,found.method,obj,args)
+				if not found.method.is_empty() and fast_font and font_helpers.accepts(found.owner,ref.name+ref.desc):
+					var value: int=font_helpers.invoke(ref.name+ref.desc,args)
+					if exception==null: stack.append(value)
+				elif not found.method.is_empty(): push_frame(fiber,found.owner,found.method,obj,args)
 				else:
 					var result: Variant = native.invoke(ref,obj,args,fiber)
 					if ref["return"] != "V" and exception == null: stack.append(result)
