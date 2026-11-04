@@ -68,7 +68,13 @@ def publish():
     git('push','origin',f'HEAD:refs/heads/{SOURCE_BRANCH}')
     work=ROOT/'build/pages-publish'
     if not work.exists():
-        subprocess.run(['git','clone','--single-branch','--branch','web-build',URL,str(work)],check=True,env=ENV)
+        cached=ROOT.parent/'orcsElves2/build/pages-publish'
+        if (cached/'.git').is_dir() and git('remote','get-url','origin',cwd=cached)==URL:
+            subprocess.run(['git','clone','--no-hardlinks','--single-branch','--branch','web-build',str(cached),str(work)],check=True,env=ENV)
+            git('remote','set-url','origin',URL,cwd=work)
+            git('pull','--ff-only','origin','web-build',cwd=work)
+        else:
+            subprocess.run(['git','clone','--depth','1','--single-branch','--branch','web-build',URL,str(work)],check=True,env=ENV)
     else:
         if git('status','--porcelain',cwd=work): raise RuntimeError('Deployment checkout has local changes')
         if git('remote','get-url','origin',cwd=work)!=URL: raise RuntimeError('Unexpected deployment origin')
