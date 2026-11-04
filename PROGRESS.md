@@ -17,6 +17,15 @@
 - Browser gameplay visually confirmed with the custom HUD; the sampled scene logged 0.7–0.8 ms ordinary core ticks (observed maximum 22.3 ms including earlier work). This is not a whole-game performance claim.
 - Godot imports and Web exports complete without parse errors. Browser language selection and custom menu transitions checked visually without console errors.
 
+## GitHub publication — 2026-11-04
+
+- BREW source published in `PilotOfAsuka/orcs-elves-ii-remastered`, branch `codex/brew-port`, now the repository's default branch.
+- Public game: https://pilotofasuka.github.io/orcs-elves-ii-remastered/brew/
+- Pages deployment `804cc66b6f0e0d9e92d19d954d4921c1cfda2d1a` completed successfully. The preview manifest records source `74e9d658f80ec2b3d210587042658bc6698032ec` and exported file hashes.
+- Live page checked in the browser: Russian UI selection, startup menus, original story pages, first level, custom modal dialog and return to the world view. No console errors were reported.
+- Published HTML, UI pack, browser host, BREW loader, BREW WebAssembly and BREW resource package were verified against the deployment manifest.
+- The existing Pages root is preserved; the repository homepage and README point directly to the BREW preview. QA pages and local saves are excluded from publication.
+
 ## Current scope
 
 This is the first BREW browser foundation. The parity comparison is against the same reconstructed C engine on the native host, not a certification of all original ARM behavior. Full-game playthroughs and remaining presentation states still need validation.
