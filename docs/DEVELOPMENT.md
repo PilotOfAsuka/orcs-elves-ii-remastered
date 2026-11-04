@@ -58,3 +58,9 @@ node tools/check_parity.cjs
 This replays the same fixed-seed inputs against native C and browser-target WebAssembly. It compares the complete exposed model, full-frame RGBA CRC32 and world RGBA CRC32 after every tick and action. It also compares actual binary save files and resumes a saved level. Native QA writes into a fresh generated directory, separate from development game data.
 
 This verifies cross-target behavior of the reconstructed engine. It does not establish equivalence to every behavior of the original ARM executable; that requires independent original-game references and broader playthroughs.
+
+## GitHub preview
+
+The repository is `PilotOfAsuka/orcs-elves-ii-remastered`. BREW source uses `codex/brew-port`; the self-contained Pages preview lives at `/brew/` on the existing `web-build` deployment branch. The preview's `build.json` identifies the exact source and exported file hashes.
+
+Use `python3 tools/publish_github.py publish` only after an explicit publication request and verification of the current export. It uses the existing credential helper, rejects uncommitted changes, and never force-pushes. Only the `brew/` deployment subtree is replaced. Check the Pages build with `python3 tools/publish_github.py status`, then verify the live page.
