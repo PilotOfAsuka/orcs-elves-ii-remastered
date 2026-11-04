@@ -21,7 +21,18 @@ extern Applet *g_app;
 #ifdef OE2_WEB_BRIDGE
 /* Host presentation hook: reads the finished world before the original HUD. */
 void OE2_captureWorld(const int16_t *rect);
+void OE2_captureRenderedWorld(Render *render);
 void OE2_captureStory(int x, int y);
+void BrewLight_begin(Render *r);
+void BrewView_begin(Render *r);
+void BrewView_line(Render *r,const Line *line);
+void BrewView_sprite(Render *r,int sprite,int frame,int x,int y,int a,int blend,int scale,int flip);
+void BrewView_effect(Render *r,int type,int value);
+void BrewLight_floor(Render *r,int x,int y,int u,int v,int du,int dv,int count,int ceiling);
+void BrewLight_span(Render *r,int x,int y,int count,int projection,int sprite);
+void BrewLight_weapon(Render *r,int x,int y,int count);
+void BrewLight_tagCaster(Render *r,Sprite *sprite);
+void BrewLight_poseCaster(Render *r,int x,int y,int z,int tile,int frame,int flags,int mode,int scale);
 #endif
 
 /* Engine lifecycle used by main.c (implemented in app.c). */

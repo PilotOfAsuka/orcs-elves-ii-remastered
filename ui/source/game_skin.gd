@@ -83,6 +83,8 @@ static func icon(kind: String) -> Texture2D:
 		"book":"<path d='M16 7c-5-4-9-4-13-3v23c5-1 9 0 13 3 4-3 8-4 13-3V4c-4-1-8-1-13 3v23M7 10l5 1m-5 5 5 1m8-6 5-1m-5 7 5-1'/>",
 		"left":"<path d='m21 5-11 11 11 11'/>",
 		"right":"<path d='m11 5 11 11-11 11'/>",
+		"classic":"<path d='M5 5h9v9H5zM18 5h9v9h-9zM5 18h9v9H5zM18 18h9v9h-9z'/>",
+		"lighting":"<circle cx='16' cy='16' r='5'/><path d='M16 3v4m0 18v4M3 16h4m18 0h4M7 7l3 3m12 12 3 3m0-18-3 3M10 22l-3 3'/>",
 		"eye":"<path d='M2 16s6-10 14-10 14 10 14 10-6 10-14 10S2 16 2 16z'/><circle cx='16' cy='16' r='4'/>",
 		"check":"<path d='m5 16 8 8L28 7'/>",
 		"close":"<path d='m7 7 18 18M25 7 7 25'/>",
@@ -102,12 +104,3 @@ static func decorate(button: Button, kind: String, hint: String, shortcut: Strin
 	button.tooltip_text=hint+(" · "+shortcut if not shortcut.is_empty() else "")
 	button.accessibility_name=hint
 	button.mouse_default_cursor_shape=Control.CURSOR_POINTING_HAND
-	if not shortcut.is_empty():
-		var caption:=Label.new()
-		caption.text=shortcut;caption.mouse_filter=Control.MOUSE_FILTER_IGNORE
-		caption.add_theme_font_size_override("font_size",9)
-		caption.add_theme_color_override("font_color",MUTED)
-		caption.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-		caption.offset_left=-31 if shortcut.length()>2 else -19;caption.offset_top=-14;caption.offset_right=-4;caption.offset_bottom=-2
-		caption.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
-		button.add_child(caption)

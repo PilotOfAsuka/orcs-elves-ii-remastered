@@ -2,6 +2,9 @@
 from pathlib import Path
 import subprocess
 import shutil
+import hashlib
+import json
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 GODOT = '/Applications/Godot.app/Contents/MacOS/Godot'
@@ -32,7 +35,17 @@ html = (OUT/'index.html').read_text()
 needle = '<script src="index.js"></script>'
 if needle not in html:
     raise RuntimeError('Godot shell changed: cannot locate engine script')
-html = html.replace(needle, '<script src="brew-core.js"></script>\n<script src="runtime.js"></script>\n'+needle)
+# Content-named UI pack prevents an older root release from surviving browser caches.
+tag=hashlib.sha256(b''.join((OUT/name).read_bytes() for name in ('index.pck','brew-core.wasm'))+(ROOT/'web/runtime.js').read_bytes()).hexdigest()[:16]
+pack=f'game-ui.{tag}.pck'
+for old in OUT.glob('game-ui.*.pck'): old.unlink()
+shutil.copy2(OUT/'index.pck',OUT/pack)
+match=re.search(r'const GODOT_CONFIG = (.*?);',html)
+if not match: raise RuntimeError('Godot shell configuration missing')
+config=json.loads(match.group(1));config['mainPack']=pack
+config['fileSizes'][pack]=config['fileSizes'].pop('index.pck')
+html=html[:match.start(1)]+json.dumps(config,separators=(',',':'))+html[match.end(1):]
+html = html.replace(needle, f'<script src="brew-core.js?v={tag}"></script>\n<script src="runtime.js?v={tag}"></script>\n<script src="index.js?v={tag}"></script>')
 (OUT/'index.html').write_text(html)
 shutil.copy2(ROOT/'web/runtime.js', OUT/'runtime.js')
 print('BREW + existing Godot UI exported')

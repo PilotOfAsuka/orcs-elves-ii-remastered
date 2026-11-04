@@ -2,7 +2,7 @@
 
 ## Verified
 
-- Separate BREW project created; the previous release and WolfMoon were not modified.
+- Separate BREW project created; the previous source project and WolfMoon were not modified.
 - Original English BREW release 7.0.41 obtained. BAR and MOD hashes recorded; MOD size and CRC exactly match the engine's supported build.
 - Reconstructed C engine pinned to public revision 2e9c7bfb79694ffbd8e648513edd229ee212c10a. Native desktop build boots the original game.
 - Browser host built using Emscripten 6.0.13. The C gameplay core runs in WebAssembly with the original 40 ms simulation step.
@@ -30,6 +30,25 @@
 
 This is the first BREW browser foundation. The parity comparison is against the same reconstructed C engine on the native host, not a certification of all original ARM behavior. Full-game playthroughs and remaining presentation states still need validation.
 
-Classic displays BREW graphics. The Remastered switch shares the same core and currently prepares the enlarged presentation layout. HD BREW resources remain future work; no HD claims are made for this prototype.
+Both modes display original BREW art. Remastered now adds point lighting and geometric ray shadows, with the same core and saves. The user chose this direction instead of generated HD replacements.
 
 The interface has Russian/English selection. Original BREW story art and game text are English; a full BREW translation is outstanding.
+
+## Original-art lighting and interface revision — 2026-11-04
+
+- Surveyed and decoded all 220 wall variants, 24 floor/ceiling materials and 1057 sprite frames (205 sprite identities), using all 507 palettes. Local contact sheets were visually checked. Sources, candidates and limits are recorded in docs/LIGHTING.md.
+- Added an independent Remastered buffer: warm fire/torch/candle light, coloured magical effects, molten floor light and a held magical light. Wall/door segments block shadow rays. Classic pixels, simulation, RNG and binary saves are untouched by the getter.
+- Lowered ambient light slightly at the user's request; retained all original BREW textures and sprites.
+- Fixed the cinematic capture path: the separate camera renderer and post-fade/particle image now reach the browser before native captions/letterbox overlays. The replay now observes 105 distinct cinematic world frames.
+- Enemy HP and event text now overlay the top of a framed game view. Removed the gameplay title and BREW footer. Menu/map/inventory are compact top icons; native Options contains language/fullscreen instead of permanent menu footer buttons.
+- The graphics switch is a fourth compact icon with a Classic/Remastered caption; the selection persists locally. Lower touch controls now expand vertically into the available screen space, with larger icons and no visible keyboard-letter captions.
+- Updated replay passed 1140 model/Classic pixel checks over 1058 ticks and byte-identical SD_0–SD_3 saves. Geometric shadow tests cover blocked, parallel, above-wall and opened-wall rays. Lighting getter purity is checked for model, Classic pixels and saves.
+- Measured 912 lit replay frames: mean 3.30 ms, p95 8.60 ms, maximum 11.52 ms in this desktop run. A live narrow-browser scene logged lighting around 1.6–3.7 ms and ordinary simulation ticks around 0.5–1.3 ms; this is not a whole-game/mobile performance guarantee.
+- Local browser visually verified the darker Remastered view, compact graphics icon, enlarged lower buttons and fixed HUD. No warning/error console entries were reported.
+- Publication now targets the existing Pages root; `/brew/` redirects to it. Content-named UI packs and versioned core/runtime requests prevent older cached root assets from masking the new build.
+
+- Extended shadows to enemy/object alpha silhouettes; tests cover opaque pixels, transparent gaps, moving casters and hidden casters. Fire on the spit (116/118) follows the original meat-present bit; before/after emission tests pass. Violet decorative bones are no longer misidentified as an emitter.
+- Added soft shadow interpolation, visible-emitter halos, contact shading and subtle depth haze. Magical projectile sources follow their live sprite coordinates and expire with them.
+- Added persisted Remastered quality in Options: Low 176×164, Medium 352×328, High 704×656. Higher qualities replay resolved raster commands on an independent framebuffer, without replaying game logic. The visible UI frame remains independent of render resolution.
+- All 1140 comparisons over 1058 native simulation ticks still pass with High getters sampled during the replay. Extra Staff/menu fixtures use 16 ticks. Getters at all three resolutions preserve the model, canonical world image and saved files. Measured sampled resolution-pass means: Low 1.71 ms, Medium 8.18 ms, High 32.18 ms. Live browser High measured about 29.6–32 ms in a different saved scene.
+- Corrected the Staff presentation’s 7-source-pixel gap using a separate background/weapon layer; canonical native captures stay unchanged. Tested actual 704×656 output and the Options dropdown in the browser without warning/error logs.

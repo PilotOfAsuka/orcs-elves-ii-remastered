@@ -329,6 +329,9 @@ void *Render_setPalette(Render *render, int pal, int shade)
  * perTile=0 means the whole plane uses one flat (tex[0]). */
 void Render_drawFlatSpan(Render *render, int x, int y, void *tex, int u, int v, int du, int dv, int count, int perTile)
 {
+#ifdef OE2_WEB_BRIDGE
+	BrewLight_floor(render,x,y,u,v,du,dv,count,y<render->height/2);
+#endif
 	uint16_t *const *tiles = (uint16_t *const *)tex;
 	uint16_t *dst = render->framebuffer + rmul(render->fbDib->nPitch >> 1, y) + x;
 	uint32_t uu = (uint32_t)u, vv = (uint32_t)v;
@@ -409,6 +412,9 @@ void Render_drawFloorCeiling(Render *render)
  * 8.8 (0x100 = 1:1 on a 176-pixel-wide view); blend = Render.effectFlags. */
 void Render_draw2DSprite(Render *render, int sprite, int frame, int x, int y, int a, int blend, int scale, int flip)
 {
+#ifdef OE2_WEB_BRIDGE
+	BrewView_sprite(render,sprite,frame,x,y,a,blend,scale,flip);
+#endif
 	int width = render->width;
 	int colStep = 0xb000 / width;                         /* 16.16 shape columns per pixel, *scale */
 	int vStep = rdiv64((int64_t)rshl(colStep, 8), scale);  /* 20.12 texels per pixel >> 4 */
@@ -474,6 +480,10 @@ void Render_draw2DSprite(Render *render, int sprite, int frame, int x, int y, in
 			}
 			if (sy + len > render->clipY2)
 				len = render->clipY2 - sy;
+
+#ifdef OE2_WEB_BRIDGE
+	BrewLight_weapon(render,xs,sy,len);
+#endif
 			SPAN_DRAW(drawer, xs, sy, u, rshl(vStep, 4), len);
 		}
 		if (flip)
@@ -663,6 +673,9 @@ static inline void fb_write(uint8_t *p, uint32_t c)
 /* 0x00018ca4 Darken the 3D view: clamp every channel to `level` (0..255). */
 void Render_fadeFramebuffer(Render *render, int level)
 {
+#ifdef OE2_WEB_BRIDGE
+	BrewView_effect(render,3,level);
+#endif
 	IDIB *dib = render->fbDib;
 	int base = rmul(dib->nPitch, render->fbOffsetY) + render->fbOffsetX * 2;
 	uint32_t max5 = (uint32_t)level >> 3;
@@ -685,6 +698,9 @@ void Render_fadeFramebuffer(Render *render, int level)
 /* 0x00030f08 Purple tint over the 3D view (red +10, blue +14, saturating). */
 void Render_tintScreen(Render *render)
 {
+#ifdef OE2_WEB_BRIDGE
+	BrewView_effect(render,4,0);
+#endif
 	IDIB *dib = render->fbDib;
 	int base = rmul(dib->nPitch, render->fbOffsetY) + render->fbOffsetX * 2;
 	int x, y;

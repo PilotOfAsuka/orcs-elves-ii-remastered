@@ -157,6 +157,9 @@ int Render_isSegmentVisible(Render *render, int *bbox)
  * rasterizer. Returns 1 when nothing was drawn. */
 int Render_drawLineSeg(Render *render, Line *seg)
 {
+#ifdef OE2_WEB_BRIDGE
+	BrewView_line(render,seg);
+#endif
 	if (!Render_clipSegmentNear(render, seg) || (seg->flags & LINE_HIDDEN))
 		return 1;
 	if (seg->flags & LINE_OCCLUDER) {
@@ -318,7 +321,11 @@ int Render_rasterizeWall(Render *render, Line *seg)
 				len = render->clipY2 - screenY;
 			if (len > 0) {
 				result = 0;
-				SPAN_DRAW(drawer, x, screenY, u, du, len);
+
+#ifdef OE2_WEB_BRIDGE
+	BrewLight_span(render,x,screenY,len,y,0);
+#endif
+			SPAN_DRAW(drawer, x, screenY, u, du, len);
 			}
 			screenY += len;
 			piece++;
@@ -441,6 +448,10 @@ int Render_rasterizeWall2(Render *render, Line *seg)
 			if (len <= 0)
 				continue;
 			result = 0;
+
+#ifdef OE2_WEB_BRIDGE
+	BrewLight_span(render,x,top,len,y,1);
+#endif
 			SPAN_DRAW(drawer, x, top, u, (flags & LINE_MIRROR) ? -du : du, len);
 		}
 	}
@@ -454,6 +465,9 @@ int Render_rasterizeWall2(Render *render, Line *seg)
  * extra = effect flags, scale 16.16. Returns 1 if nothing was drawn. */
 int Render_drawSpriteAt(Render *render, int x, int y, int z, int tile, int frame, int flags, int mode, int scale, int extra)
 {
+#ifdef OE2_WEB_BRIDGE
+	BrewLight_poseCaster(render,x,y,z,tile,frame,flags,mode,scale);
+#endif
 	Line *line = &render->tmpLine;
 	int idx, left, right;
 
@@ -769,7 +783,13 @@ void Render_renderScene(Render *render)
 	if (render->dbgSkipSprites2 == 0) {
 		for (s = render->visibleSprites; s != NULL; s = s->sortNext) {
 			render->cnt1884c[0]++;
+#ifdef OE2_WEB_BRIDGE
+			BrewLight_tagCaster(render,s);
+#endif
 			Render_drawSprite(render, s);
+#ifdef OE2_WEB_BRIDGE
+			BrewLight_tagCaster(render,NULL);
+#endif
 		}
 	}
 
@@ -909,6 +929,10 @@ void Render_render(Render *render, int viewX, int viewY, int viewZ, int angle)
 			render->effCeil = 0x80;
 	}
 
+	#ifdef OE2_WEB_BRIDGE
+	BrewView_begin(render);
+	BrewLight_begin(render);
+	#endif
 	Render_clearColumnDepth(render);
 	render->timeA4 = App_getUpTimeMS();
 	if (render->dbgSkipFlats == 0)
@@ -930,4 +954,7 @@ void Render_render(Render *render, int viewX, int viewY, int viewZ, int angle)
 			                                ((uint32_t)(render->viewX >> 6) << 16) |
 			                                ((uint32_t)(render->viewY >> 6) << 24));
 	}
+#ifdef OE2_WEB_BRIDGE
+	OE2_captureRenderedWorld(render);
+#endif
 }

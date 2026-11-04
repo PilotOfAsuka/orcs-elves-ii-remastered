@@ -43,7 +43,7 @@ No previous VM or game data is loaded. Only approved original BAR/MOD files and 
 - Godot receives a read-only model for menus, HUD, dialogs, lockpicking and discovered map data.
 - UI actions call original engine handlers. Menu selections validate the menu identity to reject stale clicks.
 - Dialogs sit over the fixed gameplay layout and block the movement controls.
-- Both graphics modes share one simulation and one save store. The current Remastered switch prepares the larger layout; new HD resources are not integrated yet.
+- Both graphics modes share one simulation and one save store. Remastered keeps the original texels and adds a presentation-only lighting pass plus independent 1×/2×/4× raster-command replay; see LIGHTING.md.
 - Game data and all game rules come from BREW. Only our own presentation widgets were reused.
 
 Saves use a dedicated `/oe2-brew-v1` IDBFS mount. File writes are atomic within the virtual filesystem and synchronization is serialized/debounced. The preview origins on ports 8771 and 8772 have separate browser storage.
@@ -59,8 +59,8 @@ This replays the same fixed-seed inputs against native C and browser-target WebA
 
 This verifies cross-target behavior of the reconstructed engine. It does not establish equivalence to every behavior of the original ARM executable; that requires independent original-game references and broader playthroughs.
 
-## GitHub preview
+## GitHub publication
 
-The repository is `PilotOfAsuka/orcs-elves-ii-remastered`. BREW source uses `codex/brew-port`; the self-contained Pages preview lives at `/brew/` on the existing `web-build` deployment branch. The preview's `build.json` identifies the exact source and exported file hashes.
+The repository is `PilotOfAsuka/orcs-elves-ii-remastered`. BREW source uses `codex/brew-port`; the game lives at the permanent Pages root on the existing `web-build` deployment branch. The release's `build.json` identifies the exact source and exported file hashes.
 
-Use `python3 tools/publish_github.py publish` only after an explicit publication request and verification of the current export. It uses the existing credential helper, rejects uncommitted changes, and never force-pushes. Only the `brew/` deployment subtree is replaced. Check the Pages build with `python3 tools/publish_github.py status`, then verify the live page.
+Use `python3 tools/publish_github.py publish` only after an explicit publication request and verification of the current export. It uses the existing credential helper, rejects uncommitted changes, and never force-pushes. The static root is replaced and the old `/brew/` path redirects to it. UI pack names and runtime resource queries use content hashes to avoid stale cached assets. Check the Pages build with `python3 tools/publish_github.py status`, then verify the live page.

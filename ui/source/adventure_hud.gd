@@ -1,14 +1,12 @@
 class_name OEAdventureHUD
 extends PanelContainer
 
-var context: Label
 var health: ProgressBar
 var armor: ProgressBar
 var health_text: Label
 var armor_text: Label
 var weapon_text: Label
 var ammo_text: Label
-var target_health: ProgressBar
 var weapon_icon: TextureRect
 
 func symbol(parent: Node, kind: String, tint: Color, width: int=24) -> TextureRect:
@@ -30,16 +28,6 @@ func _ready() -> void:
 	var box:=VBoxContainer.new()
 	box.add_theme_constant_override("separation",5)
 	margin.add_child(box)
-	context=Label.new()
-	context.custom_minimum_size.y=18
-	context.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
-	context.add_theme_font_size_override("font_size",13)
-	context.add_theme_color_override("font_color",OESkin.GOLD)
-	box.add_child(context)
-	target_health=ProgressBar.new()
-	target_health.show_percentage=false
-	target_health.custom_minimum_size.y=3
-	box.add_child(target_health)
 	var stats:=HBoxContainer.new()
 	stats.add_theme_constant_override("separation",18)
 	box.add_child(stats)
@@ -81,9 +69,3 @@ func show_state(data: Dictionary) -> void:
 	weapon_text.text=data.weapon_name if not str(data.weapon_name).is_empty() else OEText.localize("Оружие")
 	ammo_text.text=str(int(data.ammo)) if int(data.ammo)>=0 else "—"
 	ammo_text.tooltip_text=OEText.localize("Заряды")
-	context.text=str(data.notices) if not str(data.notices).is_empty() else str(data.context)
-	context.tooltip_text=context.text
-	context.text=context.text.replace("\n"," · ")
-	context.visible=true
-	target_health.modulate.a=1.0 if int(data.target_health)>=0 and int(data.target_max)>0 else 0.0
-	target_health.max_value=maxi(1,int(data.target_max));target_health.value=int(data.target_health)

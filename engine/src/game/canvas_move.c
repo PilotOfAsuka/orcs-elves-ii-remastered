@@ -373,6 +373,9 @@ void Canvas_updateMovement(Canvas *cv, int unused1, int unused2)
 	if (Game_isCinematicActive(app->game)) {
 		Camera_apply(app->game->activeCamera);
 		ParticleSystem_update(cv->particles, 1);
+#ifdef OE2_WEB_BRIDGE
+		OE2_captureRenderedWorld(app->render);
+#endif
 		if (cv->state != ST_DIALOG || (cv->dialogStyle != 1 && cv->dialogStyle != 8)) {
 			/* letterbox bars */
 			Graphics_setColor(cv->graphics, (int)0xff000000);

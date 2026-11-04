@@ -878,6 +878,9 @@ int Canvas_updatePlaying(Canvas *canvas)
 		ParticleSystem_freeAll(canvas->particles);
 	Canvas_updateMovement(canvas, 0, 0);
 	ParticleSystem_update(canvas->particles, 1);
+#ifdef OE2_WEB_BRIDGE
+	OE2_captureRenderedWorld(app->render);
+#endif
 
 	if (canvas->hideHud) {
 		/* controls help over a black screen */

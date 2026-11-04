@@ -1,6 +1,8 @@
 /* Presentation adapter. All decisions, scripts, combat and menu actions remain
  * in the BREW C core. This file reads its state and forwards user input. */
 #include "game.h"
+#include "lighting.h"
+#include "presentation.h"
 #include <stdarg.h>
 #include <stdio.h>
 #ifdef __EMSCRIPTEN__
@@ -12,7 +14,7 @@
 
 static uint32_t nowMs = 1000;
 static uint32_t worldPixels[640 * 640], screenPixels[640 * 640];
-static uint32_t storyPixels[176 * 176];
+static uint32_t storyPixels[176 * 176],classicPixels[176*164];
 static int worldW, worldH, worldRevision, ticks;
 static char json[65536];
 static size_t used;
@@ -37,7 +39,12 @@ void OE2_captureWorld(const int16_t *rect) {
     for (int row = 0; row < h; row++)
         for (int col = 0; col < w; col++)
             worldPixels[row * w + col] = rgba(b->px[(y + row) * b->pitch + x + col]);
+    if(w==176&&h==164&&BrewLight_nativeTarget())memcpy(classicPixels,BrewLight_classic(worldPixels,w,h),(size_t)w*h*4);
     worldRevision++;
+}
+void OE2_captureRenderedWorld(Render *r) {
+    int16_t rect[4]={(int16_t)r->fbOffsetX,(int16_t)r->fbOffsetY,(int16_t)r->width,(int16_t)r->height};
+    OE2_captureWorld(rect);
 }
 void OE2_captureStory(int x, int y) {
     IBitmap *b = Brew_screen();
@@ -102,6 +109,10 @@ API int oe2_world_width(void) { return worldW; }
 API int oe2_world_height(void) { return worldH; }
 API int oe2_world_revision(void) { return worldRevision; }
 API const uint32_t *oe2_world(void) { return worldPixels; }
+API const uint32_t *oe2_lit_world(void) { return BrewView_lit(worldPixels,worldW,worldH); }
+API const uint32_t *oe2_classic_world(void) { return worldW==176&&worldH==164?classicPixels:worldPixels; }
+API void oe2_quality(int level) { BrewView_setQuality(level); }
+API int oe2_weapon_bottom(void) { return BrewLight_weaponBottom(); }
 API const uint32_t *oe2_frame(void) {
     IBitmap *b = Brew_screen();
     if (b) for (int y = 0; y < b->height; y++) for (int x = 0; x < b->width; x++)
@@ -135,6 +146,9 @@ API const char *oe2_json(void) {
     MenuSystem *m = g_app->menuSystem; Hud *h = g_app->hud;
     add("{\"state\":%d,\"map_id\":%d,\"ticks\":%d,\"x\":%d,\"y\":%d,\"angle\":%d,\"fatal\":%d,\"world_revision\":%d,\"world_width\":%d,\"world_height\":%d,",
         c->state, c->mapId, ticks, c->viewX, c->viewY, c->viewAngle, g_app->fatalError, worldRevision, worldW, worldH);
+    Camera *camera=g_app->game->activeCamera;
+    add("\"cinematic_active\":%s,\"camera\":[%d,%d,%d,%d],",Game_isCinematicActive(g_app->game)?"true":"false",
+        camera?camera->x:0,camera?camera->y:0,camera?camera->z:0,camera?camera->angle:0);
     add("\"menu_id\":%d,\"menu_type\":%d,\"selected\":%d,\"items\":[", m->menu, m->type, m->selectedIndex);
     if (c->state == 2) for (int i = 0; i < m->numItems; i++) {
         if (i) add(",");

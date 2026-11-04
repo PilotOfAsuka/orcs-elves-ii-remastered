@@ -15,15 +15,19 @@ function crc(bytes){let n=0xffffffff;for(const b of bytes)n=crcTable[(n^b)&255]^
   child.on('error',e=>{throw e;});
   async function native(command){child.stdin.write(command+'\n');return queue.length?queue.shift():new Promise(resolve=>waiting=resolve);}
   await Brew.init({persist:false,seed:1});
-  let checks=0,lastStory=-100;const menus=new Set(),states=new Set(),events=[];
+  let checks=0,lastStory=-100;const menus=new Set(),states=new Set(),events=[],cinemaFrames=new Set(),lightFrames=[];
   async function check(command, apply) {
     apply();const expected=await native(command), model=JSON.parse(Brew.json());
     assert.deepEqual(model,expected.model,`state mismatch after ${command}, tick ${model.ticks}`);
     assert.equal(crc(Brew.image('frame')),expected.screen_crc,`screen mismatch at ${model.ticks}`);
     assert.equal(crc(Brew.image('world')),expected.world_crc,`world mismatch at ${model.ticks}`);
+    if(model.cinematic_active)cinemaFrames.add(crc(Brew.image('world')));
+    if(model.world_width>0&&[3,7,17].includes(model.state)){Brew.image('lit');lightFrames.push(Brew.lightMs);}
+    if(model.world_width===176&&[3,7,17].includes(model.state)&&checks%300===0){Brew.quality(2);assert.equal(Brew.image('lit').length,704*656*4);Brew.quality(0);}
     checks++;states.add(model.state);return model;
   }
   try {
+    assert.deepEqual(await native('v'),{blocked:1,parallel:1,above:1,open:1,silhouette:1,transparent:1,moved:1,hidden:1,campfire:1,meatTaken:1},'geometric shadow rays: wall, parallel, above and opened door');
     for(let t=0;t<1000;t++) {
       const s=await check('t',()=>Brew.advance(40));
       let command;
@@ -55,7 +59,39 @@ function crc(bytes){let n=0xffffffff;for(const b of bytes)n=crcTable[(n^b)&255]^
     await check('k57399',()=>Brew.key(0xe037));
     for(let t=0;t<10;t++)await check('t',()=>Brew.advance(40));
     assert.ok([3,7].includes(JSON.parse(Brew.json()).state),'saved level resumed');
-    const result={checks,ticks:JSON.parse(Brew.json()).ticks,states:[...states].sort((a,b)=>a-b),screen:'exact RGBA CRC32 parity',world:'exact RGBA CRC32 parity',saveFiles:files,saveBytes:'exact binary parity',final:JSON.parse(Brew.json()),events};
+    assert.ok(cinemaFrames.size>8,`cinematic must display moving frames: ${cinemaFrames.size}`);
+    const parityModel=JSON.parse(Brew.json()),replayTicks=parityModel.ticks;
+    for(let i=0;i<15&&JSON.parse(Brew.json()).hud.weapon!==1;i++){Brew.action(12);for(let j=0;j<12;j++)Brew.advance(40);}
+    assert.equal(JSON.parse(Brew.json()).hud.weapon,1,'staff test fixture');
+    const weaponBottom=Brew.testWeaponBottom();
+    const before=Brew.json(),classic=Buffer.from(Brew.image('world')),saves=files.map(n=>Buffer.from(Brew.testFile(n)));
+    const times=[];let lit;
+    for(let i=0;i<20;i++){lit=Buffer.from(Brew.image('lit'));times.push(Brew.lightMs);}
+    assert.equal(Brew.json(),before,'lighting cannot mutate simulation');
+    assert.deepEqual(Buffer.from(Brew.image('world')),classic,'Classic remains untouched');
+    files.forEach((n,i)=>assert.deepEqual(Buffer.from(Brew.testFile(n)),saves[i],'lighting cannot mutate saves'));
+    assert.notDeepEqual(lit,classic,'Remastered has a visible lighting pass');
+    fs.writeFileSync(path.join(root,'build/lighting-classic.rgba'),classic);
+    fs.writeFileSync(path.join(root,'build/lighting-remastered.rgba'),lit);
+    const staff={originalBottom:weaponBottom,viewportHeight:JSON.parse(before).world_height,offset:JSON.parse(before).world_height-1-weaponBottom};
+    const lighting={staff,firstMs:times[0],warmMeanMs:times.slice(1).reduce((a,b)=>a+b,0)/19,maxMs:Math.max(...times),width:JSON.parse(before).world_width,height:JSON.parse(before).world_height};
+    lighting.qualities=[];
+    for(let level=0;level<3;level++){
+      Brew.quality(level);let image;
+      const measurements=[];for(let i=0;i<3;i++){image=Buffer.from(Brew.image('lit'));measurements.push(Brew.lightMs);}
+      assert.equal(image.length,176*164*4*(4**level),`actual render buffer at quality ${level}`);
+      assert.equal(Brew.json(),before,`quality ${level} cannot mutate model`);
+      assert.deepEqual(Buffer.from(Brew.image('world')),classic,`quality ${level} cannot mutate canonical world`);
+      files.forEach((n,i)=>assert.deepEqual(Buffer.from(Brew.testFile(n)),saves[i],`quality ${level} cannot mutate saves`));
+      fs.writeFileSync(path.join(root,`build/lighting-quality-${level}.rgba`),image);
+      lighting.qualities.push({level,width:176*(2**level),height:164*(2**level),meanMs:measurements.reduce((a,b)=>a+b,0)/3,maxMs:Math.max(...measurements)});
+    }
+    Brew.action(5);for(let i=0;i<4;i++)Brew.advance(40);
+    const menuState=JSON.parse(Brew.json());assert.equal(menuState.state,2,'quality menu fixture');
+    assert.equal(Brew.image('lit').length,menuState.world_width*menuState.world_height*16*4,'High supports menu backdrop geometry');
+    Brew.quality(0);
+    const samples=[...lightFrames].sort((a,b)=>a-b);lighting.replay={frames:samples.length,meanMs:samples.reduce((a,b)=>a+b,0)/samples.length,p95Ms:samples[Math.floor(samples.length*.95)],maxMs:samples.at(-1)};
+    const result={lighting,cinematicUniqueFrames:cinemaFrames.size,checks,ticks:replayTicks,fixtureTicks:JSON.parse(Brew.json()).ticks-replayTicks,states:[...states].sort((a,b)=>a-b),screen:'exact RGBA CRC32 parity',world:'exact RGBA CRC32 parity',saveFiles:files,saveBytes:'exact binary parity',final:parityModel,events};
     fs.writeFileSync(path.join(root,'build/parity-result.json'),JSON.stringify(result,null,2));
     console.log(JSON.stringify({...result,events:events.length,final:{state:result.final.state,map:result.final.map_id,hp:result.final.hud.health}},null,2));
   } finally {child.stdin.end('q\n');fs.writeFileSync(path.join(root,'build/parity-native.log'),stderr);}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish the reviewed BREW source and browser preview to the existing project.
+"""Publish the reviewed BREW source and browser game to the existing project.
 
 Only run publish after a user request. Credentials remain inside the existing
 Git credential helper and API request headers; they are never logged or saved.
@@ -19,7 +19,7 @@ OWNER='PilotOfAsuka'
 NAME='orcs-elves-ii-remastered'
 URL=f'https://github.com/{OWNER}/{NAME}.git'
 SOURCE_BRANCH='codex/brew-port'
-PLAY=f'https://{OWNER.lower()}.github.io/{NAME}/brew/'
+PLAY=f'https://{OWNER.lower()}.github.io/{NAME}/'
 FILES=('index.html','index.js','index.wasm','index.pck','index.png',
        'index.audio.position.worklet.js','index.audio.worklet.js',
        'brew-core.js','brew-core.wasm','brew-core.data','runtime.js')
@@ -57,7 +57,10 @@ def publish():
     repo=api('GET',f'/repos/{OWNER}/{NAME}')
     if repo['owner']['login'].lower()!=OWNER.lower() or repo.get('archived'): raise RuntimeError('Unexpected target repository')
     if git('status','--porcelain'): raise RuntimeError('Commit reviewed source changes before publishing')
-    for name in FILES:
+    packs=list((ROOT/'build/web').glob('game-ui.*.pck'))
+    if len(packs)!=1: raise RuntimeError('Expected one versioned UI pack')
+    files=(*FILES,packs[0].name)
+    for name in files:
         path=ROOT/'build/web'/name
         if not path.is_file() or path.stat().st_size>=100_000_000: raise RuntimeError(f'Missing or oversized build file: {name}')
     if (ROOT/'build/web/runtime.js').read_bytes()!=(ROOT/'web/runtime.js').read_bytes():
@@ -81,25 +84,27 @@ def publish():
         git('pull','--ff-only','origin','web-build',cwd=work)
     git('config','user.name',git('config','user.name'),cwd=work)
     git('config','user.email',git('config','user.email'),cwd=work)
-    # The preview is self-contained. Other published paths are preserved.
-    preview=work/'brew'
-    if preview.exists(): shutil.rmtree(preview)
-    preview.mkdir()
+    # User requested a permanent root URL. Git history preserves previous releases.
+    for entry in work.iterdir():
+        if entry.name=='.git': continue
+        shutil.rmtree(entry) if entry.is_dir() else entry.unlink()
     manifest={'engine':'BREW','game_version':'7.0.41','source_branch':SOURCE_BRANCH,
               'source_revision':git('rev-parse','HEAD'),'files':{}}
-    for name in FILES:
-        shutil.copy2(ROOT/'build/web'/name,preview/name)
-        data=(preview/name).read_bytes()
+    for name in files:
+        shutil.copy2(ROOT/'build/web'/name,work/name)
+        data=(work/name).read_bytes()
         manifest['files'][name]={'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()}
-    shutil.copy2(ROOT/'LICENSE',preview/'LICENSE.txt')
-    shutil.copy2(ROOT/'SOURCES.md',preview/'SOURCES.md')
-    (preview/'build.json').write_text(json.dumps(manifest,indent=2)+'\n')
+    shutil.copy2(ROOT/'LICENSE',work/'LICENSE.txt')
+    shutil.copy2(ROOT/'SOURCES.md',work/'SOURCES.md')
+    (work/'build.json').write_text(json.dumps(manifest,indent=2)+'\n')
+    redirect=work/'brew';redirect.mkdir()
+    (redirect/'index.html').write_text('<!doctype html><meta charset="utf-8"><title>Orcs &amp; Elves II</title><script>location.replace("../"+location.search+location.hash)</script><a href="../">Play Orcs &amp; Elves II</a>\n')
     (work/'.nojekyll').touch()
-    git('add','--','brew','.nojekyll',cwd=work)
-    if git('status','--porcelain',cwd=work): git('commit','-m','Publish BREW 7.0.41 browser preview',cwd=work)
+    git('add','-A',cwd=work)
+    if git('status','--porcelain',cwd=work): git('commit','-m','Publish BREW game at permanent Pages URL with original-art lighting',cwd=work)
     git('push','origin','web-build',cwd=work)
     api('PATCH',f'/repos/{OWNER}/{NAME}',{'default_branch':SOURCE_BRANCH,'homepage':PLAY,
-        'description':'Orcs & Elves II in your browser — BREW Classic, custom adaptive UI, Remastered graphics in development.'})
+        'description':'Orcs & Elves II in your browser — BREW Classic, adaptive UI and Remastered lighting on original graphics.'})
     pages=api('GET',f'/repos/{OWNER}/{NAME}/pages')
     if pages.get('source')!={'branch':'web-build','path':'/'} or pages.get('build_type')!='legacy':
         raise RuntimeError('Unexpected Pages configuration; inspect before changing it')

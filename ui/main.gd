@@ -11,8 +11,8 @@ var texture: ImageTexture
 var image_size:=Vector2i.ZERO
 var last_image_key: String=""
 var hud: OEAdventureHUD
-var heading: Label
-var caption: Label
+var frame: Panel
+var encounter: OEEncounterHUD
 var status: Label
 var mode: Button
 var nav: HBoxContainer
@@ -29,6 +29,7 @@ var lock: OELockpickPanel
 var story_next: Button
 var story_back: Button
 var language_picker: OEStartupLanguage
+var quality_index: int=0
 var remastered: bool=false
 var choosing_language: bool=false
 var held_action: int=0
@@ -38,22 +39,25 @@ func _ready() -> void:
 	theme=OESkin.make_theme()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var atmosphere:=OEAtmosphere.new();add_child(atmosphere);atmosphere.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	heading=Label.new();heading.text="ORCS & ELVES II";heading.add_theme_color_override("font_color",OESkin.GOLD);heading.add_theme_font_size_override("font_size",20);add_child(heading)
-	mode=Button.new();mode.text="Classic";mode.focus_mode=Control.FOCUS_NONE;mode.pressed.connect(toggle_mode);add_child(mode)
+	frame=Panel.new();frame.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	frame.add_theme_stylebox_override("panel",OESkin.plate(Color("080e0b"),OESkin.BRONZE,0));add_child(frame)
 	picture=TextureRect.new();picture.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;picture.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;picture.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST;picture.mouse_filter=Control.MOUSE_FILTER_IGNORE;add_child(picture)
-	caption=Label.new();caption.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;caption.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;caption.add_theme_color_override("font_color",OESkin.GOLD);caption.add_theme_color_override("font_shadow_color",Color.BLACK);caption.add_theme_constant_override("shadow_outline_size",4);caption.mouse_filter=Control.MOUSE_FILTER_IGNORE;add_child(caption)
+	encounter=OEEncounterHUD.new();add_child(encounter)
 	hud=OEAdventureHUD.new();add_child(hud)
-	nav=HBoxContainer.new();nav.add_theme_constant_override("separation",8);add_child(nav)
+	nav=HBoxContainer.new();nav.add_theme_constant_override("separation",6);add_child(nav)
 	for item in [["menu",5,"Меню","Esc"],["map",7,"Карта","M"],["pack",16,"РЮКЗАК","I"]]:
-		var button:=make_button(str(item[0]),str(item[2]),str(item[3]));button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;nav.add_child(button)
+		var button:=make_nav_button(str(item[0]),str(item[2]))
+		nav.add_child(button)
 		var action: int=item[1];button.pressed.connect(func(): send_action(action));actions.append(button)
+	mode=make_nav_button("classic","Classic / Remastered");mode.custom_minimum_size=Vector2(124,30);mode.add_theme_font_size_override("font_size",12);mode.icon_alignment=HORIZONTAL_ALIGNMENT_LEFT;mode.toggle_mode=true;mode.pressed.connect(toggle_mode);nav.add_child(mode)
+	update_mode_button()
 	movement=GridContainer.new();movement.columns=3;movement.add_theme_constant_override("h_separation",8);movement.add_theme_constant_override("v_separation",6);add_child(movement)
 	for item in [["strafe_left",9,"Шаг влево","Z"],["forward",1,"Вперёд","W"],["strafe_right",10,"Шаг вправо","C"],["left",3,"Повернуть влево","A"],["attack",6,"Действие / удар","Enter"],["right",4,"Повернуть вправо","D"],["weapon",12,"Следующее оружие","E"],["back",2,"Назад","S"],["wait",14,"Пропустить ход","Space"]]:
-		var button:=make_button(str(item[0]),str(item[2]),str(item[3]));button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;movement.add_child(button);actions.append(button)
+		var button:=make_button(str(item[0]),str(item[2]),str(item[3]));button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;button.size_flags_vertical=Control.SIZE_EXPAND_FILL;button.add_theme_constant_override("icon_max_width",34);movement.add_child(button);actions.append(button)
 		var action: int=item[1]
 		button.button_down.connect(func(): held_action=action;repeat_in=0.3;send_action(action))
 		button.button_up.connect(func(): held_action=0)
-	status=Label.new();status.text="Подготовка игры…";status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;status.add_theme_color_override("font_color",OESkin.MUTED);status.add_theme_font_size_override("font_size",12);add_child(status)
+	status=Label.new();status.text="";status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;status.add_theme_color_override("font_color",OESkin.MUTED);status.add_theme_font_size_override("font_size",12);add_child(status)
 	map_view=OEDungeonMap.new();add_child(map_view);map_view.hide()
 	map_tools=HBoxContainer.new();map_tools.add_theme_constant_override("separation",8);add_child(map_tools);map_tools.hide()
 	for item in [["−",-1],["+",1],["↺",0]]:
@@ -77,44 +81,59 @@ func _ready() -> void:
 	resized.connect(arrange);arrange()
 	if OS.has_feature("web"):
 		brew=JavaScriptBridge.get_interface("Brew")
+		quality_index=int(brew.savedQuality())
+		remastered=str(brew.savedGraphics())=="remastered";update_mode_button();arrange()
 		var saved: String=str(brew.savedLanguage())
-		if saved in ["ru","en"]: OEText.choose(saved)
+		if saved in ["ru","en"]: OEText.choose(saved);update_mode_button()
 		else: show_language()
 	else: status.text="Откройте браузерную сборку BREW"
 
 func make_button(icon: String, caption: String, key: String) -> Button:
 	var button:=Button.new();button.custom_minimum_size=Vector2(44,40);button.focus_mode=Control.FOCUS_NONE;OESkin.decorate(button,icon,caption,key);return button
 
+func make_nav_button(icon: String, hint: String) -> Button:
+	var button:=make_button(icon,hint,"")
+	button.custom_minimum_size=Vector2(32,30);button.add_theme_constant_override("icon_max_width",19)
+	for skin_state in ["normal","hover","pressed","disabled","focus"]:
+		var fill:=Color("51422c") if skin_state=="pressed" else (Color("233025") if skin_state=="hover" else Color("141e18"))
+		button.add_theme_stylebox_override(skin_state,OESkin.plate(fill,OESkin.GOLD if skin_state in ["hover","pressed"] else OESkin.BRONZE,4))
+	return button
+
+func update_mode_button() -> void:
+	mode.text="Remastered" if remastered else "Classic"
+	mode.icon=OESkin.icon("lighting" if remastered else "classic")
+	mode.button_pressed=remastered
+	mode.tooltip_text=("Графика: " if OEText.language=="ru" else "Graphics: ")+("Remastered" if remastered else "Classic")+" · F2"
+	mode.accessibility_name=mode.tooltip_text
+
 func arrange() -> void:
 	if hud==null: return
-	var width: float=minf(size.x-24,640 if remastered else 480)
+	var width: float=minf(size.x-16,640 if remastered else 480)
 	var left: float=(size.x-width)/2
-	var controls_h: float=172 if size.y>690 else 154
-	var world_h: float=maxf(120,size.y-42-112-controls_h-42)
-	heading.position=Vector2(left,10);mode.position=Vector2(left+width-112,8);mode.size=Vector2(112,30)
-	picture.position=Vector2(left,48);picture.size=Vector2(width,world_h)
-	hud.position=Vector2(left,52+world_h);hud.size=Vector2(width,102)
-	nav.position=Vector2(left,160+world_h);nav.size=Vector2(width,36)
-	movement.position=Vector2(left,202+world_h);movement.size=Vector2(width,controls_h-44)
+	nav.position=Vector2(left,8);nav.size=Vector2(238,30)
+	var world_h: float=minf(width*164.0/176.0,maxf(120,size.y-272))
+	picture.position=Vector2(left,46);picture.size=Vector2(width,world_h)
+	hud.position=Vector2(left,52+world_h);hud.size=Vector2(width,72)
+	movement.position=Vector2(left,132+world_h);movement.size=Vector2(width,maxf(132,size.y-movement.position.y-8))
 	if size.x>=850:
-		var main_width: float=minf(800 if remastered else 480,size.x-300)
+		var main_width: float=minf(minf(800 if remastered else 510,size.x-290),maxf(120,size.y-136)*176.0/164.0)
 		left=(size.x-main_width-240-20)/2
-		world_h=maxf(160,size.y-196)
-		picture.position=Vector2(left,48);picture.size=Vector2(main_width,world_h)
-		hud.position=Vector2(left,52+world_h);hud.size=Vector2(main_width,102)
-		heading.position=Vector2(left,10);mode.position=Vector2(left+main_width-112,8)
-		nav.position=Vector2(left+main_width+20,90);nav.size=Vector2(240,36)
-		movement.position=Vector2(left+main_width+20,134);movement.size=Vector2(240,170)
-	caption.position=picture.position+Vector2(12,12);caption.size=Vector2(picture.size.x-24,80)
-	status.position=Vector2(left,size.y-22);status.size=Vector2(width,18)
+		world_h=minf(main_width*164.0/176.0,size.y-136)
+		picture.position=Vector2(left,46);picture.size=Vector2(main_width,world_h)
+		hud.position=Vector2(left,52+world_h);hud.size=Vector2(main_width,72)
+		nav.position=Vector2(left,8)
+		movement.position=Vector2(left+main_width+20,46);movement.size=Vector2(240,180)
+	frame.position=picture.position-Vector2(2,2);frame.size=picture.size+Vector2(4,4)
+	encounter.position=picture.position+Vector2(10,10);encounter.size=Vector2(picture.size.x-20,76)
+	status.position=picture.position+Vector2(12,picture.size.y/2-12);status.size=Vector2(picture.size.x-24,32)
 	var popup_width: float=minf(size.x-24,580)
-	menu.position=Vector2((size.x-popup_width)/2,58);menu.size=Vector2(popup_width,size.y-105)
+	menu.position=Vector2((size.x-popup_width)/2,48);menu.size=Vector2(popup_width,size.y-72)
 	reader.position=Vector2((size.x-popup_width)/2,maxf(40,(size.y-400)/2));reader.size=Vector2(popup_width,minf(size.y-90,400))
 	lock.position=Vector2((size.x-popup_width)/2,maxf(40,(size.y-410)/2));lock.size=Vector2(popup_width,minf(size.y-85,410))
 	map_view.position=picture.position;map_view.size=picture.size
 	map_tools.position=picture.position+Vector2(8,8)
-	story_back.position=picture.position+Vector2(0,picture.size.y-40);story_back.size=Vector2(48,36)
-	story_next.position=picture.position+Vector2(picture.size.x-170,picture.size.y-40);story_next.size=Vector2(170,36)
+	story_back.position=picture.position+Vector2(0,picture.size.y-36);story_back.size=Vector2(48,32)
+	story_next.position=picture.position+Vector2(picture.size.x-170,picture.size.y-36);story_next.size=Vector2(170,32)
 
 func _process(delta: float) -> void:
 	if brew==null: return
@@ -126,6 +145,7 @@ func _process(delta: float) -> void:
 	if state.is_empty(): return
 	var game_state: int=int(state.state)
 	picture.visible=game_state!=2 or int(state.world_width)>0
+	frame.visible=picture.visible
 	var modal: bool=game_state in [2,7,12,17,19] or choosing_language
 	for button in actions: button.disabled=modal or game_state not in [3,4,5,20,21]
 	if modal: held_action=0
@@ -139,7 +159,8 @@ func _process(delta: float) -> void:
 	if game_state==12:
 		reader.show_state({"kind":"dialogue","text":OEText.localize("Вы пали в бою…"),"title":"ПУТЬ ОКОНЧЕН","page":0,"pages":1,"choice":false,"right":"","primary":"Продолжить"})
 		shade.show()
-	caption.text=str(state.hud.get("cinematic","")) if game_state==17 else ""
+	encounter.show_state(state.hud,bool(state.get("cinematic_active",false)))
+	if game_state in [0,2,5,6,8,11,13,14,15]: encounter.hide()
 	lock.show_state({"length":maxi(3,int(state.lock.length)),"completed":int(state.lock.hits),"partial":int(state.lock.slot)!=0,"attempts":int(state.lock.tries),"finished":int(state.lock.done)!=0} if game_state==19 else {})
 	map_view.show_state(state.get("map",{}));map_tools.visible=game_state==5
 	story_back.visible=game_state in [8,13] and int(state.story_page)>0;story_next.visible=game_state in [8,11,13,17]
@@ -149,9 +170,11 @@ func _process(delta: float) -> void:
 	var revision: int=int(state.world_revision) if kind=="world" else int(state.ticks)
 	var dimensions:=Vector2i(int(state.world_width),int(state.world_height)) if kind=="world" else Vector2i(176,220)
 	if game_state in [8,13]: kind="story";revision=int(state.story_page);dimensions=Vector2i(176,176)
-	var image_key: String=kind+":"+str(revision)
+	if remastered and kind=="world": dimensions*=1<<quality_index
+	var image_key: String=kind+":"+str(revision)+":"+str(remastered)+":"+str(quality_index)
+	if remastered and kind=="world" and game_state!=2: image_key+=":"+str(state.ticks)
 	if image_key!=last_image_key:
-		var raw: Variant=brew.image(kind)
+		var raw: Variant=brew.image(("lit" if remastered else "classic") if kind=="world" else kind)
 		var pixels: PackedByteArray=raw if raw is PackedByteArray else JavaScriptBridge.js_buffer_to_packed_byte_array(raw)
 		if pixels.size()!=dimensions.x*dimensions.y*4:
 			push_error("BREW image transport: type %s, bytes %d" % [type_string(typeof(raw)),pixels.size()]);return
@@ -160,11 +183,12 @@ func _process(delta: float) -> void:
 			texture=ImageTexture.create_from_image(next);picture.texture=texture;image_size=dimensions
 		else: texture.update(next)
 		last_image_key=image_key
-	status.text="BREW · Classic" if not remastered else "BREW · Remastered"
+	status.text=""
 	if not str(brew.saveError).is_empty(): status.text=OEText.localize("Не удалось сохранить")
+	status.visible=not status.text.is_empty()
 
 func update_menu() -> void:
-	var signature: String=JSON.stringify([state.menu_id,state.selected,state.items,OEText.language])
+	var signature: String=JSON.stringify([state.menu_id,state.selected,state.items,OEText.language,quality_index])
 	if signature==menu_signature: return
 	menu_signature=signature
 	for child in menu_box.get_children(): child.free()
@@ -172,21 +196,25 @@ func update_menu() -> void:
 	for item: Dictionary in state.items:
 		var text: String=OEText.localize(str(item.text)).strip_edges()
 		if not str(item.value).is_empty(): text+="   "+OEText.localize(str(item.value))
-		if text.is_empty(): continue
+		if text.is_empty() or str(item.text).strip_edges()=="More Games": continue
 		if (int(item.flags)&1)!=0:
 			var label:=Label.new();label.text=text;label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;label.add_theme_color_override("font_color",OESkin.GOLD);menu_box.add_child(label)
 		else:
 			var button:=Button.new();button.text=text;button.custom_minimum_size.y=42;button.focus_mode=Control.FOCUS_NONE;button.disabled=(int(item.flags)&4)!=0;button.tooltip_text=OEText.localize(str(item.help));menu_box.add_child(button)
 			if int(item.index)==int(state.selected): button.add_theme_color_override("font_color",OESkin.GOLD)
 			var id: int=state.menu_id;var index: int=item.index;button.pressed.connect(func(): brew.menu(id,index))
-	var row:=HBoxContainer.new();menu_box.add_child(row)
-	for item in [["Язык",0],["Полный экран",1],["Назад",2]]:
-		var button:=Button.new();button.text=OEText.localize(item[0]);button.custom_minimum_size.y=38;button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;button.focus_mode=Control.FOCUS_NONE;row.add_child(button)
-		var action: int=item[1];button.pressed.connect(func():
-			if action==0: show_language()
-			elif action==1: DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if DisplayServer.window_get_mode()!=DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_WINDOWED)
-			elif action==2: brew.key(SOFT1)
-			)
+	if int(state.menu_id) in [0x11,0x66]:
+		var quality_label:=Label.new();quality_label.text="Качество Remastered" if OEText.language=="ru" else "Remastered quality";menu_box.add_child(quality_label)
+		var quality:=OptionButton.new();quality.custom_minimum_size.y=42;quality.focus_mode=Control.FOCUS_NONE
+		for caption in ["Low · 176×164","Medium · 352×328","High · 704×656"]: quality.add_item(caption)
+		quality.select(quality_index);menu_box.add_child(quality)
+		quality.item_selected.connect(func(index: int): quality_index=index;brew.quality(index);last_image_key="";menu_signature="")
+		for item in [["Язык",0],["Полный экран",1]]:
+			var button:=Button.new();button.text=OEText.localize(item[0]);button.custom_minimum_size.y=40;button.focus_mode=Control.FOCUS_NONE;menu_box.add_child(button)
+			var action: int=item[1]
+			button.pressed.connect(func():
+				if action==0: show_language()
+				else: DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if DisplayServer.window_get_mode()!=DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_WINDOWED))
 
 func send_action(action: int) -> void:
 	if brew==null or choosing_language or int(state.get("state",0)) in [2,7,19]: return
@@ -194,8 +222,9 @@ func send_action(action: int) -> void:
 	else: brew.action(action)
 
 func toggle_mode() -> void:
-	remastered=not remastered;mode.text="Remastered" if remastered else "Classic"
-	# Original BREW sampling stays crisp until actual HD resources are supplied.
+	remastered=not remastered;update_mode_button()
+	if brew!=null: brew.graphics("remastered" if remastered else "classic")
+	# Original BREW textures remain crisp in both lighting modes.
 	picture.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST
 	arrange()
 
@@ -204,7 +233,7 @@ func show_language() -> void:
 	choosing_language=true;held_action=0
 	language_picker=OEStartupLanguage.new();add_child(language_picker)
 	language_picker.selected.connect(func(value: String):
-		OEText.choose(value)
+		OEText.choose(value);update_mode_button()
 		if brew!=null: brew.language(value)
 		choosing_language=false;language_picker.queue_free();menu_signature="")
 
