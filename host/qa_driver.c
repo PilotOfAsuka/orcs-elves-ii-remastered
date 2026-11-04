@@ -25,13 +25,16 @@ int main(int argc, char **argv) {
         else if (line[0]=='q') break;
         else if (line[0]=='v') {
             Render *r=calloc(1,sizeof(Render));
-            r->numLines=1;r->effFloor=0;r->effCeil=64;
+            r->numLines=1;r->floorHeight=r->effFloor=0;r->ceilHeight=r->effCeil=64;
             r->lines[0]=(Line){.x1=64,.y1=0,.x2=64,.y2=128,.flags=0x10000};
             int blocked=!BrewLight_visible(r,32,64,32,96,64,32);
             int parallel=BrewLight_visible(r,32,64,32,32,96,32);
             int above=BrewLight_visible(r,32,64,96,96,64,96);
             r->lines[0].flags|=0x40000;
             int open=BrewLight_visible(r,32,64,32,96,64,32);
+            r->lines[0].flags=0x40000000u;r->ceilHeight=128;
+            int upper=!BrewLight_visible(r,32,64,96,96,64,96);
+            int below=BrewLight_visible(r,32,64,32,96,64,32);
             Sprite sprite={.x=64,.y=64,.z=32,.scale=64,.info=32};
             r->spriteRemap[32]=0;r->spriteMap[0].ofs=0;r->shapeSpans[2]=0;r->shapeSpans[3]=87;
             for(int x=0;x<88;x++){
@@ -48,7 +51,7 @@ int main(int argc, char **argv) {
             int campfire=BrewLight_spriteEmits(&spit);meat.info=0;
             int meatTaken=!BrewLight_spriteEmits(&spit);
             free(r);
-            printf("{\"blocked\":%d,\"parallel\":%d,\"above\":%d,\"open\":%d,\"silhouette\":%d,\"transparent\":%d,\"moved\":%d,\"hidden\":%d,\"campfire\":%d,\"meatTaken\":%d}\n",blocked,parallel,above,open,silhouette,transparent,moved,hidden,campfire,meatTaken);
+            printf("{\"blocked\":%d,\"parallel\":%d,\"above\":%d,\"open\":%d,\"silhouette\":%d,\"transparent\":%d,\"moved\":%d,\"hidden\":%d,\"campfire\":%d,\"meatTaken\":%d,\"upper\":%d,\"below\":%d}\n",blocked,parallel,above,open,silhouette,transparent,moved,hidden,campfire,meatTaken,upper,below);
             fflush(stdout);continue;
         }
         unsigned long screen = crc32(0, (const Bytef *)oe2_frame(), 176*220*4);

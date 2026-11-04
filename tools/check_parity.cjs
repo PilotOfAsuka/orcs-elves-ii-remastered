@@ -27,7 +27,7 @@ function crc(bytes){let n=0xffffffff;for(const b of bytes)n=crcTable[(n^b)&255]^
     checks++;states.add(model.state);return model;
   }
   try {
-    assert.deepEqual(await native('v'),{blocked:1,parallel:1,above:1,open:1,silhouette:1,transparent:1,moved:1,hidden:1,campfire:1,meatTaken:1},'geometric shadow rays: wall, parallel, above and opened door');
+    assert.deepEqual(await native('v'),{blocked:1,parallel:1,above:1,open:1,silhouette:1,transparent:1,moved:1,hidden:1,campfire:1,meatTaken:1,upper:1,below:1},'geometric shadow rays: wall, parallel, above and opened door');
     for(let t=0;t<1000;t++) {
       const s=await check('t',()=>Brew.advance(40));
       let command;

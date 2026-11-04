@@ -165,8 +165,9 @@ int BrewLight_visible(const Render *r,float ax,float ay,float az,float bx,float 
   if(fabsf(den)<.0001f)continue;
   float qx=l->x1-ax,qy=l->y1-ay,t=(qx*ey-qy*ex)/den,u=(qx*dy-qy*dx)/den;
   if(t>.015f&&t<.985f&&u>=0&&u<=1){
-   float z=az+(bz-az)*t,top=(l->flags&0x10000u)?r->effCeil:64;
-   if(z>r->effFloor-.5f&&z<top+.5f)return 0;
+   float z=az+(bz-az)*t,bottom=r->effFloor,top=64;
+   if(l->flags&0xc0010000u){top=r->ceilHeight;bottom=(l->flags&0x10000u)?r->floorHeight:64;}
+   if(z>bottom-.5f&&z<top+.5f)return 0;
   }
  }
  return 1;

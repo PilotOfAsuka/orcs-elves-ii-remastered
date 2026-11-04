@@ -52,3 +52,5 @@ The interface has Russian/English selection. Original BREW story art and game te
 - Added persisted Remastered quality in Options: Low 176×164, Medium 352×328, High 704×656. Higher qualities replay resolved raster commands on an independent framebuffer, without replaying game logic. The visible UI frame remains independent of render resolution.
 - All 1140 comparisons over 1058 native simulation ticks still pass with High getters sampled during the replay. Extra Staff/menu fixtures use 16 ticks. Getters at all three resolutions preserve the model, canonical world image and saved files. Measured sampled resolution-pass means: Low 1.71 ms, Medium 8.18 ms, High 32.18 ms. Live browser High measured about 29.6–32 ms in a different saved scene.
 - Corrected the Staff presentation’s 7-source-pixel gap using a separate background/weapon layer; canonical native captures stay unchanged. Tested actual 704×656 output and the Options dropdown in the browser without warning/error logs.
+
+- Corrected shadow height intervals for multi-piece upper walls (64..ceiling) and added upper-wall/below-opening regression rays.
