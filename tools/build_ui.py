@@ -14,7 +14,7 @@ name="Web"
 platform="Web"
 runnable=true
 export_filter="all_resources"
-include_filter=""
+include_filter="*.json"
 exclude_filter=""
 export_path="../build/web/index.html"
 script_export_mode=2
@@ -29,6 +29,7 @@ html/canvas_resize_policy=2
 html/focus_canvas_on_start=true
 progressive_web_app/enabled=false
 ''')
+subprocess.run(['python3',str(ROOT/'tools/build_localization.py'),'--strict'],check=True)
 subprocess.run([GODOT, '--headless', '--path', str(ROOT/'ui'), '--editor', '--import', '--quit'], check=True)
 subprocess.run([GODOT, '--headless', '--path', str(ROOT/'ui'), '--export-release', 'Web', str(OUT/'index.html')], check=True)
 html = (OUT/'index.html').read_text()

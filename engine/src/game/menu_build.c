@@ -559,6 +559,9 @@ static void buildDetails(Menu *menu, MenuSystem *ms)
 	Applet *app = g_app;
 	EntityDef *def;
 	String *desc = NULL;
+#ifdef OE2_WEB_BRIDGE
+	OE2_captureDetails(NULL);
+#endif
 
 	ms->type = 7;
 	MenuSystem_setItemsFromText(ms, 0, &menu->detailsText2);
@@ -583,6 +586,9 @@ static void buildDetails(Menu *menu, MenuSystem *ms)
 		desc = Combat_getArmorDescription(app->combat, -1);
 	}
 	if (desc != NULL) {
+#ifdef OE2_WEB_BRIDGE
+		OE2_captureDetails(desc);
+#endif
 		String_assign(&text, desc);
 		MenuSystem_setItemsFromText(ms, ms->numItems, &text);
 	}

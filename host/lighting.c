@@ -41,8 +41,10 @@ static uint32_t *weaponBackground;
 static size_t weaponCapacity;
 static int weaponCopied;
 /* A small, geometry-only distance field supplies smooth floor contact shade. */
-static float wallDistance[128*128];
-static unsigned char wallChecked[128*128];
+static float wallDistance[3][129*129],wallAxisDistance[3][2][129*129];
+static unsigned char wallChecked[3][129*129];
+typedef struct {float x,y,distance;int axis,valid;} CornerCache;
+static CornerCache cornerCache[704];
 static Light lights[8];
 static int width,height,numLights,fadeLevel=255;
 static Render *renderer;
@@ -86,7 +88,7 @@ void BrewLight_span(Render *r,int x,int y,int count,int projection,int sprite){
  float lateral=(2*x+1.f-width)/width;
  float px=r->viewX+(fx+rx*lateral)*t,py=r->viewY+(fy+ry*lateral)*t;
  float nx=-fx,ny=-fy;
- if(r->curLineIdx>=0&&r->curLineIdx<r->numLines){
+ if(!sprite&&r->curLineIdx>=0&&r->curLineIdx<r->numLines){
   Line *l=&r->lines[r->curLineIdx];nx=(float)(l->y2-l->y1);ny=(float)(l->x1-l->x2);
   float n=sqrtf(nx*nx+ny*ny);if(n>0){nx/=n;ny/=n;}
   if(nx*(r->viewX-px)+ny*(r->viewY-py)<0){nx=-nx;ny=-ny;}
@@ -198,17 +200,18 @@ static void gather(Render *r){
  }
  for(int i=0;i<numLights;i++)for(int j=i+1;j<numLights;j++)if(lights[j].key<lights[i].key){Light a=lights[i];lights[i]=lights[j];lights[j]=a;}
  Player *p=g_app->player;Canvas *c=g_app->canvas;
- if(p->weapons&&(p->ce.weapon==0||p->ce.weapon>=8)){
+ if(p->weapons&&(p->ce.weapon==0||p->ce.weapon==7||p->ce.weapon>=8)){
   int w=p->ce.weapon;float a=(c->viewAngle&1023)*(6.28318530718f/1024);
   Light l={c->viewX+cosf(a)*14,c->viewY-sinf(a)*14,c->viewZ-5.f,1,.62f,.28f,210,1.15f,0,2000};
-  if(w==8||w==9){l.r=.28f;l.g=1;l.b=.37f;}else if(w==10){l.r=.4f;l.g=.65f;l.b=1;}
+  if(w==8){l.r=.35f;l.g=.65f;l.b=1;}else if(w==9){l.r=.25f;l.g=1;l.b=.35f;}else if(w==10){l.r=1;l.g=.18f;l.b=.10f;}else if(w==7){l.r=1;l.g=.38f;l.b=.08f;}
   lights[numLights++]=l;
  }
  uint32_t h=2166136261u;
  for(int i=0;i<r->numLines;i++){
-  Line *l=&r->lines[i];h=hashWord(h,(uint32_t)l->x1);h=hashWord(h,(uint32_t)l->y1);h=hashWord(h,(uint32_t)l->x2);h=hashWord(h,(uint32_t)l->y2);h=hashWord(h,l->flags&(HIDDEN|NO_DEPTH|0x10000u));
+  Line *l=&r->lines[i];h=hashWord(h,(uint32_t)l->x1);h=hashWord(h,(uint32_t)l->y1);h=hashWord(h,(uint32_t)l->x2);h=hashWord(h,(uint32_t)l->y2);h=hashWord(h,l->flags&(HIDDEN|NO_DEPTH|0xc0010000u));
  }
  h=hashWord(h,(uint32_t)r->effFloor);h=hashWord(h,(uint32_t)r->effCeil);
+ h=hashWord(h,(uint32_t)r->floorHeight);h=hashWord(h,(uint32_t)r->ceilHeight);
  if(h!=geometryHash){geometryHash=h;memset(wallChecked,0,sizeof(wallChecked));}
  for(int i=0;i<r->numSprites&&i<800;i++){
   casters[i]=spriteCaster(r,&r->sprites[i]);
@@ -258,32 +261,73 @@ static float shadow(const Surface *s,int light){
  a=x-.5f;b=z-.5f;u=(int)floorf(a);v=(int)floorf(b);
  return mixf(mixf(visibilityAt(u,iy,v,light,s->kind!=3),visibilityAt(u+1,iy,v,light,s->kind!=3),a-u),mixf(visibilityAt(u,iy,v+1,light,s->kind!=3),visibilityAt(u+1,iy,v+1,light,s->kind!=3),a-u),b-v);
 }
-static float wallDistanceAt(int x,int y){
- if(x<0||y<0||x>=128||y>=128)return 40;
- int cell=y*128+x;
- if(!wallChecked[cell]){
-  float px=x*16+8.f,py=y*16+8.f,best=40*40;
+static float wallDistanceAt(int x,int y,int axis,int layer){
+ if(x<0||y<0||x>128||y>128)return 40;
+ int cell=y*129+x;
+ if(!wallChecked[layer][cell]){
+  float px=x*16.f,py=y*16.f,best[2]={40*40,40*40};
   for(int i=0;i<renderer->numLines;i++){
    const Line *l=&renderer->lines[i];if(l->flags&(HIDDEN|NO_DEPTH))continue;
+   /* Upper wall pieces do not touch the floor beneath them. */
+   if(layer<2){
+    float z=layer==0?renderer->effFloor:renderer->effCeil,bottom=renderer->effFloor,top=64;
+    if(l->flags&0xc0010000u){top=renderer->ceilHeight;bottom=(l->flags&0x10000u)?renderer->floorHeight:64;}
+    if(z<bottom-.5f||z>top+.5f)continue;
+   }
    float dx=l->x2-l->x1,dy=l->y2-l->y1,den=dx*dx+dy*dy;
    if(den<1)continue;
    float t=clampf(((px-l->x1)*dx+(py-l->y1)*dy)/den,0,1);
    float qx=px-l->x1-dx*t,qy=py-l->y1-dy*t,d=qx*qx+qy*qy;
-   if(d<best)best=d;
+   int normal=fabsf(dx)>fabsf(dy)?1:0;if(d<best[normal])best[normal]=d;
   }
-  wallDistance[cell]=sqrtf(best);wallChecked[cell]=1;
+  wallAxisDistance[layer][0][cell]=sqrtf(best[0]);wallAxisDistance[layer][1][cell]=sqrtf(best[1]);
+  wallDistance[layer][cell]=fminf(wallAxisDistance[layer][0][cell],wallAxisDistance[layer][1][cell]);wallChecked[layer][cell]=1;
  }
- return wallDistance[cell];
+ return axis<0?wallDistance[layer][cell]:wallAxisDistance[layer][axis][cell];
 }
-static float contactShade(const Surface *s){
+static float roomDistance(const Surface *s,int axis){
+ float x=s->x/16,y=s->y/16;int ix=(int)floorf(x),iy=(int)floorf(y);
+ int layer=s->nz?(s->nz>0?0:1):2;
+ return mixf(mixf(wallDistanceAt(ix,iy,axis,layer),wallDistanceAt(ix+1,iy,axis,layer),x-ix),mixf(wallDistanceAt(ix,iy+1,axis,layer),wallDistanceAt(ix+1,iy+1,axis,layer),x-ix),y-iy);
+}
+static float contactShade(const Surface *s,int column){
  if(s->kind==4)return 1;
  float distance;
- if(s->nz){
-  float x=s->x/16-.5f,y=s->y/16-.5f;int ix=(int)floorf(x),iy=(int)floorf(y);
-  distance=mixf(mixf(wallDistanceAt(ix,iy),wallDistanceAt(ix+1,iy),x-ix),mixf(wallDistanceAt(ix,iy+1),wallDistanceAt(ix+1,iy+1),x-ix),y-iy);
- }else distance=fminf(fabsf(s->z-renderer->effFloor),fabsf(renderer->effCeil-s->z))*2;
- return .78f+.22f*clampf(distance/32,0,1);
+ if(s->nz)distance=roomDistance(s,-1);
+ else{
+  distance=fminf(fabsf(s->z-renderer->effFloor),fabsf(renderer->effCeil-s->z));
+  if(s->kind==2){
+   int axis=abs(s->nx)>=abs(s->ny)?1:0;float corner;
+   /* Wall x/y and normal are constant down a column. Reuse their distance
+    * across rows; floor and ceiling receivers still sample in world space. */
+   if(column>=0){
+    CornerCache *c=&cornerCache[column];
+    if(!c->valid||c->x!=s->x||c->y!=s->y||c->axis!=axis){
+     c->x=s->x;c->y=s->y;c->axis=axis;c->distance=roomDistance(s,axis);c->valid=1;
+    }
+    corner=c->distance;
+   }else corner=roomDistance(s,axis);
+   distance=fminf(distance,corner);
+  }
+ }
+ float t=clampf(distance/20,0,1);t=t*t*(3-2*t);
+ return .35f+.65f*t;
 }
+#ifdef OE2_LIGHTING_TEST
+int BrewLight_testContact(Render *r){
+ Render *saved=renderer;renderer=r;memset(wallChecked,0,sizeof(wallChecked));
+ Surface floor={.x=64,.y=64,.z=0,.nz=127,.kind=1},far=floor,ceiling=floor;
+ far.x=96;ceiling.z=64;ceiling.nz=-127;
+ Surface wall={.x=64,.y=64,.z=0,.nx=127,.kind=2},middle=wall,corner=wall;
+ middle.z=32;corner.z=32;corner.y=0;
+ r->numLines=2;r->lines[1]=(Line){.x1=64,.y1=0,.x2=128,.y2=0,.flags=0x10000};
+ int valid=contactShade(&floor,-1)<.36f&&contactShade(&ceiling,-1)<.36f&&contactShade(&far,-1)>.99f;
+ valid=valid&&contactShade(&wall,-1)<.36f&&contactShade(&middle,-1)>.99f&&contactShade(&corner,-1)<.36f;
+ r->numLines=1;r->lines[0].flags=0x40000000u;r->ceilHeight=r->effCeil=128;memset(wallChecked,0,sizeof(wallChecked));
+ valid=valid&&contactShade(&floor,-1)>.99f;
+ renderer=saved;memset(wallChecked,0,sizeof(wallChecked));return valid;
+}
+#endif
 static void glow(const Light *l,float flicker){
  /* Screen-space halo is depth-tested against real walls. Held light is lit
   * in weapon space instead, avoiding a floating glow in the camera centre. */
@@ -291,7 +335,8 @@ static void glow(const Light *l,float flicker){
  float dx=l->x-renderer->viewX,dy=l->y-renderer->viewY,d=dx*fx+dy*fy;
  if(d<12||!BrewLight_visible(renderer,renderer->viewX,renderer->viewY,renderer->viewZ,l->x,l->y,l->z))return;
  float cx=width*.5f+(dx*rx+dy*ry)*width/(2*d),cy=height*.5f-(l->z-renderer->viewZ)*width/(2*d);
- float radius=clampf(width*12.f/d,5,28),colour[3]={l->r,l->g,l->b};
+ float scale=width/176.f;
+ float radius=clampf(width*12.f/d,5*scale,28*scale),colour[3]={l->r,l->g,l->b};
  int x0=(int)fmaxf(0,cx-radius),x1=(int)fminf(width-1,cx+radius),y0=(int)fmaxf(0,cy-radius),y1=(int)fminf(height-1,cy+radius);
  for(int y=y0;y<=y1;y++)for(int x=x0;x<=x1;x++){
   float ax=(x-cx)/radius,ay=(y-cy)/radius,r2=ax*ax+ay*ay;if(r2>1)continue;
@@ -304,16 +349,16 @@ static void glow(const Light *l,float flicker){
   lit[y*width+x]=pixel;
  }
 }
-static uint32_t shadePixel(const Surface *s,uint32_t c,const float *flicker){
+static uint32_t shadePixel(const Surface *s,uint32_t c,const float *flicker,int column){
   if(!s->kind)return c;
-  float ao=contactShade(s),energy[3]={.17f*ao,.20f*ao,.27f*ao};
+  float ao=contactShade(s,column),energy[3]={.17f*ao,.20f*ao,.27f*ao};
   for(int j=0;j<numLights;j++){
    const Light *l=&lights[j];float dx=l->x-s->x,dy=l->y-s->y,dz=l->z-s->z,d2=dx*dx+dy*dy+dz*dz;
    if(d2>=l->radius*l->radius)continue;
    float d=sqrtf(d2)+.01f,lambert=clampf((s->nx*dx+s->ny*dy+s->nz*dz)/(127*d),0,1);
    float attenuation=1-d/l->radius;
    float e=attenuation*attenuation*l->power*flicker[j]*2.1f*(.18f+.82f*lambert);
-   if(s->kind!=4)e*=shadow(s,j);
+   if(s->kind!=4)e*=shadow(s,j)*(.75f+.25f*ao);
    energy[0]+=l->r*e;energy[1]+=l->g*e;energy[2]+=l->b*e;
   }
   uint32_t out=0xff000000u;
@@ -338,15 +383,16 @@ static const uint32_t *present(const uint32_t *original,int w,int h,int lighting
  if(!renderer||w!=width||h!=height)return original;
  int shift=staffShift();if(!lighting&&!shift)return original;
  float flicker[8];
- if(lighting){gather(renderer);for(int j=0;j<numLights;j++)flicker[j]=lights[j].flicker?(.92f+.06f*sinf(g_app->time*.021f+j*2)+.04f*sinf(g_app->time*.047f+j)):1;}
- for(int i=0;i<w*h;i++){
+ if(lighting){memset(cornerCache,0,sizeof(cornerCache));gather(renderer);for(int j=0;j<numLights;j++)flicker[j]=lights[j].flicker?(.92f+.06f*sinf(g_app->time*.021f+j*2)+.04f*sinf(g_app->time*.047f+j)):1;}
+ for(int i=0,x=0;i<w*h;i++){
   const Surface *s=&surfaces[i];uint32_t c=original[i];
   if(shift&&s->kind==4){s=&underWeapon[i];c=weaponBackground[i];}
-  lit[i]=lighting?shadePixel(s,c,flicker):c;
+  lit[i]=lighting?shadePixel(s,c,flicker,x):c;
+  if(++x==w)x=0;
  }
  if(lighting)for(int j=0;j<numLights;j++)glow(&lights[j],flicker[j]);
  if(shift)for(int y=0;y<h-shift;y++)for(int x=0;x<w;x++){
-  int i=y*w+x;if(surfaces[i].kind==4)lit[(y+shift)*w+x]=lighting?shadePixel(&surfaces[i],original[i],flicker):original[i];
+  int i=y*w+x;if(surfaces[i].kind==4)lit[(y+shift)*w+x]=lighting?shadePixel(&surfaces[i],original[i],flicker,x):original[i];
  }
  return lit;
 }

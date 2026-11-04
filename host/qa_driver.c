@@ -9,6 +9,7 @@ int oe2_action_key(int), oe2_menu_select(int, int), oe2_world_width(void), oe2_w
 int oe2_save(void), oe2_load(void);
 const char *oe2_json(void);
 const uint32_t *oe2_frame(void), *oe2_world(void);
+int BrewLight_testContact(Render *r);
 int main(int argc, char **argv) {
     if (argc != 2) return 1;
     oe2_test_seed(1);
@@ -50,8 +51,10 @@ int main(int argc, char **argv) {
             Entity meat={.info=0x4000000u};Sprite spit={.info=116,.ent=&meat};
             int campfire=BrewLight_spriteEmits(&spit);meat.info=0;
             int meatTaken=!BrewLight_spriteEmits(&spit);
+            r->lines[0].flags=0x10000;r->ceilHeight=r->effCeil=64;
+            int contact=BrewLight_testContact(r);
             free(r);
-            printf("{\"blocked\":%d,\"parallel\":%d,\"above\":%d,\"open\":%d,\"silhouette\":%d,\"transparent\":%d,\"moved\":%d,\"hidden\":%d,\"campfire\":%d,\"meatTaken\":%d,\"upper\":%d,\"below\":%d}\n",blocked,parallel,above,open,silhouette,transparent,moved,hidden,campfire,meatTaken,upper,below);
+            printf("{\"blocked\":%d,\"parallel\":%d,\"above\":%d,\"open\":%d,\"silhouette\":%d,\"transparent\":%d,\"moved\":%d,\"hidden\":%d,\"campfire\":%d,\"meatTaken\":%d,\"upper\":%d,\"below\":%d,\"contact\":%d}\n",blocked,parallel,above,open,silhouette,transparent,moved,hidden,campfire,meatTaken,upper,below,contact);
             fflush(stdout);continue;
         }
         unsigned long screen = crc32(0, (const Bytef *)oe2_frame(), 176*220*4);

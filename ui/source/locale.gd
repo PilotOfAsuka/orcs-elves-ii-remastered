@@ -3,6 +3,7 @@ extends RefCounted
 ## UI-only localization. BREW game text comes from its original resources.
 static var language: String="ru"
 const UI={
+	"Скачать сохранение":"Download save","Загрузить копию сохранения":"Import save backup","Копия сохранения скачана":"Save backup downloaded","Копия сохранения восстановлена":"Save backup restored","Не удалось скачать сохранение":"Save download failed","Не удалось загрузить копию сохранения":"Save import failed","Загружаем сохранение…":"Importing save…",
 	"ВЗЛОМ ЗАМКА":"PICK LOCK","Вверх":"Up","Вниз":"Down","Влево":"Left","Вправо":"Right","Попытки":"Attempts","Отменить взлом":"Cancel lockpicking",
 	"Выберите направление. Верное направление подтвердите повторным нажатием.":"Choose a direction. Confirm a correct direction by pressing it again.","БЫСТРЫЕ ДЕЙСТВИЯ":"QUICK ACTIONS",
 	"Здоровье":"Health","Броня":"Armor","Заряды":"Charges","Оружие":"Weapon",
@@ -30,4 +31,128 @@ static func choose(value: String) -> void:
 	language="en" if value=="en" else "ru"
 static func localize(text: String) -> String:
 	if language=="en": return str(UI.get(text,{"Да":"Yes","Нет":"No"}.get(text,text)))
-	return str(BREW_MENUS.get(text.strip_edges(),text))
+	return translate(text)
+
+static var catalog: Dictionary={}
+static var ru_cache: Dictionary={}
+static var lowered: Dictionary={}
+static var patterns: Array=[]
+static var spaces: RegEx
+static var soft_hyphen: RegEx
+static var non_ascii: RegEx
+const HELP_EN={
+	"2:1":"HOW TO PLAY\nMove with the on-screen controls, WASD or the arrow keys. Press Enter or the sword button to talk, attack and interact.\n\nUse the top buttons to open the menu, map and inventory. M opens the map, I opens the inventory and Escape opens the menu. Space skips a turn. F5 saves, F9 loads and F2 switches graphics.",
+	"2:2":"HOW TO MOVE\nW / Up: move forward\nS / Down: move back\nA / Left: turn left\nD / Right: turn right\nZ / C: step sideways\n\nThe on-screen arrows perform the same actions. In menus, use Up / Down to choose, Enter to select and Escape to go back.",
+	"2:3":"HOW TO ATTACK\nPress Enter or the sword button to attack, talk or use an object. Q and E select the previous and next weapon. The weapon button also cycles weapons. Press Space or the hourglass to skip a turn.",
+	"2:7":"LOCK PICKING\nFace a lock and press Enter or the sword button. Choose a direction with the arrows or WASD. Press the same direction again to set the tumbler. Repeat until all tumblers are set.\n\nLOCKED OBJECTS\nChests and doors may open with lock picks, a key or a lever."
+}
+
+static func prepare() -> void:
+	if not catalog.is_empty():return
+	var parsed: Variant=JSON.parse_string(FileAccess.get_file_as_string("res://locales/ru.json"))
+	catalog=parsed if parsed is Dictionary else {"texts":{},"templates":[],"ids":{},"phrases":[],"cases":{}}
+	spaces=RegEx.create_from_string("\\s+")
+	soft_hyphen=RegEx.create_from_string("(?<=[A-Za-z])-(?=[A-Za-z])")
+	non_ascii=RegEx.create_from_string("[^\\x20-\\x7e\\n]")
+	for source: String in catalog.texts:lowered[source.to_lower()]=catalog.texts[source]
+	for entry: Dictionary in catalog.templates:
+		var chunks: Array=[];var slots: Array[int]=[];var start:=0
+		var args:=RegEx.create_from_string("%([1-6])").search_all(str(entry.en))
+		for arg in args:
+			chunks.append(escape_regex(str(entry.en).substr(start,arg.get_start()-start)))
+			chunks.append("(.*?)");slots.append(int(arg.get_string(1)));start=arg.get_end()
+		chunks.append(escape_regex(str(entry.en).substr(start)))
+		patterns.append({"regex":RegEx.create_from_string("(?i)^"+"".join(chunks)+"$"),"slots":slots,"ru":str(entry.ru),"multiline":entry.get("multiline",false)})
+
+static func escape_regex(text: String) -> String:
+	var out: String=""
+	for c in text:
+		if c in "\\.^$|?*+()[]{}":out+="\\"
+		out+=c
+	return out
+
+static func normalized(text: String) -> String:
+	prepare()
+	text=text.replace("-\n","").replace("|","\n").replace("@","")
+	text=soft_hyphen.sub(text,"",true);text=non_ascii.sub(text,"",true)
+	return spaces.sub(text," ",true).strip_edges()
+
+static func entry(id: String) -> String:
+	prepare();var item: Dictionary=catalog.ids.get(id,{})
+	if language=="en" and HELP_EN.has(id):return str(HELP_EN[id])
+	return str(item.get("ru" if language=="ru" else "en","")).replace("@","").replace("€","")
+
+static func inflect(text: String, grammatical_case: String, sentence_start: bool=false) -> String:
+	if grammatical_case.is_empty():return text
+	var forms: Dictionary=catalog.cases.get(text.to_lower(),{})
+	var result: String=str(forms.get(grammatical_case,text))
+	if sentence_start and not text.is_empty() and text[0]==text[0].to_upper():result=result.left(1).to_upper()+result.substr(1)
+	return result
+
+static func translate(text: String, depth: int=0) -> String:
+	if text.is_empty() or depth>6:return text
+	prepare()
+	# Our own Russian UI labels are already localized; don't reinterpret them.
+	for c in text:
+		if c.unicode_at(0)>=0x400 and c.unicode_at(0)<=0x52f:return text
+	var key: String=normalized(text)
+	if ru_cache.has(key):return str(ru_cache[key])
+	var result: String=str(catalog.texts.get(key,lowered.get(key.to_lower(),"")))
+	if result.is_empty():
+		for rule: Dictionary in patterns:
+			if (text.strip_edges().contains("\n") or text.strip_edges().contains("|")) and not rule.multiline:continue
+			var found: RegExMatch=rule.regex.search(key)
+			if found==null:continue
+			var args: Dictionary={}
+			for i in rule.slots.size():args[rule.slots[i]]=translate(found.get_string(i+1),depth+1)
+			result=str(rule.ru)
+			var tokens:=RegEx.create_from_string("%([1-6])(?:\\{(acc|dat)\\})?").search_all(result)
+			for i in range(tokens.size()-1,-1,-1):
+				var token: RegExMatch=tokens[i]
+				var value:=inflect(str(args.get(int(token.get_string(1)),token.get_string())),token.get_string(2),token.get_start()==0)
+				result=result.substr(0,token.get_start())+value+result.substr(token.get_end())
+			break
+	if result.is_empty() and (text.contains("\n") or text.contains("|")):
+		var lines: Array[String]=[]
+		for line in text.replace("-\n","").replace("|","\n").split("\n"):lines.append(translate(line,depth+1))
+		result="\n".join(lines)
+	if result.is_empty():
+		# Numeric inventory quantities are a presentation format, not grammar.
+		var quantity:=RegEx.create_from_string("^([+\\-]?[0-9]+)x? +(.+)$").search(key)
+		if quantity!=null:
+			var name:=translate(quantity.get_string(2),depth+1)
+			if name!=quantity.get_string(2):result=quantity.get_string(1)+" × "+name
+	if result.is_empty():
+		result=text
+		# Native builders sometimes concatenate catalog fragments (speaker/log lines).
+		for phrase: String in catalog.phrases:
+			if result.contains(phrase):result=result.replace(phrase,str(catalog.texts[phrase]))
+		if result==text:
+			var colon:=text.find(": ")
+			if colon>0:result=translate(text.left(colon),depth+1)+": "+translate(text.substr(colon+2),depth+1)
+	if ru_cache.size()>8192:ru_cache.clear()
+	ru_cache[key]=result
+	return result
+
+static func translate_state(value: Variant, field: String="") -> Variant:
+	if language=="en":return value
+	if value is Dictionary:
+		var result: Dictionary={}
+		for key: String in value:result[key]=translate_state(value[key],key)
+		return result
+	if value is Array:
+		var result: Array=[]
+		for item in value:result.append(translate_state(item,field))
+		return result
+	if value is String and field in ["text","help","value","dialogue","left","right","context","notices","cinematic","weapon_name","name","travel_name","stats"]:return translate(str(value))
+	return value
+
+static func merge_menu_text(items: Array) -> Array:
+	# Confirmation text was wrapped for a 176 px phone before reaching this UI.
+	var result: Array=[]
+	for source: Dictionary in items:
+		if (int(source.flags)&1)!=0 and not result.is_empty() and (int(result[-1].flags)&1)!=0:
+			var previous: String=str(result[-1].text)
+			result[-1].text=previous.trim_suffix("-")+str(source.text) if previous.ends_with("-") else previous+" "+str(source.text)
+		else:result.append(source.duplicate())
+	return result

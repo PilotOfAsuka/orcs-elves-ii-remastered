@@ -15,9 +15,15 @@ function crc(bytes){let n=0xffffffff;for(const b of bytes)n=crcTable[(n^b)&255]^
   child.on('error',e=>{throw e;});
   async function native(command){child.stdin.write(command+'\n');return queue.length?queue.shift():new Promise(resolve=>waiting=resolve);}
   await Brew.init({persist:false,seed:1});
-  let checks=0,lastStory=-100;const menus=new Set(),states=new Set(),events=[],cinemaFrames=new Set(),lightFrames=[];
+  let checks=0,lastStory=-100;const menus=new Set(),states=new Set(),events=[],cinemaFrames=new Set(),lightFrames=[],textSamples=new Set();
+  function collectText(value,field=''){
+    if(Array.isArray(value))value.forEach(v=>collectText(v,field));
+    else if(value&&typeof value==='object')Object.entries(value).forEach(([k,v])=>collectText(v,k));
+    else if(typeof value==='string'&&value&&['text','help','value','dialogue','left','right','context','notices','cinematic','weapon_name','name','travel_name','stats'].includes(field))textSamples.add(value);
+  }
   async function check(command, apply) {
     apply();const expected=await native(command), model=JSON.parse(Brew.json());
+    collectText(model);
     assert.deepEqual(model,expected.model,`state mismatch after ${command}, tick ${model.ticks}`);
     assert.equal(crc(Brew.image('frame')),expected.screen_crc,`screen mismatch at ${model.ticks}`);
     assert.equal(crc(Brew.image('world')),expected.world_crc,`world mismatch at ${model.ticks}`);
@@ -27,7 +33,7 @@ function crc(bytes){let n=0xffffffff;for(const b of bytes)n=crcTable[(n^b)&255]^
     checks++;states.add(model.state);return model;
   }
   try {
-    assert.deepEqual(await native('v'),{blocked:1,parallel:1,above:1,open:1,silhouette:1,transparent:1,moved:1,hidden:1,campfire:1,meatTaken:1,upper:1,below:1},'geometric shadow rays: wall, parallel, above and opened door');
+    assert.deepEqual(await native('v'),{blocked:1,parallel:1,above:1,open:1,silhouette:1,transparent:1,moved:1,hidden:1,campfire:1,meatTaken:1,upper:1,below:1,contact:1},'geometric shadow rays: wall, parallel, above and opened door');
     for(let t=0;t<1000;t++) {
       const s=await check('t',()=>Brew.advance(40));
       let command;
@@ -60,6 +66,13 @@ function crc(bytes){let n=0xffffffff;for(const b of bytes)n=crcTable[(n^b)&255]^
     for(let t=0;t<10;t++)await check('t',()=>Brew.advance(40));
     assert.ok([3,7].includes(JSON.parse(Brew.json()).state),'saved level resumed');
     assert.ok(cinemaFrames.size>8,`cinematic must display moving frames: ${cinemaFrames.size}`);
+    const archive=await Brew.backupData(),savedPlayer=Buffer.from(Brew.testFile('SD_0'));
+    const damaged=JSON.parse(archive);damaged.files.SD_0.sha256='0'.repeat(64);
+    await assert.rejects(()=>Brew.restoreBackup(JSON.stringify(damaged),{load:false}),/checksum/);
+    assert.deepEqual(Buffer.from(Brew.testFile('SD_0')),savedPlayer,'rejected backup leaves save intact');
+    Brew.testWriteFile('SD_0',Uint8Array.of(1,2,3));
+    await Brew.restoreBackup(archive,{load:false});
+    assert.deepEqual(Buffer.from(Brew.testFile('SD_0')),savedPlayer,'backup restores exact binary save');
     const parityModel=JSON.parse(Brew.json()),replayTicks=parityModel.ticks;
     for(let i=0;i<15&&JSON.parse(Brew.json()).hud.weapon!==1;i++){Brew.action(12);for(let j=0;j<12;j++)Brew.advance(40);}
     assert.equal(JSON.parse(Brew.json()).hud.weapon,1,'staff test fixture');
@@ -93,6 +106,7 @@ function crc(bytes){let n=0xffffffff;for(const b of bytes)n=crcTable[(n^b)&255]^
     const samples=[...lightFrames].sort((a,b)=>a-b);lighting.replay={frames:samples.length,meanMs:samples.reduce((a,b)=>a+b,0)/samples.length,p95Ms:samples[Math.floor(samples.length*.95)],maxMs:samples.at(-1)};
     const result={lighting,cinematicUniqueFrames:cinemaFrames.size,checks,ticks:replayTicks,fixtureTicks:JSON.parse(Brew.json()).ticks-replayTicks,states:[...states].sort((a,b)=>a-b),screen:'exact RGBA CRC32 parity',world:'exact RGBA CRC32 parity',saveFiles:files,saveBytes:'exact binary parity',final:parityModel,events};
     fs.writeFileSync(path.join(root,'build/parity-result.json'),JSON.stringify(result,null,2));
+    fs.writeFileSync(path.join(root,'build/ui-text-samples.json'),JSON.stringify([...textSamples],null,2));
     console.log(JSON.stringify({...result,events:events.length,final:{state:result.final.state,map:result.final.map_id,hp:result.final.hud.health}},null,2));
   } finally {child.stdin.end('q\n');fs.writeFileSync(path.join(root,'build/parity-native.log'),stderr);}
 })().catch(e=>{console.error(e);process.exitCode=1;});

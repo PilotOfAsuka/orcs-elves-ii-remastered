@@ -528,6 +528,9 @@ void Canvas_drawStoryScreen(Canvas *canvas)
 	Graphics_setColor(canvas->graphics, (int)0xff000000);
 	Graphics_fillRect(canvas->graphics, 0, 0, sw, sh);
 	Canvas_drawRegion(canvas, &canvas->imgScrollStory, 0, 0, 0xb0, 0xb0, 0, sw >> 1, sh >> 1, 0x30, 0, 0);
+#ifdef OE2_WEB_BRIDGE
+	OE2_captureStoryBase((sw>>1)-88,(sh>>1)-88);
+#endif
 	Canvas_drawRegion(canvas, &canvas->imgStoryPages, 0, canvas->storyPage * 0xb0, 0xb0, 0xb0, 0,
 	                  sw >> 1, sh >> 1, 0x30, 0xb, 0);
 #ifdef OE2_WEB_BRIDGE
@@ -693,6 +696,9 @@ void Canvas_drawTravelMap(Canvas *canvas)
 	String_setLength(&canvas->scratch, 0);
 	Text_getString(canvas, 3, g_app->game->levelNames[levelIdx], &canvas->scratch);
 	TextUtil_dehyphenate(g_app->textUtil, &canvas->scratch);
+#ifdef OE2_WEB_BRIDGE
+	OE2_captureTravel((canvas->screenRect[2]-176)/2,(canvas->screenRect[3]-203)/2,&canvas->scratch);
+#endif
 	Canvas_drawString(canvas, &canvas->scratch, ox + canvas->imgTravelMap.width / 2, oy + 4, 0x11);
 
 	for (int i = 0; i < NUM_TRAVEL_LEVELS; i++) {

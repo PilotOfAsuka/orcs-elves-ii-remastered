@@ -64,3 +64,13 @@ This verifies cross-target behavior of the reconstructed engine. It does not est
 The repository is `PilotOfAsuka/orcs-elves-ii-remastered`. BREW source uses `codex/brew-port`; the game lives at the permanent Pages root on the existing `web-build` deployment branch. The release's `build.json` identifies the exact source and exported file hashes.
 
 Use `python3 tools/publish_github.py publish` only after an explicit publication request and verification of the current export. It uses the existing credential helper, rejects uncommitted changes, and never force-pushes. The static root is replaced and the old `/brew/` path redirects to it. UI pack names and runtime resource queries use content hashes to avoid stale cached assets. Check the Pages build with `python3 tools/publish_github.py status`, then verify the live page.
+
+## Localization, text art and save backup
+
+`python3 tools/catalog_text.py` optionally extracts the supported English resource 1002 into ignored research files. `python3 tools/build_localization.py --strict` builds the UI catalog and checks complete coverage plus placeholder compatibility. It can rebuild from the checked-in English presentation catalog when research inputs are absent. The UI build runs this strict check.
+
+Russian text is applied after reading the native model. Dynamic combat arguments are translated with explicit accusative/dative forms where needed. Read-only notebook IDs and complete item descriptions avoid translating phone-width fragments. Help pages describe the browser controls. A read-only capture before original story text compositing supplies the unchanged parchment; separate Cyrillic SVG masks replace only the text. English keeps the original masks. Travel captures precede native place names and prompts, allowing localized labels.
+
+`Godot --headless --path ui --script ../tools/check_localization.gd` exercises all 1690 catalog records, formatted combat/stat samples, wrapped confirmations and text collected by the native/WASM replay. Regenerate story masks with `tools/build_story_ru.py` only when editing story.json; that optional tool expects local fontTools and NotoSerif-Bold.ttf under ignored tools/vendor paths.
+
+The `/oe2-brew-v1` mount is intentionally independent of release versions and URLs. Settings can download a JSON backup containing Config and SD_0..SD_9 with SHA-256 checksums. Import validates every filename, size and checksum before writes, stages files, serializes storage synchronization and rolls back on failure. Input/advancement pause during replacement. Existing saves remain native BREW binary files; no conversion is involved.

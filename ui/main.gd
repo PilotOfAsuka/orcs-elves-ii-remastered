@@ -7,6 +7,8 @@ const CLEAR=0xe030
 var brew: JavaScriptObject
 var state: Dictionary={}
 var picture: TextureRect
+var story_ru: TextureRect
+var travel_title: Label
 var texture: ImageTexture
 var image_size:=Vector2i.ZERO
 var last_image_key: String=""
@@ -22,6 +24,7 @@ var shade: ColorRect
 var menu: PanelContainer
 var menu_box: VBoxContainer
 var menu_signature: String=""
+var backup_notice: Label
 var reader: OEReaderPanel
 var map_view: OEDungeonMap
 var map_tools: HBoxContainer
@@ -32,6 +35,8 @@ var language_picker: OEStartupLanguage
 var quality_index: int=0
 var remastered: bool=false
 var choosing_language: bool=false
+const RU_INTRO=[preload("res://localized/ru/intro_0.svg"),preload("res://localized/ru/intro_1.svg"),preload("res://localized/ru/intro_2.svg"),preload("res://localized/ru/intro_3.svg")]
+const RU_ENDING=[preload("res://localized/ru/ending_0.svg"),preload("res://localized/ru/ending_1.svg")]
 var held_action: int=0
 var repeat_in: float=0
 
@@ -42,6 +47,8 @@ func _ready() -> void:
 	frame=Panel.new();frame.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	frame.add_theme_stylebox_override("panel",OESkin.plate(Color("080e0b"),OESkin.BRONZE,0));add_child(frame)
 	picture=TextureRect.new();picture.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;picture.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;picture.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST;picture.mouse_filter=Control.MOUSE_FILTER_IGNORE;add_child(picture)
+	story_ru=TextureRect.new();story_ru.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;story_ru.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;story_ru.texture_filter=CanvasItem.TEXTURE_FILTER_LINEAR;story_ru.mouse_filter=Control.MOUSE_FILTER_IGNORE;picture.add_child(story_ru);story_ru.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);story_ru.hide()
+	travel_title=Label.new();travel_title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;travel_title.add_theme_font_size_override("font_size",22);travel_title.add_theme_color_override("font_color",OESkin.PAPER);travel_title.add_theme_color_override("font_shadow_color",Color.BLACK);travel_title.add_theme_constant_override("shadow_outline_size",5);travel_title.mouse_filter=Control.MOUSE_FILTER_IGNORE;add_child(travel_title);travel_title.hide()
 	encounter=OEEncounterHUD.new();add_child(encounter)
 	hud=OEAdventureHUD.new();add_child(hud)
 	nav=HBoxContainer.new();nav.add_theme_constant_override("separation",6);add_child(nav)
@@ -73,7 +80,9 @@ func _ready() -> void:
 	var menu_scroll:=ScrollContainer.new();menu_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;menu.add_child(menu_scroll)
 	menu_box=VBoxContainer.new();menu_box.size_flags_horizontal=Control.SIZE_EXPAND_FILL;menu_box.add_theme_constant_override("separation",7);menu_scroll.add_child(menu_box)
 	reader=OEReaderPanel.new();add_child(reader);reader.hide()
-	reader.continue_requested.connect(func(): brew.key(SELECT))
+	reader.continue_requested.connect(func():
+		if int(state.get("state",0))==14:brew.key(CLEAR)
+		else:brew.continueText())
 	reader.choice_requested.connect(func(index: int): brew.choice(index))
 	reader.key_requested.connect(func(_key: int): brew.key(SOFT1))
 	lock=OELockpickPanel.new();add_child(lock);lock.hide()
@@ -100,7 +109,7 @@ func make_nav_button(icon: String, hint: String) -> Button:
 	return button
 
 func update_mode_button() -> void:
-	mode.text="Remastered" if remastered else "Classic"
+	mode.text=OEText.localize("Remastered" if remastered else "Classic")
 	mode.icon=OESkin.icon("lighting" if remastered else "classic")
 	mode.button_pressed=remastered
 	mode.tooltip_text=("Графика: " if OEText.language=="ru" else "Graphics: ")+("Remastered" if remastered else "Classic")+" · F2"
@@ -125,6 +134,7 @@ func arrange() -> void:
 		movement.position=Vector2(left+main_width+20,46);movement.size=Vector2(240,180)
 	frame.position=picture.position-Vector2(2,2);frame.size=picture.size+Vector2(4,4)
 	encounter.position=picture.position+Vector2(10,10);encounter.size=Vector2(picture.size.x-20,76)
+	travel_title.position=picture.position+Vector2(8,8);travel_title.size=Vector2(picture.size.x-16,32)
 	status.position=picture.position+Vector2(12,picture.size.y/2-12);status.size=Vector2(picture.size.x-24,32)
 	var popup_width: float=minf(size.x-24,580)
 	menu.position=Vector2((size.x-popup_width)/2,48);menu.size=Vector2(popup_width,size.y-72)
@@ -141,10 +151,12 @@ func _process(delta: float) -> void:
 		status.text=str(brew.error) if not str(brew.error).is_empty() else OEText.localize("Подготовка игры…");return
 	brew.paused=choosing_language
 	brew.advance(delta*1000)
-	state=JSON.parse_string(str(brew.json()))
+	var native_state: Dictionary=JSON.parse_string(str(brew.json()))
+	if int(native_state.get("state",0))==2 and int(native_state.get("menu_type",0))==6:native_state.items=OEText.merge_menu_text(native_state.items)
+	state=OEText.translate_state(native_state)
 	if state.is_empty(): return
 	var game_state: int=int(state.state)
-	picture.visible=game_state!=2 or int(state.world_width)>0
+	picture.visible=(game_state!=2 or int(state.world_width)>0) and game_state!=14
 	frame.visible=picture.visible
 	var modal: bool=game_state in [2,7,12,17,19] or choosing_language
 	for button in actions: button.disabled=modal or game_state not in [3,4,5,20,21]
@@ -152,10 +164,12 @@ func _process(delta: float) -> void:
 	elif held_action!=0:
 		repeat_in-=delta
 		if repeat_in<=0: send_action(held_action);repeat_in=0.12
-	shade.visible=game_state in [2,7,19]
+	shade.visible=game_state in [2,7,14,19]
 	menu.visible=game_state==2
 	if menu.visible: update_menu()
-	reader.show_state({"kind":"dialogue","text":str(state.dialogue).replace("-\n","").replace("\n"," "),"title":"СОБЫТИЯ","page":int(state.dialog_top),"pages":1,"choice":(int(state.dialog_flags)&4)!=0,"choices":[OEText.localize("Да"),OEText.localize("Нет")],"selected_choice":int(state.dialog_choice),"right":"" if (int(state.dialog_flags)&1)!=0 else str(state.right),"primary":"Продолжить"} if game_state==7 else {})
+	reader.show_state({"kind":"dialogue","text":str(state.dialogue),"title":"СОБЫТИЯ","page":int(state.dialog_top),"pages":1,"choice":(int(state.dialog_flags)&4)!=0,"choices":[OEText.localize("Да"),OEText.localize("Нет")],"selected_choice":int(state.dialog_choice),"right":"" if (int(state.dialog_flags)&1)!=0 else str(state.right),"primary":"Продолжить"} if game_state==7 else {})
+	if game_state==14:
+		reader.show_state({"kind":"credits","text":OEText.entry("2:0"),"title":"СОЗДАТЕЛИ","page":0,"pages":1})
 	if game_state==12:
 		reader.show_state({"kind":"dialogue","text":OEText.localize("Вы пали в бою…"),"title":"ПУТЬ ОКОНЧЕН","page":0,"pages":1,"choice":false,"right":"","primary":"Продолжить"})
 		shade.show()
@@ -165,13 +179,19 @@ func _process(delta: float) -> void:
 	map_view.show_state(state.get("map",{}));map_tools.visible=game_state==5
 	story_back.visible=game_state in [8,13] and int(state.story_page)>0;story_next.visible=game_state in [8,11,13,17]
 	story_next.text=OEText.localize("Продолжить")+" ›"
-	hud.show_state(state.hud if int(state.map_id)>0 else {})
+	hud.show_state(state.hud if int(state.map_id)>0 and game_state not in [8,11,13,14] else {})
 	var kind: String="world" if int(state.world_width)>0 else "frame"
 	var revision: int=int(state.world_revision) if kind=="world" else int(state.ticks)
 	var dimensions:=Vector2i(int(state.world_width),int(state.world_height)) if kind=="world" else Vector2i(176,220)
-	if game_state in [8,13]: kind="story";revision=int(state.story_page);dimensions=Vector2i(176,176)
+	story_ru.visible=game_state in [8,13] and OEText.language=="ru"
+	if story_ru.visible:
+		var pages: Array=RU_INTRO if game_state==8 else RU_ENDING
+		story_ru.texture=pages[clampi(int(state.story_page),0,pages.size()-1)]
+	if game_state in [8,13]: kind="story_base" if story_ru.visible else "story";revision=int(state.story_page);dimensions=Vector2i(176,176)
+	travel_title.visible=game_state==11;travel_title.text=str(state.travel_name)
+	if game_state==11:kind="travel";revision=int(state.ticks);dimensions=Vector2i(176,203)
 	if remastered and kind=="world": dimensions*=1<<quality_index
-	var image_key: String=kind+":"+str(revision)+":"+str(remastered)+":"+str(quality_index)
+	var image_key: String=kind+":"+str(revision)+":"+str(remastered)+":"+str(quality_index)+":"+OEText.language
 	if remastered and kind=="world" and game_state!=2: image_key+=":"+str(state.ticks)
 	if image_key!=last_image_key:
 		var raw: Variant=brew.image(("lit" if remastered else "classic") if kind=="world" else kind)
@@ -183,20 +203,36 @@ func _process(delta: float) -> void:
 			texture=ImageTexture.create_from_image(next);picture.texture=texture;image_size=dimensions
 		else: texture.update(next)
 		last_image_key=image_key
+	if is_instance_valid(backup_notice): backup_notice.text=OEText.localize(str(brew.backupStatus))
 	status.text=""
 	if not str(brew.saveError).is_empty(): status.text=OEText.localize("Не удалось сохранить")
 	status.visible=not status.text.is_empty()
 
 func update_menu() -> void:
-	var signature: String=JSON.stringify([state.menu_id,state.selected,state.items,OEText.language,quality_index])
+	var signature: String=JSON.stringify([state.menu_id,state.selected,state.items,state.get("notes",[]),state.get("details",{}),OEText.language,quality_index])
 	if signature==menu_signature: return
 	menu_signature=signature
 	for child in menu_box.get_children(): child.free()
-	var title:=Label.new();title.text="ORCS & ELVES II";title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;title.add_theme_color_override("font_color",OESkin.GOLD);title.add_theme_font_size_override("font_size",21);menu_box.add_child(title)
+	var title:=Label.new();title.text=OEText.localize("ORCS & ELVES II");title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;title.add_theme_color_override("font_color",OESkin.GOLD);title.add_theme_font_size_override("font_size",21);menu_box.add_child(title)
+	var help_pages: Dictionary={5:4,6:5,7:6,8:8,9:1,10:2,11:3,12:7,0x68:1,0x69:2,0x6a:3,0x6b:7,0x6d:4,0x6e:5,0x6f:6}
+	if int(state.menu_id) in [0x70,400]:
+		var back:=Button.new();back.text=OEText.localize("Назад");back.custom_minimum_size.y=42;back.pressed.connect(func():brew.key(SOFT1));menu_box.add_child(back)
+		if int(state.menu_id)==400:
+			for field in ["name","text","stats"]:
+				var content:=Label.new();content.text=str(state.details.get(field,""));content.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;content.add_theme_font_size_override("font_size",18 if field=="name" else 17);menu_box.add_child(content)
+		else:
+			var heading:=Label.new();heading.text=OEText.localize("Quest Log");heading.add_theme_color_override("font_color",OESkin.GOLD);menu_box.add_child(heading)
+			for note: Dictionary in state.get("notes",[]):
+				var content:=Label.new();content.text=("✕ " if note.failed else "✓ " if note.done else "• ")+OEText.entry(str(note.id));content.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;content.add_theme_font_size_override("font_size",17);content.add_theme_color_override("font_color",Color("bc7772") if note.failed else Color("8fbc91") if note.done else OESkin.PAPER);menu_box.add_child(content)
+		return
+	if help_pages.has(int(state.menu_id)):
+		var back:=Button.new();back.text=OEText.localize("Назад");back.custom_minimum_size.y=42;back.pressed.connect(func():brew.key(SOFT1));menu_box.add_child(back)
+		var content:=Label.new();content.text=OEText.entry("2:"+str(help_pages[int(state.menu_id)]));content.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;content.add_theme_font_size_override("font_size",17);menu_box.add_child(content)
+		return
 	for item: Dictionary in state.items:
 		var text: String=OEText.localize(str(item.text)).strip_edges()
 		if not str(item.value).is_empty(): text+="   "+OEText.localize(str(item.value))
-		if text.is_empty() or str(item.text).strip_edges()=="More Games": continue
+		if text.is_empty() or str(item.text).strip_edges() in ["More Games","Другие игры","Message a Friend","Отправить другу"]: continue
 		if (int(item.flags)&1)!=0:
 			var label:=Label.new();label.text=text;label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;label.add_theme_color_override("font_color",OESkin.GOLD);menu_box.add_child(label)
 		else:
@@ -204,11 +240,17 @@ func update_menu() -> void:
 			if int(item.index)==int(state.selected): button.add_theme_color_override("font_color",OESkin.GOLD)
 			var id: int=state.menu_id;var index: int=item.index;button.pressed.connect(func(): brew.menu(id,index))
 	if int(state.menu_id) in [0x11,0x66]:
-		var quality_label:=Label.new();quality_label.text="Качество Remastered" if OEText.language=="ru" else "Remastered quality";menu_box.add_child(quality_label)
+		var quality_label:=Label.new();quality_label.text="Качество ремастера" if OEText.language=="ru" else "Remastered quality";menu_box.add_child(quality_label)
 		var quality:=OptionButton.new();quality.custom_minimum_size.y=42;quality.focus_mode=Control.FOCUS_NONE
 		for caption in ["Low · 176×164","Medium · 352×328","High · 704×656"]: quality.add_item(caption)
 		quality.select(quality_index);menu_box.add_child(quality)
 		quality.item_selected.connect(func(index: int): quality_index=index;brew.quality(index);last_image_key="";menu_signature="")
+		for item in [["Скачать сохранение",0],["Загрузить копию сохранения",1]]:
+			var backup:=Button.new();backup.text=OEText.localize(item[0]);backup.custom_minimum_size.y=42;backup.focus_mode=Control.FOCUS_NONE;menu_box.add_child(backup)
+			var action: int=item[1];backup.pressed.connect(func():
+				if action==0:brew.exportSave()
+				else:brew.importSave())
+		backup_notice=Label.new();backup_notice.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;backup_notice.add_theme_color_override("font_color",OESkin.GOLD);menu_box.add_child(backup_notice)
 		for item in [["Язык",0],["Полный экран",1]]:
 			var button:=Button.new();button.text=OEText.localize(item[0]);button.custom_minimum_size.y=40;button.focus_mode=Control.FOCUS_NONE;menu_box.add_child(button)
 			var action: int=item[1]
@@ -233,7 +275,7 @@ func show_language() -> void:
 	choosing_language=true;held_action=0
 	language_picker=OEStartupLanguage.new();add_child(language_picker)
 	language_picker.selected.connect(func(value: String):
-		OEText.choose(value);update_mode_button()
+		OEText.choose(value);OESkin.refresh_locale(self);update_mode_button()
 		if brew!=null: brew.language(value)
 		choosing_language=false;language_picker.queue_free();menu_signature="")
 
@@ -247,13 +289,14 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if key.keycode==KEY_F9: brew.load();get_viewport().set_input_as_handled();return
 	var game_state: int=int(state.get("state",0))
 	if game_state==7:
-		if key.keycode in [KEY_ENTER,KEY_SPACE]: brew.key(SELECT)
+		if key.keycode in [KEY_ENTER,KEY_SPACE]: brew.continueText()
 		elif key.keycode==KEY_ESCAPE: brew.key(SOFT1)
 		elif (int(state.get("dialog_flags",0))&4)!=0 and key.keycode in [KEY_LEFT,KEY_RIGHT]: brew.key(0xe033 if key.keycode==KEY_LEFT else 0xe034)
 	elif game_state==2:
 		var keys: Dictionary={KEY_UP:0xe031,KEY_DOWN:0xe032,KEY_LEFT:0xe033,KEY_RIGHT:0xe034,KEY_ENTER:SELECT,KEY_ESCAPE:SOFT1}
 		if keys.has(key.keycode): brew.key(keys[key.keycode])
 	elif game_state in [8,11,13]: brew.key(SOFT1 if key.keycode in [KEY_LEFT,KEY_ESCAPE] else SOFT2)
+	elif game_state==14 and key.keycode in [KEY_ENTER,KEY_SPACE,KEY_ESCAPE]:brew.key(CLEAR)
 	elif game_state==19:
 		var keys: Dictionary={KEY_W:0xe023,KEY_UP:0xe023,KEY_S:0xe029,KEY_DOWN:0xe029,KEY_A:0xe025,KEY_LEFT:0xe025,KEY_D:0xe027,KEY_RIGHT:0xe027,KEY_ESCAPE:SELECT}
 		if keys.has(key.keycode): brew.key(keys[key.keycode])

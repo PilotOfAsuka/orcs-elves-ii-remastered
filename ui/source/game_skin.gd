@@ -101,6 +101,13 @@ static func decorate(button: Button, kind: String, hint: String, shortcut: Strin
 	button.text="";button.icon=icon(kind);button.expand_icon=true
 	button.icon_alignment=HORIZONTAL_ALIGNMENT_CENTER
 	button.add_theme_constant_override("icon_max_width",26)
-	button.tooltip_text=hint+(" · "+shortcut if not shortcut.is_empty() else "")
-	button.accessibility_name=hint
+	button.set_meta("hint",hint);button.set_meta("shortcut",shortcut)
+	button.tooltip_text=OEText.localize(hint)+(" · "+shortcut if not shortcut.is_empty() else "")
+	button.accessibility_name=OEText.localize(hint)
 	button.mouse_default_cursor_shape=Control.CURSOR_POINTING_HAND
+
+static func refresh_locale(root: Node) -> void:
+	if root is Button and root.has_meta("hint"):
+		var hint: String=OEText.localize(str(root.get_meta("hint")));var key: String=str(root.get_meta("shortcut",""))
+		root.tooltip_text=hint+(" · "+key if not key.is_empty() else "");root.accessibility_name=hint
+	for child in root.get_children():refresh_locale(child)

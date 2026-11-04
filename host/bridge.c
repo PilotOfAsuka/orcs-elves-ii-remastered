@@ -15,6 +15,15 @@
 static uint32_t nowMs = 1000;
 static uint32_t worldPixels[640 * 640], screenPixels[640 * 640];
 static uint32_t storyPixels[176 * 176],classicPixels[176*164];
+static uint32_t storyBase[176*176],travelPixels[176*203];
+static char travelName[128];
+static char detailStats[2048];
+void OE2_captureDetails(const String *stats) {
+    size_t len=stats&&stats->buf?stats->len:0;
+    if(len>=sizeof(detailStats))len=sizeof(detailStats)-1;
+    if(len)memcpy(detailStats,stats->buf,len);
+    detailStats[len]=0;
+}
 static int worldW, worldH, worldRevision, ticks;
 static char json[65536];
 static size_t used;
@@ -52,6 +61,17 @@ void OE2_captureStory(int x, int y) {
     for (int row = 0; row < 176; row++) for (int col = 0; col < 176; col++)
         storyPixels[row * 176 + col] = rgba(b->px[(y + row) * b->pitch + x + col]);
 }
+static void captureImage(uint32_t *out,int x,int y,int w,int h){
+    IBitmap *b=Brew_screen();if(!b||x<0||y<0||x+w>b->width||y+h>b->height)return;
+    for(int row=0;row<h;row++)for(int col=0;col<w;col++)out[row*w+col]=rgba(b->px[(y+row)*b->pitch+x+col]);
+}
+void OE2_captureStoryBase(int x,int y){captureImage(storyBase,x,y,176,176);}
+void OE2_captureTravel(int x,int y,const String *name){
+    captureImage(travelPixels,x,y,176,203);
+    snprintf(travelName,sizeof(travelName),"%s",name&&name->buf?name->buf:"");
+}
+API const uint32_t *oe2_story_base(void){return storyBase;}
+API const uint32_t *oe2_travel(void){return travelPixels;}
 
 API int oe2_boot(const char *dir, int width, int height) {
     if (g_app || width < 128 || height < 128 || width > 640 || height > 640) return -1;
@@ -147,6 +167,7 @@ API const char *oe2_json(void) {
     add("{\"state\":%d,\"map_id\":%d,\"ticks\":%d,\"x\":%d,\"y\":%d,\"angle\":%d,\"fatal\":%d,\"world_revision\":%d,\"world_width\":%d,\"world_height\":%d,",
         c->state, c->mapId, ticks, c->viewX, c->viewY, c->viewAngle, g_app->fatalError, worldRevision, worldW, worldH);
     Camera *camera=g_app->game->activeCamera;
+    String travel={.buf=travelName,.len=(int)strlen(travelName)};add("\"travel_name\":");string(&travel);add(",");
     add("\"cinematic_active\":%s,\"camera\":[%d,%d,%d,%d],",Game_isCinematicActive(g_app->game)?"true":"false",
         camera?camera->x:0,camera?camera->y:0,camera?camera->z:0,camera?camera->angle:0);
     add("\"menu_id\":%d,\"menu_type\":%d,\"selected\":%d,\"items\":[", m->menu, m->type, m->selectedIndex);
@@ -156,7 +177,20 @@ API const char *oe2_json(void) {
         add(",\"value\":"); string(&m->items[i].text2);
         add(",\"help\":"); string(&m->items[i].help); add("}");
     }
-    add("],\"left\":"); string(&c->softKeyLeft); add(",\"right\":"); string(&c->softKeyRight);
+    add("],\"notes\":[");
+    if(c->state==2 && m->menu==0x70)for(int i=0;i<p->numNotebookIndexes && i<8;i++) {
+        if(i)add(",");
+        add("{\"id\":\"%d:%d\",\"done\":%s,\"failed\":%s}",c->mapStringGroup,p->notebookIndexes[i],
+            Player_isQuestDone(p,i)?"true":"false",Player_isQuestFailed(p,i)?"true":"false");
+    }
+    add("],\"details\":{");
+    if(c->state==2 && m->menu==400) {
+        add("\"text\":");string(&g_app->menu->detailsText);
+        add(",\"name\":");string(&g_app->menu->detailsText2);
+        String stats={.buf=detailStats,.len=(int)strlen(detailStats)};
+        add(",\"stats\":");string(&stats);
+    }
+    add("},\"left\":"); string(&c->softKeyLeft); add(",\"right\":"); string(&c->softKeyRight);
     add(",\"story_page\":%d,\"story_pages\":%d,\"dialogue\":", c->storyPage, c->storyPageCount);
     string(&c->dialogText);
     add(",\"dialog_flags\":%d,\"dialog_choice\":%d,\"dialog_style\":%d,\"dialog_top\":%d,\"dialog_lines\":%d,",

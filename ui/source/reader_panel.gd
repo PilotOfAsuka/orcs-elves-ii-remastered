@@ -78,7 +78,7 @@ func show_state(data: Dictionary) -> void:
 	title.text=OEText.localize(title.text)
 	close_button.tooltip_text=OEText.localize("Закрыть сообщение")
 	close_button.visible=data.kind=="dialogue" and not str(data.get("right","")).is_empty()
-	if body.text!=str(data.text): body.text=str(data.text)
+	if body.text!=str(data.text): body.text=str(data.text);scroll.scroll_vertical=0
 	var next_page: int=int(data.get("page",-1))
 	if next_page!=page: scroll.scroll_vertical=0;page=next_page
 	choices.visible=data.get("choice",false)
