@@ -32,7 +32,7 @@ Each point light uses distance falloff, a surface-facing term and coloured linea
 
 Shadow visibility is cached in a 16 × 16 × 8 world-unit grid. This deliberately trades fine shadow detail for speed. Translucent fence masks are currently treated as solid segments, billboard shadows approximate the silhouette rather than a full 3D mesh, and reflections, indirect bounce lighting and volumetrics are not implemented. This is software ray-shadow lighting, not RTX or a complete path tracer.
 
-The ambient level was lowered to 0.60/0.62/0.68 in linear RGB at the user's request for a slightly darker environment. Original emissive artwork, palette and texture resolution are retained.
+The user requested a stronger night-like contrast after the initial pass. Ambient is now 0.17/0.20/0.27 in linear RGB, direct lights have a 2.1× gain and visible-emitter halos are stronger. Unlit areas are substantially darker, while visible sources illuminate local surfaces and leave geometric shadows. Original emissive artwork, palette and texture resolution are retained.
 
 ## Checks
 

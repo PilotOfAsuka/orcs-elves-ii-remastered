@@ -298,7 +298,7 @@ static void glow(const Light *l,float flicker){
   const Surface *s=&surfaces[y*width+x];
   float receiver=(s->x-renderer->viewX)*fx+(s->y-renderer->viewY)*fy;
   if(s->kind==4||(s->kind&&receiver+12<d))continue;
-  float strength=.018f*l->power*flicker*expf(-r2*4)*(fadeLevel/255.f)*(fadeLevel/255.f),out=0;
+  float strength=.038f*l->power*flicker*expf(-r2*4)*(fadeLevel/255.f)*(fadeLevel/255.f),out=0;
   uint32_t c=lit[y*width+x],pixel=0xff000000u;
   for(int ch=0;ch<3;ch++){float v=((c>>(ch*8))&255)/255.f;out=sqrtf(fminf(1,v*v+colour[ch]*strength));pixel|=(uint32_t)(out*255+.5f)<<(ch*8);}
   lit[y*width+x]=pixel;
@@ -306,13 +306,13 @@ static void glow(const Light *l,float flicker){
 }
 static uint32_t shadePixel(const Surface *s,uint32_t c,const float *flicker){
   if(!s->kind)return c;
-  float ao=contactShade(s),energy[3]={.60f*ao,.62f*ao,.68f*ao};
+  float ao=contactShade(s),energy[3]={.17f*ao,.20f*ao,.27f*ao};
   for(int j=0;j<numLights;j++){
    const Light *l=&lights[j];float dx=l->x-s->x,dy=l->y-s->y,dz=l->z-s->z,d2=dx*dx+dy*dy+dz*dz;
    if(d2>=l->radius*l->radius)continue;
    float d=sqrtf(d2)+.01f,lambert=clampf((s->nx*dx+s->ny*dy+s->nz*dz)/(127*d),0,1);
    float attenuation=1-d/l->radius;
-   float e=attenuation*attenuation*l->power*flicker[j]*(.18f+.82f*lambert);
+   float e=attenuation*attenuation*l->power*flicker[j]*2.1f*(.18f+.82f*lambert);
    if(s->kind!=4)e*=shadow(s,j);
    energy[0]+=l->r*e;energy[1]+=l->g*e;energy[2]+=l->b*e;
   }

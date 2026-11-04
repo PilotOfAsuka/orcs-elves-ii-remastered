@@ -54,3 +54,5 @@ The interface has Russian/English selection. Original BREW story art and game te
 - Corrected the Staff presentation’s 7-source-pixel gap using a separate background/weapon layer; canonical native captures stay unchanged. Tested actual 704×656 output and the Options dropdown in the browser without warning/error logs.
 
 - Corrected shadow height intervals for multi-piece upper walls (64..ceiling) and added upper-wall/below-opening regression rays.
+
+- At the user’s request for a much stronger lighting influence, lowered unlit ambient to 0.17/0.20/0.27, increased direct-light gain to 2.1× and strengthened emitter halos. Classic and UI brightness remain unchanged.
