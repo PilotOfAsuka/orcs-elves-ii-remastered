@@ -430,3 +430,9 @@ Smoke 150 и own-ui 757 — без ошибок. Проверка Web и обн�
 Web 0.0.18: passed=true, 25 поз + 11 возвратов из события, все 36 графов
 совпали. Для каждого вида retained=true / clean=true; кэш 6, VM errors и
 browser warnings/errors отсутствуют. Отчёт build/browser_hd_weapons_018.json.
+
+GitHub Pages 0.0.18 опубликован: build 04b90432cd0959efc030a57326c0bcfae0f0000f,
+status=built. На публичном сайте заново пройден запуск до первого события:
+после двух страниц сообщения о снаряжении, без движения и смены оружия,
+показан HD-Жезл без пиксельного двойника. Footer v0.0.18, browser warnings /
+errors отсутствуют. Подтверждение: build/github_pages_018_after_event.png.
