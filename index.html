@@ -1,21 +1,10 @@
-<!-- Based on the official Godot MIT HTML export shell. -->
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 	<head>
 		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, viewport-fit=cover">
-		<title>Orcs & Elves II: Remastered</title>
-		<meta name="description" content="Orcs & Elves II: Remastered — классическая ролевая игра в браузере. Classic / Remastered, клавиатура и сенсорное управление.">
-		<meta property="og:title" content="Orcs &amp; Elves II: Remastered">
-		<meta property="og:description" content="Orcs &amp; Elves II — игра в браузере с адаптивным управлением.">
-		<meta property="og:type" content="website">
+		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
+		<title>Orcs & Elves II — BREW</title>
 		<style>
-:root {
-	--oe-safe-left: env(safe-area-inset-left, 0px);
-	--oe-safe-top: env(safe-area-inset-top, 0px);
-	--oe-safe-right: env(safe-area-inset-right, 0px);
-	--oe-safe-bottom: env(safe-area-inset-bottom, 0px);
-}
 html, body, #canvas {
 	margin: 0;
 	padding: 0;
@@ -24,25 +13,13 @@ html, body, #canvas {
 
 body {
 	color: white;
-	background-color: #080e10;
+	background-color: black;
 	overflow: hidden;
 	touch-action: none;
 }
 
-#game-frame {
-	position: fixed;
-	left: env(safe-area-inset-left, 0px);
-	right: env(safe-area-inset-right, 0px);
-	top: env(safe-area-inset-top, 0px);
-	bottom: env(safe-area-inset-bottom, 0px);
-	height: calc(var(--oe-height, 100dvh) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-	background: #080e10;
-}
-
 #canvas {
 	display: block;
-	width: 100%;
-	height: 100%;
 }
 
 #canvas:focus {
@@ -61,7 +38,7 @@ body {
 }
 
 #status {
-	background-color: #06090a;
+	background-color: #242424;
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
@@ -113,65 +90,30 @@ body {
 	z-index: 1;
 }
 		</style>
-		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
-<link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
-
+		
 	</head>
 	<body>
-<pre id="oe-perf" style="display:none"></pre>
-<pre id="oe-perf-view" aria-hidden="true" style="display:none;position:fixed;right:6px;top:0;max-width:190px;white-space:pre-wrap;color:#c9d3ce;background:#101820dd;z-index:99;pointer-events:none;font:10px monospace"></pre>
-<script>if(location.search.includes("perf=1"))document.getElementById("oe-perf-view").style.display="block";</script>
-		<main id="game-frame">
 		<canvas id="canvas">
-			Для игры нужен браузер с поддержкой canvas.
+			Your browser does not support the canvas tag.
 		</canvas>
 
 		<noscript>
-			Для игры необходимо включить JavaScript.
+			Your browser does not support JavaScript.
 		</noscript>
 
 		<div id="status">
 			<img id="status-splash" class="show-image--false fullsize--true use-filter--true" src="index.png" alt="">
-			<div style="font:22px system-ui;letter-spacing:0.25em;color:#d8d7bf;z-index:2">ORCS &amp; ELVES II</div>
-<progress id="status-progress" style="accent-color:#bbc69d"></progress>
+			<progress id="status-progress"></progress>
 			<div id="status-notice"></div>
 		</div>
-		</main>
 
-		<script src="index.js"></script>
+		<script src="brew-core.js?v=6fcc15cedc1a2ecd"></script>
+<script src="runtime.js?v=6fcc15cedc1a2ecd"></script>
+<script src="index.js?v=6fcc15cedc1a2ecd"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":25129140,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":39514754,"game-ui.6fcc15cedc1a2ecd.pck":49144},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"game-ui.6fcc15cedc1a2ecd.pck"};
 const GODOT_THREADS_ENABLED = false;
-const frame = document.getElementById('game-frame');
-const canvas = document.getElementById('canvas');
-function sizePortraitFrame() {
-	const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-	document.documentElement.style.setProperty('--oe-height', height + 'px');
-	const rect = frame.getBoundingClientRect();
-	const ratio = Math.min(window.devicePixelRatio || 1, 2);
-	const width = Math.round(rect.width * ratio);
-	const pixels = Math.round(rect.height * ratio);
-	if (canvas.width !== width) canvas.width = width;
-	if (canvas.height !== pixels) canvas.height = pixels;
-}
-window.orcsElvesSafeInset = function (edge) {
-	const value = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--oe-safe-' + edge)) || 0;
-	const rect = frame.getBoundingClientRect();
-	const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-	const gaps = {left: rect.left, right: window.innerWidth - rect.right, top: rect.top, bottom: height - rect.bottom};
-	return Math.max(0, value - gaps[edge]);
-};
-sizePortraitFrame();
-window.addEventListener('resize', sizePortraitFrame);
-if (window.visualViewport) window.visualViewport.addEventListener('resize', sizePortraitFrame);
-const engine = new Engine({...GODOT_CONFIG, onProgress: function (current, total) {
-	const progress = document.getElementById('status-progress');
-	if (current > 0 && total > 0) {
-		progress.value = current; progress.max = total;
-	} else {
-		progress.removeAttribute('value'); progress.removeAttribute('max');
-	}
-}});
+const engine = new Engine(GODOT_CONFIG);
 
 (function () {
 	const statusOverlay = document.getElementById('status');
@@ -257,13 +199,17 @@ const engine = new Engine({...GODOT_CONFIG, onProgress: function (current, total
 		}
 	} else {
 		setStatusMode('progress');
-		const pack = GODOT_CONFIG.executable + '.pck';
-		// Keep the runtime filename stable while fetching this exported revision.
-		const revision = 'orcs-elves-2-' + Date.now();
-		Promise.all([
-			engine.init(GODOT_CONFIG.executable),
-			engine.preloadFile(pack + '?v=' + revision, pack),
-		]).then(() => engine.start({args: ['--main-pack', pack].concat(GODOT_CONFIG.args || [])})).then(() => {
+		engine.startGame({
+			'onProgress': function (current, total) {
+				if (current > 0 && total > 0) {
+					statusProgress.value = current;
+					statusProgress.max = total;
+				} else {
+					statusProgress.removeAttribute('value');
+					statusProgress.removeAttribute('max');
+				}
+			},
+		}).then(() => {
 			setStatusMode('hidden');
 		}, displayFailureNotice);
 	}

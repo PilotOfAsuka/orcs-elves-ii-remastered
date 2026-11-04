@@ -21,7 +21,7 @@ Pinned revision: 2e9c7bfb79694ffbd8e648513edd229ee212c10a.
 Engine reconstruction credited upstream to George Gorzhiyev (ygorz/oe2-re).
 GPLv3 is preserved in engine/LICENSE. The public fork includes an SDL desktop host in addition to the Symbian host.
 
-Our additions: browser host, WebAssembly build, audio conversion from BREW resources, UI state adapter and integration with our existing Godot UI.
+Our additions: browser host, WebAssembly build, audio conversion from BREW resources, UI state adapter, cinematic capture fixes, integration with our existing Godot UI, original-texture catalog and a presentation-only point-light/geometric ray-shadow pass.
 
 Upstream claims full original-engine reconstruction. Our own validation is recorded separately in PROGRESS.md.
 

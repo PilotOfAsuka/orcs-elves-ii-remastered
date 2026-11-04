@@ -2,11 +2,11 @@
   "engine": "BREW",
   "game_version": "7.0.41",
   "source_branch": "codex/brew-port",
-  "source_revision": "74e9d658f80ec2b3d210587042658bc6698032ec",
+  "source_revision": "9ecd43a68c652d8bde5a4a68f37d5daa1a8eaec1",
   "files": {
     "index.html": {
-      "bytes": 5381,
-      "sha256": "99c207dd8f5f3f15ab47d1fb8a181ad5b1b35c4b24b5e57a3e73a120e07e5adf"
+      "bytes": 5499,
+      "sha256": "0174a4ca25840e2e7342d2c653e4e3b11e541eb9a8a28af65b6de3d8619b8eed"
     },
     "index.js": {
       "bytes": 279815,
@@ -17,8 +17,8 @@
       "sha256": "fc74679e3b97f76878947fcd4fbe1268cbfa6188182a2e33bbc3f5dc9bfa57d0"
     },
     "index.pck": {
-      "bytes": 46208,
-      "sha256": "1f64951ee696f4ba876bc46a0f24b0b1bee038e4c6cf0496c241a5c3b6ace744"
+      "bytes": 49144,
+      "sha256": "6b4666754ca172c7b24a935c4e6041e979b5f28bbf9d34536e9467b113da91b9"
     },
     "index.png": {
       "bytes": 21443,
@@ -33,20 +33,24 @@
       "sha256": "5b476a9c9ce642c0ee4256436d1bc31d9c38f868aca0f9a8e2a57c18d2dec2a3"
     },
     "brew-core.js": {
-      "bytes": 148938,
-      "sha256": "3caca3cd7df71713245e6496556d9d90b2900c5b587014b4ba02f9e014e71d4f"
+      "bytes": 149330,
+      "sha256": "59d10fce1cc7a86cf5673a9bc1c287d4947b121730556898582665db67e96509"
     },
     "brew-core.wasm": {
-      "bytes": 351048,
-      "sha256": "6080861f4e25719ea60468f85b4f4b69b951fa3ef492a4bd5e4bef1a0090ced7"
+      "bytes": 373302,
+      "sha256": "7f7788329f5325d78a7398fd39fd32463e6a0a192967b8d00b1611b048d53c81"
     },
     "brew-core.data": {
       "bytes": 6240098,
       "sha256": "c36a4b7fefd7c242c620b295bc0810475af23685d644f2038dec36a1da7d6a99"
     },
     "runtime.js": {
-      "bytes": 6295,
-      "sha256": "dba8b52d924460af1fa3948a6521071752a53f232f89eeaaaf20da7da47c607a"
+      "bytes": 7452,
+      "sha256": "d9bf277ba9a1a6eb6e68ad4613073c17ff0c1130bcfde36cfb52c565da3e1ebf"
+    },
+    "game-ui.6fcc15cedc1a2ecd.pck": {
+      "bytes": 49144,
+      "sha256": "6b4666754ca172c7b24a935c4e6041e979b5f28bbf9d34536e9467b113da91b9"
     }
   }
 }
