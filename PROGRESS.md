@@ -77,3 +77,11 @@ The interface has Russian/English selection. Original BREW story art and game te
 
 - Permanent Pages root now serves source 9a4f24d9c78d1ba9bd23e77a0fd2b52af328dfc1, deployment a7cbf2402daf9f02c2c262fcbe2ae3c39e292388. GitHub reports this exact deployment built successfully. All 12 public files match the release manifest by size and SHA-256.
 - Live page resumed the previous BREW checkpoint after the update. The full Russian dagger tutorial translated and closed in one click; switching to Staff retained the lit view and bottom anchoring. New HUD and contact AO were visually verified on the live page, with no warning/error console entries. Screenshot: ignored build/contact-ao-public.png.
+
+## Vertical English trailer — 2026-11-05
+
+- Authored a 47.6-second vertical English trailer and a 21.8-second short cut, both 1080×1920/60 FPS. Captions demonstrate Classic versus Remastered High, touch controls, combat, lighting/shadows, the map, language selection, saving and browser play. The complete HUD and controls stay in frame.
+- Camera shots and actual gameplay come from the first dungeon of the BREW engine. Classic and High comparison shots use the same camera position; High rasterizes at 704×656. Original title music and captured gameplay sounds form the soundtrack, with low editorial transition impacts. The main trailer briefly changes the UI to Russian; all promotional captions and the complete short cut are English.
+- Filming runs in a disposable nonpersistent instance. Optional camera precision hooks are guarded by OE2_CINEMATIC_CAPTURE, with a separate build/cinematic/core output. Normal builds and the user's saves remain independent. The source workflow is documented in tools/cinematic/README.md; generated movies/frames are ignored.
+- After adding the guarded filming hooks, the normal native/WASM replay again passed 1140 checks over 1058 ticks, including exact binary save parity. The current Pages deployment is unchanged by the offline filming tools.
+- Visually checked a 12-shot contact sheet and the full-resolution poster. Both final MP4s pass full FFmpeg decoding and format verification: 2856/1308 video frames, 47.6/21.8 seconds, 1080×1920 at 60 FPS, limited-range BT.709 H.264 yuv420p, 48 kHz AAC. Main trailer is about 48 MB. Files are in videos/; verification report is in ignored build/cinematic/video-verified.json.

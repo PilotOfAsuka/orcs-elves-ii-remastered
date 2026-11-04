@@ -929,6 +929,9 @@ void Render_render(Render *render, int viewX, int viewY, int viewZ, int angle)
 			render->effCeil = 0x80;
 	}
 
+	#ifdef OE2_CINEMATIC_CAPTURE
+	Film_adjustView(render);
+	#endif
 	#ifdef OE2_WEB_BRIDGE
 	BrewView_begin(render);
 	BrewLight_begin(render);

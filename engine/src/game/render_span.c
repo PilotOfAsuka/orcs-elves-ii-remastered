@@ -358,6 +358,9 @@ void Render_drawFlatRow(Render *render, int x, int y, void *tex64, int width, in
 {
 	int vx16 = rshl(render->viewX, 16);
 	int vy16 = rshl(render->viewY, 16);
+#ifdef OE2_CINEMATIC_CAPTURE
+	Film_offsetFloor(&vx16,&vy16);
+#endif
 	int y2 = y * 2;
 	int x2 = x * 2;
 	int viewW = render->width;

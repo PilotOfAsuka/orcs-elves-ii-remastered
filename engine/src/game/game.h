@@ -18,6 +18,14 @@
  * one global applet instead. */
 extern Applet *g_app;
 
+#ifdef OE2_CINEMATIC_CAPTURE
+/* Offline camera precision; absent from normal native/browser builds. */
+void Film_adjustView(Render *render);
+void Film_offsetFloor(int *x,int *y);
+float Film_offsetX(void);
+float Film_offsetY(void);
+#endif
+
 #ifdef OE2_WEB_BRIDGE
 /* Host presentation hook: reads the finished world before the original HUD. */
 void OE2_captureWorld(const int16_t *rect);
