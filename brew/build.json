@@ -1,0 +1,52 @@
+{
+  "engine": "BREW",
+  "game_version": "7.0.41",
+  "source_branch": "codex/brew-port",
+  "source_revision": "3cbd6f19483d40d768290fdfb067fb1f767a035a",
+  "files": {
+    "index.html": {
+      "bytes": 5381,
+      "sha256": "99c207dd8f5f3f15ab47d1fb8a181ad5b1b35c4b24b5e57a3e73a120e07e5adf"
+    },
+    "index.js": {
+      "bytes": 279815,
+      "sha256": "33c94cb3175f3333b82e2a3be5e8e86f77986f0aa2042b1631f6367a4e5bb6ba"
+    },
+    "index.wasm": {
+      "bytes": 39514754,
+      "sha256": "fc74679e3b97f76878947fcd4fbe1268cbfa6188182a2e33bbc3f5dc9bfa57d0"
+    },
+    "index.pck": {
+      "bytes": 46208,
+      "sha256": "1f64951ee696f4ba876bc46a0f24b0b1bee038e4c6cf0496c241a5c3b6ace744"
+    },
+    "index.png": {
+      "bytes": 21443,
+      "sha256": "3cb4495c0b98dfbe4b663cbf2b6836473572339beb66d902367893162a70be0e"
+    },
+    "index.audio.position.worklet.js": {
+      "bytes": 2973,
+      "sha256": "be33985bc7160d6bf9646f259cd86b259cd67b02ccb297ee5c44f8ac84327bc8"
+    },
+    "index.audio.worklet.js": {
+      "bytes": 7298,
+      "sha256": "5b476a9c9ce642c0ee4256436d1bc31d9c38f868aca0f9a8e2a57c18d2dec2a3"
+    },
+    "brew-core.js": {
+      "bytes": 148938,
+      "sha256": "3caca3cd7df71713245e6496556d9d90b2900c5b587014b4ba02f9e014e71d4f"
+    },
+    "brew-core.wasm": {
+      "bytes": 351048,
+      "sha256": "6080861f4e25719ea60468f85b4f4b69b951fa3ef492a4bd5e4bef1a0090ced7"
+    },
+    "brew-core.data": {
+      "bytes": 6240098,
+      "sha256": "c36a4b7fefd7c242c620b295bc0810475af23685d644f2038dec36a1da7d6a99"
+    },
+    "runtime.js": {
+      "bytes": 6295,
+      "sha256": "dba8b52d924460af1fa3948a6521071752a53f232f89eeaaaf20da7da47c607a"
+    }
+  }
+}
