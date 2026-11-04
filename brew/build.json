@@ -2,7 +2,7 @@
   "engine": "BREW",
   "game_version": "7.0.41",
   "source_branch": "codex/brew-port",
-  "source_revision": "3cbd6f19483d40d768290fdfb067fb1f767a035a",
+  "source_revision": "74e9d658f80ec2b3d210587042658bc6698032ec",
   "files": {
     "index.html": {
       "bytes": 5381,
