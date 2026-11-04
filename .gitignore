@@ -1,0 +1,9 @@
+/build/
+/research/
+/gamedata/
+/tools/vendor/
+/ui/.godot/
+/ui/export_presets.cfg
+__pycache__/
+.DS_Store
+*.tmp

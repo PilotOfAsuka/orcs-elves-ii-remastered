@@ -1,0 +1,236 @@
+extends Control
+## Existing UI widgets, now driven exclusively by the BREW C engine.
+const SELECT=0xe035
+const SOFT1=0xe036
+const SOFT2=0xe037
+const CLEAR=0xe030
+var brew: JavaScriptObject
+var state: Dictionary={}
+var picture: TextureRect
+var texture: ImageTexture
+var image_size:=Vector2i.ZERO
+var last_image_key: String=""
+var hud: OEAdventureHUD
+var heading: Label
+var caption: Label
+var status: Label
+var mode: Button
+var nav: HBoxContainer
+var movement: GridContainer
+var actions: Array[Button]=[]
+var shade: ColorRect
+var menu: PanelContainer
+var menu_box: VBoxContainer
+var menu_signature: String=""
+var reader: OEReaderPanel
+var map_view: OEDungeonMap
+var map_tools: HBoxContainer
+var lock: OELockpickPanel
+var story_next: Button
+var story_back: Button
+var language_picker: OEStartupLanguage
+var remastered: bool=false
+var choosing_language: bool=false
+var held_action: int=0
+var repeat_in: float=0
+
+func _ready() -> void:
+	theme=OESkin.make_theme()
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var atmosphere:=OEAtmosphere.new();add_child(atmosphere);atmosphere.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	heading=Label.new();heading.text="ORCS & ELVES II";heading.add_theme_color_override("font_color",OESkin.GOLD);heading.add_theme_font_size_override("font_size",20);add_child(heading)
+	mode=Button.new();mode.text="Classic";mode.focus_mode=Control.FOCUS_NONE;mode.pressed.connect(toggle_mode);add_child(mode)
+	picture=TextureRect.new();picture.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;picture.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;picture.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST;picture.mouse_filter=Control.MOUSE_FILTER_IGNORE;add_child(picture)
+	caption=Label.new();caption.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;caption.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;caption.add_theme_color_override("font_color",OESkin.GOLD);caption.add_theme_color_override("font_shadow_color",Color.BLACK);caption.add_theme_constant_override("shadow_outline_size",4);caption.mouse_filter=Control.MOUSE_FILTER_IGNORE;add_child(caption)
+	hud=OEAdventureHUD.new();add_child(hud)
+	nav=HBoxContainer.new();nav.add_theme_constant_override("separation",8);add_child(nav)
+	for item in [["menu",5,"Меню","Esc"],["map",7,"Карта","M"],["pack",16,"РЮКЗАК","I"]]:
+		var button:=make_button(str(item[0]),str(item[2]),str(item[3]));button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;nav.add_child(button)
+		var action: int=item[1];button.pressed.connect(func(): send_action(action));actions.append(button)
+	movement=GridContainer.new();movement.columns=3;movement.add_theme_constant_override("h_separation",8);movement.add_theme_constant_override("v_separation",6);add_child(movement)
+	for item in [["strafe_left",9,"Шаг влево","Z"],["forward",1,"Вперёд","W"],["strafe_right",10,"Шаг вправо","C"],["left",3,"Повернуть влево","A"],["attack",6,"Действие / удар","Enter"],["right",4,"Повернуть вправо","D"],["weapon",12,"Следующее оружие","E"],["back",2,"Назад","S"],["wait",14,"Пропустить ход","Space"]]:
+		var button:=make_button(str(item[0]),str(item[2]),str(item[3]));button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;movement.add_child(button);actions.append(button)
+		var action: int=item[1]
+		button.button_down.connect(func(): held_action=action;repeat_in=0.3;send_action(action))
+		button.button_up.connect(func(): held_action=0)
+	status=Label.new();status.text="Подготовка игры…";status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;status.add_theme_color_override("font_color",OESkin.MUTED);status.add_theme_font_size_override("font_size",12);add_child(status)
+	map_view=OEDungeonMap.new();add_child(map_view);map_view.hide()
+	map_tools=HBoxContainer.new();map_tools.add_theme_constant_override("separation",8);add_child(map_tools);map_tools.hide()
+	for item in [["−",-1],["+",1],["↺",0]]:
+		var button:=Button.new();button.text=item[0];button.custom_minimum_size=Vector2(48,34);button.focus_mode=Control.FOCUS_NONE;map_tools.add_child(button)
+		if int(item[1])==0: button.text="";button.icon=OESkin.icon("map");button.tooltip_text=OEText.localize("Сбросить вид карты")
+		var direction: int=item[1];button.pressed.connect(func():
+			if direction==0: map_view.reset_view()
+			else: map_view.zoom_by(1.25 if direction>0 else 0.8))
+	story_back=Button.new();story_back.text="‹";story_back.pressed.connect(func(): brew.key(SOFT1));add_child(story_back);story_back.hide()
+	story_next=Button.new();story_next.text="Продолжить ›";story_next.pressed.connect(func(): brew.key(SOFT2));add_child(story_next);story_next.hide()
+	shade=ColorRect.new();shade.color=Color(0.02,0.04,0.025,0.82);shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);shade.mouse_filter=Control.MOUSE_FILTER_STOP;add_child(shade);shade.hide()
+	menu=PanelContainer.new();add_child(menu);menu.hide()
+	var menu_scroll:=ScrollContainer.new();menu_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;menu.add_child(menu_scroll)
+	menu_box=VBoxContainer.new();menu_box.size_flags_horizontal=Control.SIZE_EXPAND_FILL;menu_box.add_theme_constant_override("separation",7);menu_scroll.add_child(menu_box)
+	reader=OEReaderPanel.new();add_child(reader);reader.hide()
+	reader.continue_requested.connect(func(): brew.key(SELECT))
+	reader.choice_requested.connect(func(index: int): brew.choice(index))
+	reader.key_requested.connect(func(_key: int): brew.key(SOFT1))
+	lock=OELockpickPanel.new();add_child(lock);lock.hide()
+	lock.key_requested.connect(func(key: int): brew.key(SELECT if key==53 else 0xe021+key-48))
+	resized.connect(arrange);arrange()
+	if OS.has_feature("web"):
+		brew=JavaScriptBridge.get_interface("Brew")
+		var saved: String=str(brew.savedLanguage())
+		if saved in ["ru","en"]: OEText.choose(saved)
+		else: show_language()
+	else: status.text="Откройте браузерную сборку BREW"
+
+func make_button(icon: String, caption: String, key: String) -> Button:
+	var button:=Button.new();button.custom_minimum_size=Vector2(44,40);button.focus_mode=Control.FOCUS_NONE;OESkin.decorate(button,icon,caption,key);return button
+
+func arrange() -> void:
+	if hud==null: return
+	var width: float=minf(size.x-24,640 if remastered else 480)
+	var left: float=(size.x-width)/2
+	var controls_h: float=172 if size.y>690 else 154
+	var world_h: float=maxf(120,size.y-42-112-controls_h-42)
+	heading.position=Vector2(left,10);mode.position=Vector2(left+width-112,8);mode.size=Vector2(112,30)
+	picture.position=Vector2(left,48);picture.size=Vector2(width,world_h)
+	hud.position=Vector2(left,52+world_h);hud.size=Vector2(width,102)
+	nav.position=Vector2(left,160+world_h);nav.size=Vector2(width,36)
+	movement.position=Vector2(left,202+world_h);movement.size=Vector2(width,controls_h-44)
+	if size.x>=850:
+		var main_width: float=minf(800 if remastered else 480,size.x-300)
+		left=(size.x-main_width-240-20)/2
+		world_h=maxf(160,size.y-196)
+		picture.position=Vector2(left,48);picture.size=Vector2(main_width,world_h)
+		hud.position=Vector2(left,52+world_h);hud.size=Vector2(main_width,102)
+		heading.position=Vector2(left,10);mode.position=Vector2(left+main_width-112,8)
+		nav.position=Vector2(left+main_width+20,90);nav.size=Vector2(240,36)
+		movement.position=Vector2(left+main_width+20,134);movement.size=Vector2(240,170)
+	caption.position=picture.position+Vector2(12,12);caption.size=Vector2(picture.size.x-24,80)
+	status.position=Vector2(left,size.y-22);status.size=Vector2(width,18)
+	var popup_width: float=minf(size.x-24,580)
+	menu.position=Vector2((size.x-popup_width)/2,58);menu.size=Vector2(popup_width,size.y-105)
+	reader.position=Vector2((size.x-popup_width)/2,maxf(40,(size.y-400)/2));reader.size=Vector2(popup_width,minf(size.y-90,400))
+	lock.position=Vector2((size.x-popup_width)/2,maxf(40,(size.y-410)/2));lock.size=Vector2(popup_width,minf(size.y-85,410))
+	map_view.position=picture.position;map_view.size=picture.size
+	map_tools.position=picture.position+Vector2(8,8)
+	story_back.position=picture.position+Vector2(0,picture.size.y-40);story_back.size=Vector2(48,36)
+	story_next.position=picture.position+Vector2(picture.size.x-170,picture.size.y-40);story_next.size=Vector2(170,36)
+
+func _process(delta: float) -> void:
+	if brew==null: return
+	if not bool(brew.ready):
+		status.text=str(brew.error) if not str(brew.error).is_empty() else OEText.localize("Подготовка игры…");return
+	brew.paused=choosing_language
+	brew.advance(delta*1000)
+	state=JSON.parse_string(str(brew.json()))
+	if state.is_empty(): return
+	var game_state: int=int(state.state)
+	picture.visible=game_state!=2 or int(state.world_width)>0
+	var modal: bool=game_state in [2,7,12,17,19] or choosing_language
+	for button in actions: button.disabled=modal or game_state not in [3,4,5,20,21]
+	if modal: held_action=0
+	elif held_action!=0:
+		repeat_in-=delta
+		if repeat_in<=0: send_action(held_action);repeat_in=0.12
+	shade.visible=game_state in [2,7,19]
+	menu.visible=game_state==2
+	if menu.visible: update_menu()
+	reader.show_state({"kind":"dialogue","text":str(state.dialogue).replace("-\n","").replace("\n"," "),"title":"СОБЫТИЯ","page":int(state.dialog_top),"pages":1,"choice":(int(state.dialog_flags)&4)!=0,"choices":[OEText.localize("Да"),OEText.localize("Нет")],"selected_choice":int(state.dialog_choice),"right":"" if (int(state.dialog_flags)&1)!=0 else str(state.right),"primary":"Продолжить"} if game_state==7 else {})
+	if game_state==12:
+		reader.show_state({"kind":"dialogue","text":OEText.localize("Вы пали в бою…"),"title":"ПУТЬ ОКОНЧЕН","page":0,"pages":1,"choice":false,"right":"","primary":"Продолжить"})
+		shade.show()
+	caption.text=str(state.hud.get("cinematic","")) if game_state==17 else ""
+	lock.show_state({"length":maxi(3,int(state.lock.length)),"completed":int(state.lock.hits),"partial":int(state.lock.slot)!=0,"attempts":int(state.lock.tries),"finished":int(state.lock.done)!=0} if game_state==19 else {})
+	map_view.show_state(state.get("map",{}));map_tools.visible=game_state==5
+	story_back.visible=game_state in [8,13] and int(state.story_page)>0;story_next.visible=game_state in [8,11,13,17]
+	story_next.text=OEText.localize("Продолжить")+" ›"
+	hud.show_state(state.hud if int(state.map_id)>0 else {})
+	var kind: String="world" if int(state.world_width)>0 else "frame"
+	var revision: int=int(state.world_revision) if kind=="world" else int(state.ticks)
+	var dimensions:=Vector2i(int(state.world_width),int(state.world_height)) if kind=="world" else Vector2i(176,220)
+	if game_state in [8,13]: kind="story";revision=int(state.story_page);dimensions=Vector2i(176,176)
+	var image_key: String=kind+":"+str(revision)
+	if image_key!=last_image_key:
+		var raw: Variant=brew.image(kind)
+		var pixels: PackedByteArray=raw if raw is PackedByteArray else JavaScriptBridge.js_buffer_to_packed_byte_array(raw)
+		if pixels.size()!=dimensions.x*dimensions.y*4:
+			push_error("BREW image transport: type %s, bytes %d" % [type_string(typeof(raw)),pixels.size()]);return
+		var next:=Image.create_from_data(dimensions.x,dimensions.y,false,Image.FORMAT_RGBA8,pixels)
+		if texture==null or dimensions!=image_size:
+			texture=ImageTexture.create_from_image(next);picture.texture=texture;image_size=dimensions
+		else: texture.update(next)
+		last_image_key=image_key
+	status.text="BREW · Classic" if not remastered else "BREW · Remastered"
+	if not str(brew.saveError).is_empty(): status.text=OEText.localize("Не удалось сохранить")
+
+func update_menu() -> void:
+	var signature: String=JSON.stringify([state.menu_id,state.selected,state.items,OEText.language])
+	if signature==menu_signature: return
+	menu_signature=signature
+	for child in menu_box.get_children(): child.free()
+	var title:=Label.new();title.text="ORCS & ELVES II";title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;title.add_theme_color_override("font_color",OESkin.GOLD);title.add_theme_font_size_override("font_size",21);menu_box.add_child(title)
+	for item: Dictionary in state.items:
+		var text: String=OEText.localize(str(item.text)).strip_edges()
+		if not str(item.value).is_empty(): text+="   "+OEText.localize(str(item.value))
+		if text.is_empty(): continue
+		if (int(item.flags)&1)!=0:
+			var label:=Label.new();label.text=text;label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;label.add_theme_color_override("font_color",OESkin.GOLD);menu_box.add_child(label)
+		else:
+			var button:=Button.new();button.text=text;button.custom_minimum_size.y=42;button.focus_mode=Control.FOCUS_NONE;button.disabled=(int(item.flags)&4)!=0;button.tooltip_text=OEText.localize(str(item.help));menu_box.add_child(button)
+			if int(item.index)==int(state.selected): button.add_theme_color_override("font_color",OESkin.GOLD)
+			var id: int=state.menu_id;var index: int=item.index;button.pressed.connect(func(): brew.menu(id,index))
+	var row:=HBoxContainer.new();menu_box.add_child(row)
+	for item in [["Язык",0],["Полный экран",1],["Назад",2]]:
+		var button:=Button.new();button.text=OEText.localize(item[0]);button.custom_minimum_size.y=38;button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;button.focus_mode=Control.FOCUS_NONE;row.add_child(button)
+		var action: int=item[1];button.pressed.connect(func():
+			if action==0: show_language()
+			elif action==1: DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if DisplayServer.window_get_mode()!=DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_WINDOWED)
+			elif action==2: brew.key(SOFT1)
+			)
+
+func send_action(action: int) -> void:
+	if brew==null or choosing_language or int(state.get("state",0)) in [2,7,19]: return
+	if action==16: brew.inventory()
+	else: brew.action(action)
+
+func toggle_mode() -> void:
+	remastered=not remastered;mode.text="Remastered" if remastered else "Classic"
+	# Original BREW sampling stays crisp until actual HD resources are supplied.
+	picture.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST
+	arrange()
+
+func show_language() -> void:
+	if choosing_language: return
+	choosing_language=true;held_action=0
+	language_picker=OEStartupLanguage.new();add_child(language_picker)
+	language_picker.selected.connect(func(value: String):
+		OEText.choose(value)
+		if brew!=null: brew.language(value)
+		choosing_language=false;language_picker.queue_free();menu_signature="")
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if brew==null or choosing_language or not event is InputEventKey: return
+	var key:=event as InputEventKey
+	if not key.pressed: held_action=0;return
+	if key.echo: return
+	if key.keycode==KEY_F2: toggle_mode();get_viewport().set_input_as_handled();return
+	if key.keycode==KEY_F5: brew.save();get_viewport().set_input_as_handled();return
+	if key.keycode==KEY_F9: brew.load();get_viewport().set_input_as_handled();return
+	var game_state: int=int(state.get("state",0))
+	if game_state==7:
+		if key.keycode in [KEY_ENTER,KEY_SPACE]: brew.key(SELECT)
+		elif key.keycode==KEY_ESCAPE: brew.key(SOFT1)
+		elif (int(state.get("dialog_flags",0))&4)!=0 and key.keycode in [KEY_LEFT,KEY_RIGHT]: brew.key(0xe033 if key.keycode==KEY_LEFT else 0xe034)
+	elif game_state==2:
+		var keys: Dictionary={KEY_UP:0xe031,KEY_DOWN:0xe032,KEY_LEFT:0xe033,KEY_RIGHT:0xe034,KEY_ENTER:SELECT,KEY_ESCAPE:SOFT1}
+		if keys.has(key.keycode): brew.key(keys[key.keycode])
+	elif game_state in [8,11,13]: brew.key(SOFT1 if key.keycode in [KEY_LEFT,KEY_ESCAPE] else SOFT2)
+	elif game_state==19:
+		var keys: Dictionary={KEY_W:0xe023,KEY_UP:0xe023,KEY_S:0xe029,KEY_DOWN:0xe029,KEY_A:0xe025,KEY_LEFT:0xe025,KEY_D:0xe027,KEY_RIGHT:0xe027,KEY_ESCAPE:SELECT}
+		if keys.has(key.keycode): brew.key(keys[key.keycode])
+	else:
+		var keys: Dictionary={KEY_W:1,KEY_UP:1,KEY_S:2,KEY_DOWN:2,KEY_A:3,KEY_LEFT:3,KEY_D:4,KEY_RIGHT:4,KEY_Z:9,KEY_C:10,KEY_Q:11,KEY_E:12,KEY_ENTER:6,KEY_SPACE:14,KEY_M:7,KEY_ESCAPE:5,KEY_I:16}
+		if keys.has(key.keycode):
+			var action: int=keys[key.keycode];send_action(action)
+			if action in [1,2,3,4,9,10]: held_action=action;repeat_in=0.3
+	get_viewport().set_input_as_handled()
