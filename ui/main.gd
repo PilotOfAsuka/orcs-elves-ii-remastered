@@ -58,7 +58,7 @@ func _ready() -> void:
 	map_tools=HBoxContainer.new();map_tools.add_theme_constant_override("separation",8);add_child(map_tools);map_tools.hide()
 	for item in [["−",-1],["+",1],["↺",0]]:
 		var button:=Button.new();button.text=item[0];button.custom_minimum_size=Vector2(48,34);button.focus_mode=Control.FOCUS_NONE;map_tools.add_child(button)
-		if int(item[1])==0: button.text="";button.icon=OESkin.icon("map");button.tooltip_text=OEText.localize("Сбросить вид карты")
+		if int(item[1])==0: OESkin.decorate(button,"map",OEText.localize("Сбросить вид карты"));button.add_theme_constant_override("icon_max_width",20)
 		var direction: int=item[1];button.pressed.connect(func():
 			if direction==0: map_view.reset_view()
 			else: map_view.zoom_by(1.25 if direction>0 else 0.8))
