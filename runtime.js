@@ -80,15 +80,13 @@
     action(action) { if (this.ready) this.key(core._oe2_action_key(action)); },
     menu(id, index) { if (this.ready&&!this.importing) { audio.unlock(); return core._oe2_menu_select(id, index); } return 0; },
     continueText() {
-      if(!this.ready)return;
-      let before=JSON.parse(this.json());
-      for(let i=0;i<32;i++){
-        this.key(0xe035);const after=JSON.parse(this.json());
-        if(before.state!==7||after.state!==7||after.dialogue!==before.dialogue||after.dialog_top<=before.dialog_top)break;
-        before=after;
+      if(this.ready&&!this.importing){audio.unlock();core._oe2_continue_dialogue();}
+    },
+    choice(index) {
+      if (this.ready&&!this.importing) {
+        audio.unlock();core._oe2_choice(index);
       }
     },
-    choice(index) { if (this.ready&&!this.importing) { audio.unlock(); core._oe2_choice(index); } },
     save() { return this.ready&&!this.importing ? core._oe2_save() : 0; },
     load() { return this.ready&&!this.importing ? core._oe2_load() : 0; },
     inventory() { if (this.ready&&!this.importing) core._oe2_inventory(); },

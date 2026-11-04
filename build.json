@@ -2,11 +2,11 @@
   "engine": "BREW",
   "game_version": "7.0.41",
   "source_branch": "codex/brew-port",
-  "source_revision": "1cde173c0e1459d70bb579990a9ae5ef1bf7c0d0",
+  "source_revision": "9a4f24d9c78d1ba9bd23e77a0fd2b52af328dfc1",
   "files": {
     "index.html": {
       "bytes": 5500,
-      "sha256": "d862068733d3928e0f5bc0ac5e818936665bd150bf4ec33260999a555ec2b4be"
+      "sha256": "35c02c3476a52fe814ef4000956962aca2863359220d814fc0c7477f8812d636"
     },
     "index.js": {
       "bytes": 279815,
@@ -17,8 +17,8 @@
       "sha256": "fc74679e3b97f76878947fcd4fbe1268cbfa6188182a2e33bbc3f5dc9bfa57d0"
     },
     "index.pck": {
-      "bytes": 938728,
-      "sha256": "9dc6eca1028ae390875d7e338c972edcbd4e4b8e379eeba2b679843f04626869"
+      "bytes": 939224,
+      "sha256": "76898e39b42bfdbb2cdf6b821e93f2d8b232966e35e4a3419aaa388e42e89c36"
     },
     "index.png": {
       "bytes": 21443,
@@ -33,24 +33,24 @@
       "sha256": "5b476a9c9ce642c0ee4256436d1bc31d9c38f868aca0f9a8e2a57c18d2dec2a3"
     },
     "brew-core.js": {
-      "bytes": 149506,
-      "sha256": "7ad3b40f0165b31f0949b7ce58954f35f5f8d9da3579d9658cfee6d41bbd2eb2"
+      "bytes": 149630,
+      "sha256": "8a9173a7987a531db56deb4de65b7cda71cdd25eb66a396e0f681dedf2dc51df"
     },
     "brew-core.wasm": {
-      "bytes": 375658,
-      "sha256": "8df3b9cbf68caf24eadcbfdb7060243580b597188218fd98959373d6a2dce288"
+      "bytes": 376118,
+      "sha256": "94da349b80efcaaa289133b6d6af32b05a02c218845a3d5120f0622a892b6228"
     },
     "brew-core.data": {
       "bytes": 6240098,
       "sha256": "c36a4b7fefd7c242c620b295bc0810475af23685d644f2038dec36a1da7d6a99"
     },
     "runtime.js": {
-      "bytes": 12703,
-      "sha256": "d3f0df375b45622acd18805cd44c21bf7c088f11f924d636f65879244578d559"
+      "bytes": 12496,
+      "sha256": "fca8ae74a869053fcae3a71e5a46193e4e51cab75e979d202c94ab60cad225bd"
     },
-    "game-ui.667ac6644661e4e6.pck": {
-      "bytes": 938728,
-      "sha256": "9dc6eca1028ae390875d7e338c972edcbd4e4b8e379eeba2b679843f04626869"
+    "game-ui.613e5fc17e324e97.pck": {
+      "bytes": 939224,
+      "sha256": "76898e39b42bfdbb2cdf6b821e93f2d8b232966e35e4a3419aaa388e42e89c36"
     }
   }
 }
