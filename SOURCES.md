@@ -33,3 +33,9 @@ Our prepared stone/bronze UI, vector icons, HUD, dialogs, map and touch controls
 
 Emscripten SDK: https://github.com/emscripten-core/emsdk (local, ignored).
 Godot: https://godotengine.org/ (installed desktop editor and official Web export template).
+
+## Russian presentation
+
+The complete BREW 7.0.41 string catalog has a separate Russian presentation translation in localization/ru. Original English strings and game rules remain unchanged in the core. The checked-in ui/locales/ru.json is built from those translations and the supported English catalog. Intro/ending text masks have separate Cyrillic SVG resources; the original parchment illustration and travel map art remain intact.
+
+Text-mask glyph outlines use Noto Serif Bold by the Noto Project Authors, obtained from the bundled LibreOffice font installation. Its SIL Open Font License and copyright notice are preserved in localization/FONT_LICENSE.txt. The optional regeneration tool uses fontTools 4.68; generated SVG resources are checked in, so ordinary UI builds do not require fontTools or the local font file.
