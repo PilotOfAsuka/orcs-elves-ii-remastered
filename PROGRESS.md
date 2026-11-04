@@ -72,3 +72,8 @@ The interface has Russian/English selection. Original BREW story art and game te
 
 - Final live inspection found a composed weapon tutorial whose title translated but phone-wrapped body did not. The translator now matches complete resource paragraphs across native wrapping; the dagger regression fixture passes.
 - The custom Continue/choice actions now consume original dialogue typing/pagination through the original C handler, stopping at the next dialogue or game state. This avoids repeated clicks for invisible phone pages. An isolated original intro plus multi-page dagger tutorial test confirms one-click continuation without advancing simulation time, moving the player or changing health. Full native/WASM parity still passes.
+
+## Published verification — 2026-11-05
+
+- Permanent Pages root now serves source 9a4f24d9c78d1ba9bd23e77a0fd2b52af328dfc1, deployment a7cbf2402daf9f02c2c262fcbe2ae3c39e292388. GitHub reports this exact deployment built successfully. All 12 public files match the release manifest by size and SHA-256.
+- Live page resumed the previous BREW checkpoint after the update. The full Russian dagger tutorial translated and closed in one click; switching to Staff retained the lit view and bottom anchoring. New HUD and contact AO were visually verified on the live page, with no warning/error console entries. Screenshot: ignored build/contact-ao-public.png.
