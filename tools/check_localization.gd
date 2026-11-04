@@ -17,6 +17,8 @@ func _init() -> void:
 		if actual!=fixtures[source]:failures.append(source+" => "+actual)
 	var prompt:=OEText.merge_menu_text([{"flags":9,"text":"This will erase"},{"flags":9,"text":"your saved game."},{"flags":9,"text":"Are you sure?"}])
 	if OEText.localize(str(prompt[0].text))!="Ваше сохранение будет стёрто.\n\nВы уверены?":failures.append("Wrapped confirmation")
+	var tutorial: String="Dagger\nThis magic dagger can\nbe used to backstab,\ntoss at your enemies,\nor strike at close\nrange. When tossed, it\nwill return to you once\ndamage has been inflicted on an enemy."
+	if OEText.localize(tutorial)!="Кинжал\n"+str(OEText.catalog.ids["1:24"].ru):failures.append("Wrapped weapon tutorial: "+OEText.localize(tutorial))
 	var samples_path: String=ProjectSettings.globalize_path("res://../build/ui-text-samples.json")
 	var samples: Variant=JSON.parse_string(FileAccess.get_file_as_string(samples_path))
 	var remaining: Array=[]

@@ -112,6 +112,21 @@ static func translate(text: String, depth: int=0) -> String:
 				var value:=inflect(str(args.get(int(token.get_string(1)),token.get_string())),token.get_string(2),token.get_start()==0)
 				result=result.substr(0,token.get_start())+value+result.substr(token.get_end())
 			break
+	if result.is_empty():
+		# Native tutorials combine a title with a phone-wrapped resource body.
+		# Match complete resource paragraphs across those artificial line breaks.
+		for phrase: String in catalog.phrases:
+			if phrase.length()<32 or phrase.length()>key.length():continue
+			var at:=key.to_lower().find(phrase.to_lower())
+			if at<0:continue
+			if at>0 and key[at-1] not in " :;.,!?\"()[]":continue
+			var end:=at+phrase.length()
+			if end<key.length() and key[end] not in " :;.,!?\"()[]":continue
+			var parts: Array[String]=[]
+			if at>0:parts.append(translate(key.left(at).strip_edges(),depth+1))
+			parts.append(str(catalog.texts[phrase]))
+			if end<key.length():parts.append(translate(key.substr(end).strip_edges(),depth+1))
+			result="\n".join(parts);break
 	if result.is_empty() and (text.contains("\n") or text.contains("|")):
 		var lines: Array[String]=[]
 		for line in text.replace("-\n","").replace("|","\n").split("\n"):lines.append(translate(line,depth+1))

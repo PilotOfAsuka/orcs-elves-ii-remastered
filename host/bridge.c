@@ -104,10 +104,21 @@ API int oe2_menu_select(int expectedMenu, int index) {
     oe2_key(AVK_SELECT);
     return 1;
 }
+API void oe2_continue_dialogue(void) {
+    if(!g_app||g_app->canvas->state!=7)return;
+    Canvas *c=g_app->canvas;
+    /* Our reader already shows the complete text. Consume only the original
+     * typing/page actions; never advance the clock or skip a script event. */
+    for(int i=0;i<128 && c->state==7;i++) {
+        int top=c->dialogTopLine,typed=c->dialogTypeLine;
+        Canvas_handleDialogEvents(c,AVK_SELECT);
+        if(c->state!=7 || !(c->dialogTopLine>top || (c->dialogTopLine==top && c->dialogTypeLine>typed)))break;
+    }
+}
 API void oe2_choice(int index) {
     if (g_app && g_app->canvas->state == 7 && (g_app->canvas->dialogFlags & 4) && index >= 0 && index < 2) {
         g_app->canvas->dialogChoice = index;
-        oe2_key(AVK_SELECT);
+        oe2_continue_dialogue();
     }
 }
 API int oe2_save(void) {
@@ -193,8 +204,8 @@ API const char *oe2_json(void) {
     add("},\"left\":"); string(&c->softKeyLeft); add(",\"right\":"); string(&c->softKeyRight);
     add(",\"story_page\":%d,\"story_pages\":%d,\"dialogue\":", c->storyPage, c->storyPageCount);
     string(&c->dialogText);
-    add(",\"dialog_flags\":%d,\"dialog_choice\":%d,\"dialog_style\":%d,\"dialog_top\":%d,\"dialog_lines\":%d,",
-        c->dialogFlags, c->dialogChoice, c->dialogStyle, c->dialogTopLine, c->dialogNumLines);
+    add(",\"dialog_flags\":%d,\"dialog_choice\":%d,\"dialog_style\":%d,\"dialog_top\":%d,\"dialog_lines\":%d,\"dialog_typed\":%d,\"dialog_view\":%d,",
+        c->dialogFlags, c->dialogChoice, c->dialogStyle, c->dialogTopLine, c->dialogNumLines,c->dialogTypeLine,c->dialogViewLines);
     int wi = p->ce.weapon;
     EntityDef *weapon = wi >= 0 && wi < 11 ? EntityDefs_find(g_app->entityDefs, 6, 1, wi) : NULL;
     int ammoType = wi >= 0 && wi < 11 ? g_app->combat->weapons[wi].ammoType : 0;
