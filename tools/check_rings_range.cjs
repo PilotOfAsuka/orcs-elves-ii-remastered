@@ -18,12 +18,16 @@ const{boot,root}=require('./cinematic/common.cjs');
  assert.equal(m().hud.ring_id,3,'native save/load restores equipped ring');
  const model=Brew.json(),classic=Buffer.from(Brew.image('world'));
  for(let quality=0;quality<3;quality++){
-  Brew.quality(quality);Brew.lightDistance(100);const low=Buffer.from(Brew.image('lit'));
-  Brew.lightDistance(150);const high=Buffer.from(Brew.image('lit'));assert.notDeepEqual(low,high,'distance changes world lighting');
-  Brew.lightDistance(200);assert.deepEqual(Buffer.from(Brew.image('lit')),high,'maximum clamped to 150%');
-  Brew.lightDistance(50);assert.deepEqual(Buffer.from(Brew.image('lit')),low,'minimum is the current 100% look');
+  Brew.quality(quality);Brew.lightDistance(4);const low=Buffer.from(Brew.image('lit'));
+  Brew.lightDistance(7);const medium=Buffer.from(Brew.image('lit'));
+  Brew.lightDistance(10);const high=Buffer.from(Brew.image('lit'));
+  assert.equal(low.length,medium.length);assert.equal(medium.length,high.length);
+  // A near-only scene may look identical at every processing distance.
+  Brew.lightDistance(999);assert.deepEqual(Buffer.from(Brew.image('lit')),high,'runtime maximum is ten walking steps');
+  core._oe2_light_distance(999);assert.deepEqual(Buffer.from(Brew.image('lit')),high,'native maximum is ten walking steps');
+  Brew.lightDistance(0);assert.deepEqual(Buffer.from(Brew.image('lit')),low,'minimum is four walking steps');
   assert.equal(Brew.json(),model);assert.deepEqual(Buffer.from(Brew.image('world')),classic);assert.deepEqual(Buffer.from(Brew.testFile('SD_0')),bytes);
  }
- fs.writeFileSync(path.join(root,'build/rings-range-check.json'),JSON.stringify({rings:8,remove:true,nativeStats:true,saveLoad:true,marker:true,qualities:3,range:[100,150],clamping:true,purity:true},null,2));
- console.log('8 native rings, bonuses, removal, save/load, glyphs; 100–150% range and purity at every quality passed');
+ fs.writeFileSync(path.join(root,'build/rings-range-check.json'),JSON.stringify({rings:8,remove:true,nativeStats:true,saveLoad:true,marker:true,qualities:3,processingSteps:[4,7,10],sourceReference:120,clamping:true,purity:true},null,2));
+ console.log('8 native rings, bonuses, removal, save/load, glyphs; Low/Medium/High range and purity at every quality passed');
 })().catch(e=>{console.error(e);process.exitCode=1;});

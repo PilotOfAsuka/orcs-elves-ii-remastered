@@ -38,7 +38,8 @@ var lock: OELockpickPanel
 var story_next: Button
 var story_back: Button
 var language_picker: OEStartupLanguage
-var light_distance: int=100
+const LIGHT_DISTANCES: Array[int]=[4,7,10]
+var light_distance: int=4
 var quality_index: int=0
 var remastered: bool=false
 var choosing_language: bool=false
@@ -115,7 +116,7 @@ func _ready() -> void:
 	else: status.text="Откройте браузерную сборку BREW"
 
 func make_button(icon: String, caption: String, key: String) -> Button:
-	var button:=Button.new();button.custom_minimum_size=Vector2(44,40);button.focus_mode=Control.FOCUS_NONE;OESkin.decorate(button,icon,caption,key);return button
+	var button:=Button.new();button.custom_minimum_size=Vector2(44,40);button.focus_mode=Control.FOCUS_NONE;button.mouse_filter=Control.MOUSE_FILTER_IGNORE;OESkin.decorate(button,icon,caption,key);return button
 
 func make_nav_button(icon: String, hint: String) -> Button:
 	var button:=make_button(icon,hint,"")
@@ -180,8 +181,12 @@ func _process(delta: float) -> void:
 	picture.visible=(game_state!=2 or int(state.world_width)>0) and game_state!=14
 	frame.visible=picture.visible
 	var modal: bool=game_state in [2,7,12,17,19] or choosing_language
-	for button in actions: button.disabled=modal or game_state not in [3,4,5,20,21]
+	for button in actions:
+		button.disabled=modal or game_state not in [3,4,5,20,21]
+		button.mouse_filter=Control.MOUSE_FILTER_IGNORE if button.disabled else Control.MOUSE_FILTER_STOP
+	mode.mouse_filter=Control.MOUSE_FILTER_IGNORE if modal else Control.MOUSE_FILTER_STOP
 	hud.ring_button.disabled=modal or game_state not in [3,5]
+	hud.ring_button.mouse_filter=Control.MOUSE_FILTER_IGNORE if hud.ring_button.disabled else Control.MOUSE_FILTER_STOP
 	if modal: held_action=0
 	elif held_action!=0:
 		repeat_in-=delta
@@ -294,10 +299,14 @@ func update_menu() -> void:
 		for caption in ["Low · 176×164","Medium · 352×328","High · 704×656"]: quality.add_item(caption)
 		quality.select(quality_index);menu_box.add_child(quality)
 		quality.item_selected.connect(func(index: int): quality_index=index;brew.quality(index);last_image_key="";menu_signature="")
-		var distance_label:=Label.new();distance_label.text=OEText.localize("Дальность освещения")+" · %d%%" % light_distance;menu_box.add_child(distance_label)
-		var distance:=HSlider.new();distance.min_value=100;distance.max_value=150;distance.step=5;distance.value=light_distance;distance.custom_minimum_size.y=36;menu_box.add_child(distance)
-		distance.add_theme_stylebox_override("slider",OESkin.plate(Color("0b120d"),OESkin.BRONZE,3));distance.add_theme_stylebox_override("grabber_area",OESkin.plate(Color("77613d"),OESkin.GOLD,3))
-		distance.value_changed.connect(func(value: float):light_distance=int(value);brew.lightDistance(light_distance);last_image_key="";distance_label.text=OEText.localize("Дальность освещения")+" · %d%%" % light_distance)
+		var distance_label:=Label.new();distance_label.text=OEText.localize("Дальность обработки света");menu_box.add_child(distance_label)
+		var distance_row:=HBoxContainer.new();distance_row.add_theme_constant_override("separation",6);menu_box.add_child(distance_row)
+		var distance_group:=ButtonGroup.new()
+		for index in range(LIGHT_DISTANCES.size()):
+			var steps: int=LIGHT_DISTANCES[index]
+			var distance:=Button.new();distance.text=["Low","Medium","High"][index];distance.toggle_mode=true;distance.button_group=distance_group;distance.button_pressed=light_distance==steps
+			distance.custom_minimum_size.y=42;distance.size_flags_horizontal=Control.SIZE_EXPAND_FILL;distance.focus_mode=Control.FOCUS_NONE;distance_row.add_child(distance)
+			distance.pressed.connect(func():light_distance=steps;brew.lightDistance(steps);last_image_key="")
 		for item in [["Скачать сохранение",0],["Загрузить копию сохранения",1]]:
 			var backup:=Button.new();backup.text=OEText.localize(item[0]);backup.custom_minimum_size.y=42;backup.focus_mode=Control.FOCUS_NONE;menu_box.add_child(backup)
 			var action: int=item[1];backup.pressed.connect(func():

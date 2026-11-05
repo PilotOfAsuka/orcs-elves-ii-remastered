@@ -44,3 +44,15 @@ Text-mask glyph outlines use Noto Serif Bold by the Noto Project Authors, obtain
 ## Native menu and conversation artwork
 
 The build decodes original BREW BAR 3029 for item icons, 3031 for equipped-ring icons, 3021/3028 for the player/wand conversation images, 3007 for notice icons, and the original palette/mapping/bitshape/texel resources 1003–1006 for character sprite closeups. The helpers preserve RGB565 colors and native transparency. These derived atlases remain ignored build assets; no generated HD replacement art was introduced. Wall candle identities 61/69 were matched to the decoded original 117×117 materials and native world geometry.
+
+
+## Dense-light rendering references — 2026-11-06
+
+Original local implementation in `host/lighting.c`; no third-party lighting code
+or new library dependency was added. Design references consulted:
+
+- [Godot, lights and shadows](https://docs.godotengine.org/en/stable/tutorials/3d/lights_and_shadows.html): caching unchanged shadow-atlas entries and invalidating affected light/object work.
+- [AMD GPUOpen, TiledLighting11](https://gpuopen.com/learn/tiledlighting11-directx-11-sdk-sample/): spatial light lists in Forward+/Tiled Deferred rendering; research reference, not the rendering pipeline of this port.
+- [PBRT 4e, Media §11.4.3](https://www.pbr-book.org/4ed/Volume_Scattering/Media): DDA traversal of regular grid cells. Our broad phase indexes existing native wall segments and retains the previous exact intersection test.
+
+Local measurements and approximation limits are recorded in `docs/LIGHTING.md`.

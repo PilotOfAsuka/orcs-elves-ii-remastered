@@ -63,7 +63,7 @@ This verifies cross-target behavior of the reconstructed engine. It does not est
 
 The repository is `PilotOfAsuka/orcs-elves-ii-remastered`. BREW source uses `codex/brew-port`; the game lives at the permanent Pages root on the existing `web-build` deployment branch. The release's `build.json` identifies the exact source and exported file hashes.
 
-Use `python3 tools/publish_github.py publish` only after an explicit publication request and verification of the current export. It uses the existing credential helper, rejects uncommitted changes, and never force-pushes. The static root is replaced and the old `/brew/` path redirects to it. UI pack names and runtime resource queries use content hashes to avoid stale cached assets. Check the Pages build with `python3 tools/publish_github.py status`, then verify the live page.
+Use `python3 tools/publish_github.py publish` only after an explicit publication request and verification of the current export. It uses the existing credential helper, rejects uncommitted changes, and never force-pushes. The static root is replaced and the old `/brew/` path redirects to it. UI pack names and runtime resource queries use content hashes to avoid stale cached assets. Check deployment status with `python3 tools/publish_github.py status`. Per the user’s preference, do not download public release assets or run an additional live-page browser check after publication unless requested.
 
 ## Localization, text art and save backup
 

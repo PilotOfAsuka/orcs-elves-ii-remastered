@@ -129,3 +129,32 @@ QA int oe2_qa_candle_sprite_count(void){
 }
 QA void oe2_qa_give_rings(void){for(int id=1;id<=8;id++)Player_give(g_app->player,2,id,1,1);}
 QA int oe2_qa_strength(void){return g_app->player->ce.strength;}
+
+extern void BrewLight_qaCostMode(int);
+extern double BrewLight_qaProfile(int);
+extern int BrewLight_qaSourcePoint(int,int);
+QA void oe2_qa_light_cost(int mode){BrewLight_qaCostMode(mode);}
+QA double oe2_qa_light_profile(int field){return BrewLight_qaProfile(field);}
+QA int oe2_qa_light_point(int index,int field){return BrewLight_qaSourcePoint(index,field);}
+QA void oe2_qa_light_view(int x,int y,int angle){
+ Canvas *c=g_app->canvas;g_app->game->disableAI=1;
+ MenuSystem_setMenu(g_app->menuSystem,0);
+ c->destX=c->viewX=x;c->destY=c->viewY=y;c->destAngle=c->viewAngle=angle&1023;
+ g_app->player->ce.x=x;g_app->player->ce.y=y;
+ Canvas_renderView(c,x,y,angle&1023);
+}
+
+extern int BrewLight_qaTraceCheck(void);
+QA int oe2_qa_light_rays(void){return BrewLight_qaTraceCheck();}
+
+/* Exercise the real native resource names without modifying map entities. */
+QA void oe2_qa_focus_label(int label,int fallback){
+ static Entity entity;static EntityDef def;static String name;
+ String_dtor(&name,0);String_ctor(&name);Text_getString(g_app->canvas,1,182+label,&name);
+ memset(&entity,0,sizeof(entity));memset(&def,0,sizeof(def));def.eType=7;
+ entity.def=&def;if(fallback)def.name=name;else entity.name=name;
+ g_app->player->facingEntity=&entity;g_app->hud->targetEnt=NULL;
+}
+
+extern int BrewLight_qaConeCheck(void);
+QA int oe2_qa_light_cone(void){return BrewLight_qaConeCheck();}

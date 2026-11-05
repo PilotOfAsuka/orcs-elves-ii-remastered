@@ -16,3 +16,9 @@
 - Both modes retain original BREW textures/sprites. Remastered adds lighting and geometric ray shadows; do not restore generated HD art without a new request.
 
 - User preference (2026-11-05): verify the Web build locally before publishing. Do not download public release assets or run extra public-site browser checks after publication unless the user asks; the user will check the live site to save traffic.
+
+- User preference (2026-11-06): current lighting optimization and follow-up fixes remain local. Do not publish source/Pages or rebuild/upload APK without a new user request. This overrides the earlier publication workflow for this work.
+
+- User preference for the current preset preparation (2026-11-06): prepare the local build and leave playtesting to the user. Do not drive/reload their game or run gameplay/performance/browser suites for this preparation request.
+
+- User explicitly authorized publication of the prepared Web build on 2026-11-06. Publish this approved version at the existing Pages root; do not build/upload an APK. Preserve the preference against extra public-page/asset checks and user-game interaction.

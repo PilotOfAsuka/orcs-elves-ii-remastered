@@ -3,7 +3,7 @@ extends RefCounted
 ## UI-only localization. BREW game text comes from its original resources.
 static var language: String="ru"
 const UI={
-	"Дальность освещения":"Lighting distance","Кольцо не надето":"No ring equipped","Снять кольцо":"Remove ring",
+	"Дальность освещения":"Lighting distance","Дальность обработки света":"Lighting draw distance","Кольцо не надето":"No ring equipped","Снять кольцо":"Remove ring",
 	"Новая игра":"New game","Настройки":"Settings","Помощь / Об игре":"Help / About",
 	"ПАУЗА":"PAUSED","Продолжить игру":"Resume game","Ещё":"More","Свернуть":"Show less","ОБЛАСТЬ ПРОЙДЕНА":"AREA CLEARED","Персонаж":"Character","Золото: %d":"Gold: %d","Цена: %s":"Price: %s","Подробнее":"Details","Зелья":"Potions","Кольца":"Rings","Прочее":"Other","Вернуться в игру":"Return to game","ТОРГОВЛЯ":"TRADE","Уйти":"Leave","Ваше предложение":"Your offer","Предложить":"Make offer","Отмена":"Cancel",
 	"Фамильяр":"Familiar","Уклонение":"Avoidance","Очищение":"Remedy","Ускорение":"Haste","Опьянение":"Drunkenness","Регенерация":"Regeneration","Точность":"Accuracy","Сила":"Strength","Защита":"Defense","Заморозка":"Frozen","Отравление":"Poisoned","Уменьшение":"Shrunk","Осталось ходов: %d":"Turns remaining: %d",

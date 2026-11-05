@@ -6,6 +6,13 @@
 #include <math.h>
 #include <string.h>
 #include <limits.h>
+#ifdef OE2_QA_INTERACTIONS
+#include <emscripten.h>
+static double profile[8];
+static int costMode;
+void BrewLight_qaCostMode(int mode){costMode=mode;}
+double BrewLight_qaProfile(int field){return field>=0&&field<8?profile[field]:0;}
+#endif
 #define MAX_PIXELS (704*880)
 #define GRID_CELLS (128*128*24)
 #define HIDDEN 0x40000u
@@ -29,11 +36,18 @@ static const Source sources[]={
  {242,1,.65f,.13f,130,1.0f,0,0}, {243,.14f,.30f,1,130,1.0f,0,0},
  {245,.2f,1,.25f,130,1.0f,0,0}, {252,.55f,.65f,1,170,1.4f,0,1}
 };
+typedef struct {float x,y,ratio,step;int axis,valid;} FloorDirection;
+static FloorDirection floorDirections[880];
 static Surface surfaces[MAX_PIXELS];
 static uint32_t lit[MAX_PIXELS],cachedHash,geometryHash;
 static unsigned char checked[GRID_CELLS];
 static uint16_t visibility[GRID_CELLS];
 static uint16_t wallVisibility[GRID_CELLS];
+/* Static walls do not change when a billboard animation advances. Retain the
+ * three exact ray results separately from the complete shadow-count cache. */
+static uint32_t wallSamples[GRID_CELLS],wallLightHash[8];
+static uint8_t wallSampleReady[8][(GRID_CELLS+7)/8];
+static uint32_t floatBits(float value){uint32_t bits;memcpy(&bits,&value,sizeof(bits));return bits;}
 static Caster casters[800],posedCasters[800],nativePoses[800];
 static int casterTag=-1,lightCasters[8][800],casterCount[8];
 static Surface *underWeapon;
@@ -52,8 +66,12 @@ static Impact impacts[8];
 static unsigned nextImpact;
 static int width,height,numLights,fadeLevel=255;
 static Render *renderer;
-static int lightDistance=100;
-void BrewLight_setRange(int percent){lightDistance=percent<100?100:percent>150?150:percent;}
+/* One native walking step is 64 world units. Processing distance is entirely
+ * separate from the fixed source falloff that matches the former 120% look. */
+#define LIGHT_REFERENCE_SCALE 1.2f
+#define WALK_STEP 64.f
+static int processingSteps=4;
+void BrewLight_setRange(int steps){processingSteps=steps<4?4:steps>10?10:steps;}
 static float fx,fy,rx,ry;
 static float clampf(float x,float a,float b){return x<a?a:x>b?b:x;}
 static uint32_t hashWord(uint32_t h,uint32_t n){return (h^n)*16777619u;}
@@ -93,13 +111,17 @@ void BrewLight_begin(Render *r){
  memset(surfaces,0,(size_t)width*height*sizeof(Surface));
  if(r==g_app->render){memset(nativePoses,0,sizeof(nativePoses));memset(posedCasters,0,sizeof(posedCasters));}
  else memcpy(posedCasters,nativePoses,sizeof(posedCasters));
- casterTag=-1;weaponCopied=0;fadeLevel=255;
+ casterTag=-1;weaponCopied=0;fadeLevel=255;memset(floorDirections,0,sizeof(floorDirections));
  fx=r->viewCos/65536.f;fy=-r->viewSin/65536.f;rx=-fy;ry=fx;
 }
 int BrewLight_nativeTarget(void){return g_app&&renderer==g_app->render;}
 void BrewLight_fade(int level){fadeLevel=level<fadeLevel?level:fadeLevel;}
 void BrewLight_floor(Render *r,int x,int y,int u,int v,int du,int dv,int count,int ceiling){
  if(r!=renderer)return;
+ if(y>=0&&y<880){
+  int axis=abs(du)>=abs(dv);int dominant=axis?du:dv;
+  floorDirections[y]=(FloorDirection){u/65536.f,v/65536.f,dominant?(axis?(float)dv/du:(float)du/dv):0,fmaxf(fabsf((float)du),fabsf((float)dv))/65536.f,axis,dominant!=0};
+ }
  uint32_t uu=(uint32_t)u,vv=(uint32_t)v;
  for(int i=0;i<count;i++,uu+=(uint32_t)du,vv+=(uint32_t)dv)
   put(x+i,y,(int32_t)uu/65536.f,(int32_t)vv/65536.f,(float)(ceiling?r->effCeil:r->effFloor),0,0,ceiling?-1:1,1);
@@ -183,25 +205,134 @@ static int casterBlocks(const Render *r,const Caster *s,float ax,float ay,float 
 int BrewLight_spriteBlocks(const Render *r,const Sprite *s,float ax,float ay,float az,float bx,float by,float bz){
  Caster c=spriteCaster(r,s);return casterBlocks(r,&c,ax,ay,az,bx,by,bz);
 }
-int BrewLight_visible(const Render *r,float ax,float ay,float az,float bx,float by,float bz){
- float dx=bx-ax,dy=by-ay;
+/* Broad phase only: the exact intersection test below is unchanged. */
+#define TRACE_SIDE 64
+#define TRACE_ORIGIN (-1024.f)
+#define TRACE_REFS 32768
+static int traceHead[TRACE_SIDE*TRACE_SIDE],traceNext[TRACE_REFS];
+static uint16_t traceLine[TRACE_REFS];
+static int traceReady,traceActive;
+static void buildTraceGrid(const Render *r){
+ memset(traceHead,0xff,sizeof(traceHead));int used=0;traceReady=0;
  for(int i=0;i<r->numLines;i++){
   const Line *l=&r->lines[i];if(l->flags&(HIDDEN|NO_DEPTH))continue;
-  float ex=(float)(l->x2-l->x1),ey=(float)(l->y2-l->y1),den=dx*ey-dy*ex;
-  if(fabsf(den)<.0001f)continue;
-  float qx=l->x1-ax,qy=l->y1-ay,t=(qx*ey-qy*ex)/den,u=(qx*dy-qy*dx)/den;
-  if(t>.015f&&t<.985f&&u>=0&&u<=1){
-   float z=az+(bz-az)*t,bottom=r->effFloor,top=64;
-   if(l->flags&0xc0010000u){top=r->ceilHeight;bottom=(l->flags&0x10000u)?r->floorHeight:64;}
-   if(z>bottom-.5f&&z<top+.5f)return 0;
+  int x0=(int)floorf((fminf(l->x1,l->x2)-.01f-TRACE_ORIGIN)/64),x1=(int)floorf((fmaxf(l->x1,l->x2)+.01f-TRACE_ORIGIN)/64);
+  int y0=(int)floorf((fminf(l->y1,l->y2)-.01f-TRACE_ORIGIN)/64),y1=(int)floorf((fmaxf(l->y1,l->y2)+.01f-TRACE_ORIGIN)/64);
+  if(x0<0)x0=0;if(y0<0)y0=0;if(x1>=TRACE_SIDE)x1=TRACE_SIDE-1;if(y1>=TRACE_SIDE)y1=TRACE_SIDE-1;
+  for(int y=y0;y<=y1;y++)for(int x=x0;x<=x1;x++){
+   if(used==TRACE_REFS)return;
+   int cell=y*TRACE_SIDE+x;traceLine[used]=(uint16_t)i;traceNext[used]=traceHead[cell];traceHead[cell]=used++;
   }
+ }
+ traceReady=1;
+}
+static int lineOccludes(const Render *r,const Line *l,float ax,float ay,float az,float bx,float by,float bz){
+ float dx=bx-ax,dy=by-ay,ex=(float)(l->x2-l->x1),ey=(float)(l->y2-l->y1),den=dx*ey-dy*ex;
+ if(fabsf(den)<.0001f)return 0;
+ float qx=l->x1-ax,qy=l->y1-ay,t=(qx*ey-qy*ex)/den,u=(qx*dy-qy*dx)/den;
+ if(t>.015f&&t<.985f&&u>=0&&u<=1){
+  float z=az+(bz-az)*t,bottom=r->effFloor,top=64;
+  if(l->flags&0xc0010000u){top=r->ceilHeight;bottom=(l->flags&0x10000u)?r->floorHeight:64;}
+  if(z>bottom-.5f&&z<top+.5f)return 1;
+ }
+ return 0;
+}
+static int visibleReference(const Render *r,float ax,float ay,float az,float bx,float by,float bz){
+ for(int i=0;i<r->numLines;i++){
+  const Line *l=&r->lines[i];if(l->flags&(HIDDEN|NO_DEPTH))continue;
+  if(lineOccludes(r,l,ax,ay,az,bx,by,bz))return 0;
  }
  return 1;
 }
+int BrewLight_visible(const Render *r,float ax,float ay,float az,float bx,float by,float bz){
+ int x=(int)floorf((ax-TRACE_ORIGIN)/64),y=(int)floorf((ay-TRACE_ORIGIN)/64);
+ int endX=(int)floorf((bx-TRACE_ORIGIN)/64),endY=(int)floorf((by-TRACE_ORIGIN)/64);
+ if(!traceActive||!traceReady||x<0||y<0||endX<0||endY<0||x>=TRACE_SIDE||y>=TRACE_SIDE||endX>=TRACE_SIDE||endY>=TRACE_SIDE)return visibleReference(r,ax,ay,az,bx,by,bz);
+ float dx=bx-ax,dy=by-ay;int sx=dx>0?1:-1,sy=dy>0?1:-1;
+ float tx=dx==0?INFINITY:(TRACE_ORIGIN+(x+(sx>0))*64-ax)/dx,ty=dy==0?INFINITY:(TRACE_ORIGIN+(y+(sy>0))*64-ay)/dy;
+ float stepX=dx==0?INFINITY:64/fabsf(dx),stepY=dy==0?INFINITY:64/fabsf(dy);
+ uint32_t visited[24]={0};
+ for(int step=0;step<TRACE_SIDE*2+2;step++){
+  for(int ref=traceHead[y*TRACE_SIDE+x];ref>=0;ref=traceNext[ref]){
+   int i=traceLine[ref];uint32_t bit=1u<<(i&31);if(visited[i>>5]&bit)continue;visited[i>>5]|=bit;
+   if(lineOccludes(r,&r->lines[i],ax,ay,az,bx,by,bz))return 0;
+  }
+  if(x==endX&&y==endY)return 1;
+  if(tx<ty){x+=sx;tx+=stepX;}else{y+=sy;ty+=stepY;}
+  if(x<0||y<0||x>=TRACE_SIDE||y>=TRACE_SIDE)break;
+ }
+ return visibleReference(r,ax,ay,az,bx,by,bz);
+}
+#ifdef OE2_QA_INTERACTIONS
+int BrewLight_qaTraceCheck(void){
+ Render *copy=malloc(sizeof(Render));if(!copy)return 0;uint32_t random=0x81c2a34u;int valid=1;
+ for(int pass=0;pass<2&&valid;pass++){
+  memcpy(copy,g_app->render,sizeof(Render));
+  if(pass){for(int i=0;i<copy->numLines;i+=11){copy->lines[i].flags^=HIDDEN;copy->lines[i].x1+=2;}copy->floorHeight=copy->effFloor=-16;copy->ceilHeight=copy->effCeil=128;}
+  buildTraceGrid(copy);traceActive=1;
+  for(int n=0;n<24000;n++){
+   float point[6];for(int i=0;i<6;i++){random=random*1664525u+1013904223u;point[i]=i%3==2?(int)(random%256)-32:(int)(random%2304)-128+.125f;}
+   if(n%4==0){point[0]=(n%33)*64;point[1]=((n/33)%33)*64;}
+   if(n%8==1)point[3]=point[0];if(n%8==2)point[4]=point[1];
+   if(n%8==3&&copy->numLines){Line *l=&copy->lines[n%copy->numLines];point[3]=l->x1;point[4]=l->y1;}
+   if(n%64==0)point[0]=-2048;
+   if(BrewLight_visible(copy,point[0],point[1],point[2],point[3],point[4],point[5])!=visibleReference(copy,point[0],point[1],point[2],point[3],point[4],point[5])){valid=0;break;}
+  }
+ }
+ traceActive=0;geometryHash=0;traceReady=0;free(copy);return valid;
+}
+#endif
+/* Only direct lighting/shadows are evaluated inside the processing region.
+ * The final step fades to ambient; source powers and physical falloff stay fixed. */
+static float worldLightWeight(float x,float y){
+ float dx=x-renderer->viewX,dy=y-renderer->viewY,d2=dx*dx+dy*dy;
+ float reach=processingSteps*WALK_STEP,start=reach-WALK_STEP;
+ if(d2>=reach*reach)return 0;
+ if(d2<=start*start)return 1;
+ float t=(reach-sqrtf(d2))/WALK_STEP;return t*t*(3-2*t);
+}
+/* Finite 90-degree view cone plus a three-step neighborhood in all directions.
+ * Expand by each source's influence so off-screen spill is retained. */
+static int lightInView(float forward,float lateral,float distanceSquared,float radius){
+ float reach=processingSteps*WALK_STEP+radius;
+ if(distanceSquared>reach*reach)return 0;
+ float near=192+radius;
+ if(distanceSquared<=near*near)return 1;
+ float margin=radius*1.415f+1;
+ return forward+radius+1>=0&&forward+lateral>=-margin&&forward-lateral>=-margin;
+}
+#ifdef OE2_QA_INTERACTIONS
+int BrewLight_qaConeCheck(void){
+ int saved=processingSteps,valid=1;const int levels[]={4,7,10},radii[]={50,150,300,600};
+ for(int level=0;level<3&&valid;level++){
+  processingSteps=levels[level];float reach=processingSteps*WALK_STEP;
+  for(int angle=0;angle<64;angle++){float a=angle*6.28318530718f/64;if(!lightInView(cosf(a)*180,sinf(a)*180,180*180,40))valid=0;}
+  if(!lightInView(-250,0,250*250,300)||lightInView(reach+301,0,(reach+301)*(reach+301),300))valid=0;
+  for(int r=0;r<4&&valid;r++)for(int x=-800;x<=800;x+=37)for(int y=-800;y<=800;y+=37){
+   if(lightInView(x,y,x*x+y*y,radii[r]))continue;
+   for(int depth=0;depth<=reach;depth+=64)for(int side=-4;side<=4;side++){
+    float lateral=depth*side*.25f;if(depth*depth+lateral*lateral>reach*reach)continue;
+    float dx=x-depth,dy=y-lateral;
+    if(dx*dx+dy*dy<radii[r]*radii[r])valid=0;
+   }
+  }
+ }
+ processingSteps=saved;return valid;
+}
+#endif
 static void candidate(Light value,float cx,float cy){
- value.radius*=lightDistance/100.f;
+ value.radius*=LIGHT_REFERENCE_SCALE;
  float d=(value.x-cx)*(value.x-cx)+(value.y-cy)*(value.y-cy);
- if(d>value.radius*value.radius*2.25f)return;
+#ifdef OE2_QA_INTERACTIONS
+ profile[5]++;
+#endif
+ float dx=value.x-cx,dy=value.y-cy;
+ if(!lightInView(dx*fx+dy*fy,dx*rx+dy*ry,d,value.radius)){
+#ifdef OE2_QA_INTERACTIONS
+  profile[6]++;
+#endif
+  return;
+ }
  if(numLights<7){lights[numLights++]=value;return;}
  int worst=0;float far=-1;
  for(int i=0;i<7;i++){
@@ -278,7 +409,25 @@ int BrewLight_qaCandleGeometry(void){
  free(r);memcpy(lights,saved,sizeof(saved));numLights=oldCount;return ok;
 }
 #endif
+#ifdef OE2_QA_INTERACTIONS
+int BrewLight_qaSourcePoint(int index,int field){
+ Render *r=g_app->render;
+ for(int i=0;i<r->numMapSprites;i++){
+  Sprite *s=&r->sprites[i];int tile=s->info&255;
+  if(!sourceForSprite(s)&&!((s->info&0x40000u)&&!(s->info&0x10000u)&&(tile==61||tile==69)))continue;
+  if(index--==0)return field==0?s->x:field==1?s->y:s->z;
+ }
+ for(int i=0;i<r->numLines;i++){
+  Line *l=&r->lines[i];if((l->flags&HIDDEN)||(l->texture!=61&&l->texture!=69))continue;
+  if(index--==0)return field==0?(l->x1+l->x2)/2:field==1?(l->y1+l->y2)/2:32;
+ }
+ return -1;
+}
+#endif
 static void gather(Render *r){
+#ifdef OE2_QA_INTERACTIONS
+ profile[5]=profile[6]=0;
+#endif
  numLights=0;
  for(int i=0;i<8;i++){
   const Impact *impact=&impacts[i];int age=g_app->time-impact->time;
@@ -317,15 +466,20 @@ static void gather(Render *r){
   Light l={c->viewX+cosf(a)*14,c->viewY-sinf(a)*14,c->viewZ-5.f,1,.62f,.28f,210,1.15f,0,2000};
   if(w==0){l.radius=105;l.power=.28f;}
   if(w==8){l.r=.35f;l.g=.65f;l.b=1;}else if(w==9){l.r=.25f;l.g=1;l.b=.35f;}else if(w==10){l.r=1;l.g=.18f;l.b=.10f;}else if(w==7){l.r=1;l.g=.38f;l.b=.08f;}
-  l.radius*=lightDistance/100.f;lights[numLights++]=l;
+  l.radius*=LIGHT_REFERENCE_SCALE;lights[numLights++]=l;
  }
- uint32_t h=hashWord(2166136261u,(uint32_t)lightDistance);
+ uint32_t h=2166136261u;
  for(int i=0;i<r->numLines;i++){
   Line *l=&r->lines[i];h=hashWord(h,(uint32_t)l->x1);h=hashWord(h,(uint32_t)l->y1);h=hashWord(h,(uint32_t)l->x2);h=hashWord(h,(uint32_t)l->y2);h=hashWord(h,l->flags&(HIDDEN|NO_DEPTH|0xc0010000u));
  }
  h=hashWord(h,(uint32_t)r->effFloor);h=hashWord(h,(uint32_t)r->effCeil);
  h=hashWord(h,(uint32_t)r->floorHeight);h=hashWord(h,(uint32_t)r->ceilHeight);
- if(h!=geometryHash){geometryHash=h;memset(wallChecked,0,sizeof(wallChecked));}
+ if(h!=geometryHash){geometryHash=h;memset(wallChecked,0,sizeof(wallChecked));buildTraceGrid(r);}
+ for(int j=0;j<numLights;j++){
+  uint32_t wallHash=hashWord(geometryHash,(uint32_t)lights[j].key);
+  wallHash=hashWord(wallHash,floatBits(lights[j].x));wallHash=hashWord(wallHash,floatBits(lights[j].y));wallHash=hashWord(wallHash,floatBits(lights[j].z));
+  if(wallHash!=wallLightHash[j]){wallLightHash[j]=wallHash;memset(wallSampleReady[j],0,sizeof(wallSampleReady[j]));}
+ }
  for(int i=0;i<r->numSprites&&i<800;i++){
   casters[i]=spriteCaster(r,&r->sprites[i]);
   if(casters[i].active&&posedCasters[i].active)casters[i]=posedCasters[i];
@@ -348,9 +502,14 @@ static float visibilityAt(int ix,int iy,int iz,int light,int sprites){
  int cell=(iz*128+iy)*128+ix;unsigned bit=1u<<light;
  if(!(checked[cell]&bit)){
   float x=ix*16+8.f,y=iy*16+8.f,z=iz*8+4.f;int hits=0,wallHits=0;
+  unsigned shift=light*3,mask=(wallSamples[cell]>>shift)&7u,readyBit=1u<<(cell&7);
+  if(!(wallSampleReady[light][cell>>3]&readyBit)){
+   mask=0;
+   for(int sample=-1;sample<=1;sample++)if(BrewLight_visible(renderer,x,y,z,l->x+sample*3,l->y-sample*2,l->z))mask|=1u<<(sample+1);
+   wallSamples[cell]=(wallSamples[cell]&~(7u<<shift))|(mask<<shift);wallSampleReady[light][cell>>3]|=(uint8_t)readyBit;
+  }
   for(int sample=-1;sample<=1;sample++){
-   float bx=l->x+sample*3,by=l->y-sample*2;
-   int visible=BrewLight_visible(renderer,x,y,z,bx,by,l->z);wallHits+=visible;
+   float bx=l->x+sample*3,by=l->y-sample*2;int visible=(mask>>(sample+1))&1;wallHits+=visible;
    if(visible)for(int i=0;i<casterCount[light];i++)if(casterBlocks(renderer,&casters[lightCasters[light][i]],x,y,z,bx,by,l->z)){visible=0;break;}
    hits+=visible;
   }
@@ -360,7 +519,12 @@ static float visibilityAt(int ix,int iy,int iz,int light,int sprites){
  return (((sprites?visibility[cell]:wallVisibility[cell])>>(light*2))&3)/3.f;
 }
 static float mixf(float a,float b,float t){return a+(b-a)*t;}
-static float shadow(const Surface *s,int light){
+typedef struct {int valid,axis,fixed,u,v,sprites;float weight,low,high;} ShadowColumn;
+static ShadowColumn shadowColumns[704][8];
+static float shadow(const Surface *s,int light,int column){
+#ifdef OE2_QA_INTERACTIONS
+ if(costMode==1)return 1;
+#endif
  float x=(s->x+s->nx/127.f*2)/16,y=(s->y+s->ny/127.f*2)/16,z=(s->z+s->nz/127.f*2)/8;
  int ix=(int)floorf(x),iy=(int)floorf(y),iz=(int)floorf(z);
  /* Interpolate along the receiver, never through its own wall plane. */
@@ -368,11 +532,15 @@ static float shadow(const Surface *s,int light){
  if(s->nz){a=x-.5f;b=y-.5f;u=(int)floorf(a);v=(int)floorf(b);
   return mixf(mixf(visibilityAt(u,v,iz,light,s->kind!=3),visibilityAt(u+1,v,iz,light,s->kind!=3),a-u),mixf(visibilityAt(u,v+1,iz,light,s->kind!=3),visibilityAt(u+1,v+1,iz,light,s->kind!=3),a-u),b-v);
  }
- if(abs(s->nx)>=abs(s->ny)){a=y-.5f;b=z-.5f;u=(int)floorf(a);v=(int)floorf(b);
-  return mixf(mixf(visibilityAt(ix,u,v,light,s->kind!=3),visibilityAt(ix,u+1,v,light,s->kind!=3),a-u),mixf(visibilityAt(ix,u,v+1,light,s->kind!=3),visibilityAt(ix,u+1,v+1,light,s->kind!=3),a-u),b-v);
- }
- a=x-.5f;b=z-.5f;u=(int)floorf(a);v=(int)floorf(b);
- return mixf(mixf(visibilityAt(u,iy,v,light,s->kind!=3),visibilityAt(u+1,iy,v,light,s->kind!=3),a-u),mixf(visibilityAt(u,iy,v+1,light,s->kind!=3),visibilityAt(u+1,iy,v+1,light,s->kind!=3),a-u),b-v);
+ int axis=abs(s->nx)>=abs(s->ny),fixed=axis?ix:iy;
+ a=(axis?y:x)-.5f;b=z-.5f;u=(int)floorf(a);v=(int)floorf(b);float weight=a-u;
+ ShadowColumn *cache=column>=0&&column<704?&shadowColumns[column][light]:NULL;int sprites=s->kind!=3;
+ if(cache&&cache->valid&&cache->axis==axis&&cache->fixed==fixed&&cache->u==u&&cache->v==v&&cache->weight==weight&&cache->sprites==sprites)return mixf(cache->low,cache->high,b-v);
+ float low,high;
+ if(axis){low=mixf(visibilityAt(ix,u,v,light,sprites),visibilityAt(ix,u+1,v,light,sprites),weight);high=mixf(visibilityAt(ix,u,v+1,light,sprites),visibilityAt(ix,u+1,v+1,light,sprites),weight);}
+ else{low=mixf(visibilityAt(u,iy,v,light,sprites),visibilityAt(u+1,iy,v,light,sprites),weight);high=mixf(visibilityAt(u,iy,v+1,light,sprites),visibilityAt(u+1,iy,v+1,light,sprites),weight);}
+ if(cache)*cache=(ShadowColumn){1,axis,fixed,u,v,sprites,weight,low,high};
+ return mixf(low,high,b-v);
 }
 static float wallDistanceAt(int x,int y,int axis,int layer){
  if(x<0||y<0||x>128||y>128)return 40;
@@ -404,6 +572,9 @@ static float roomDistance(const Surface *s,int axis){
  return mixf(mixf(wallDistanceAt(ix,iy,axis,layer),wallDistanceAt(ix+1,iy,axis,layer),x-ix),mixf(wallDistanceAt(ix,iy+1,axis,layer),wallDistanceAt(ix+1,iy+1,axis,layer),x-ix),y-iy);
 }
 static float contactShade(const Surface *s,int column){
+#ifdef OE2_QA_INTERACTIONS
+ if(costMode==2)return 1;
+#endif
  if(s->kind==4)return 1;
  float distance;
  if(s->nz)distance=roomDistance(s,-1);
@@ -445,6 +616,7 @@ static void glow(const Light *l,float flicker){
  /* Screen-space halo is depth-tested against real walls. Held light is lit
   * in weapon space instead, avoiding a floating glow in the camera centre. */
  if(l->key==2000)return;
+ float weight=worldLightWeight(l->x,l->y);if(weight<=0)return;
  float dx=l->x-renderer->viewX,dy=l->y-renderer->viewY,d=dx*fx+dy*fy;
  if(d<12||!BrewLight_visible(renderer,renderer->viewX,renderer->viewY,renderer->viewZ,l->x,l->y,l->z))return;
  float cx=width*.5f+(dx*rx+dy*ry)*width/(2*d),cy=height*.5f-(l->z-renderer->viewZ)*width/(2*d);
@@ -456,24 +628,82 @@ static void glow(const Light *l,float flicker){
   const Surface *s=&surfaces[y*width+x];
   float receiver=(s->x-renderer->viewX)*fx+(s->y-renderer->viewY)*fy;
   if(s->kind==4||(s->kind&&receiver+12<d))continue;
-  float strength=.008f*l->power*flicker*expf(-r2*4)*(fadeLevel/255.f)*(fadeLevel/255.f),out=0;
+  float strength=.008f*l->power*flicker*weight*expf(-r2*4)*(fadeLevel/255.f)*(fadeLevel/255.f),out=0;
   uint32_t c=lit[y*width+x],pixel=0xff000000u;
   for(int ch=0;ch<3;ch++){float v=((c>>(ch*8))&255)/255.f;out=sqrtf(fminf(1,v*v+colour[ch]*strength));pixel|=(uint32_t)(out*255+.5f)<<(ch*8);}
   lit[y*width+x]=pixel;
  }
 }
-static uint32_t shadePixel(const Surface *s,uint32_t c,const float *flicker,int column){
-  if(!s->kind)return c;
-  float ao=contactShade(s,column),energy[3]={.17f*ao,.20f*ao,.27f*ao};
+static int weaponEnergyValid;
+static float weaponEnergy[3];
+static void incidentEnergy(const Surface *s,const float *flicker,int column,float *energy){
+  float ao=contactShade(s,column);energy[0]=.17f*ao;energy[1]=.20f*ao;energy[2]=.27f*ao;
+  float weight=s->kind==4?1:worldLightWeight(s->x,s->y);if(weight<=0)return;
   for(int j=0;j<numLights;j++){
    const Light *l=&lights[j];float dx=l->x-s->x,dy=l->y-s->y,dz=l->z-s->z,d2=dx*dx+dy*dy+dz*dz;
    if(d2>=l->radius*l->radius)continue;
    float d=sqrtf(d2)+.01f,lambert=clampf((s->nx*dx+s->ny*dy+s->nz*dz)/(127*d),0,1);
    float attenuation=1-d/l->radius;
-   float e=attenuation*attenuation*l->power*flicker[j]*2.1f*(.18f+.82f*lambert);
-   if(s->kind!=4)e*=shadow(s,j)*(.75f+.25f*ao);
+   float e=weight*attenuation*attenuation*l->power*flicker[j]*2.1f*(.18f+.82f*lambert);
+   if(s->kind!=4)e*=shadow(s,j,column)*(.75f+.25f*ao);
    energy[0]+=l->r*e;energy[1]+=l->g*e;energy[2]+=l->b*e;
   }
+}
+/* Irradiance is smooth at a much finer scale than the 16-unit shadow field.
+ * Reuse one-world-unit endpoints only where several full-resolution pixels
+ * land between them. Material pixels and receiver boundaries stay untouched. */
+typedef struct {int valid,index,kind,exact;float x,y,z;int8_t nx,ny,nz;float low[3],high[3];} EnergySpan;
+static EnergySpan verticalEnergy[704],horizontalEnergy[880];
+static void energyProbe(Surface *probe,float coordinate,const FloorDirection *direction){
+ if(!direction){probe->z=coordinate;return;}
+ float delta=coordinate-(direction->axis?direction->x:direction->y);
+ probe->x=direction->axis?coordinate:direction->x+delta*direction->ratio;
+ probe->y=direction->axis?direction->y+delta*direction->ratio:coordinate;
+}
+static void sampleEnergy(const Surface *s,const float *flicker,int column,int row,float *energy){
+#ifdef OE2_QA_INTERACTIONS
+ if(costMode==3){incidentEnergy(s,flicker,column,energy);return;}
+#endif
+ if(width<=176||s->kind==4){incidentEnergy(s,flicker,column,energy);return;}
+ float coordinate;EnergySpan *cache;FloorDirection *direction=NULL;
+ if(s->nz){
+  if(row<0||row>=880||!floorDirections[row].valid||floorDirections[row].step>=.5f){incidentEnergy(s,flicker,column,energy);return;}
+  direction=&floorDirections[row];cache=&horizontalEnergy[row];coordinate=direction->axis?s->x:s->y;
+ }else{
+  float depth=(s->x-renderer->viewX)*fx+(s->y-renderer->viewY)*fy;
+  if(depth*2/width>=.5f||column<0||column>=704){incidentEnergy(s,flicker,column,energy);return;}
+  coordinate=s->z;cache=&verticalEnergy[column];
+ }
+ float keyX=direction?direction->x:s->x,keyY=direction?direction->y:s->y,keyZ=direction?s->z:0;
+ int index=(int)floorf(coordinate);int same=cache->valid&&cache->kind==s->kind&&cache->x==keyX&&cache->y==keyY&&cache->z==keyZ&&cache->nx==s->nx&&cache->ny==s->ny&&cache->nz==s->nz;
+ /* A point emitter can have a sharp normal response on its own surface.
+  * Keep exact per-pixel shading along receivers within eight world units. */
+ if(!same){
+  int exact=0;
+  for(int j=0;j<numLights&&!exact;j++){
+   float dx=lights[j].x-keyX,dy=lights[j].y-keyY,distance=dx*dx+dy*dy;
+   if(direction){float lateral=direction->axis?dy-dx*direction->ratio:dx-dy*direction->ratio,dz=lights[j].z-s->z;distance=lateral*lateral/(1+direction->ratio*direction->ratio)+dz*dz;}
+   exact=distance<64;
+  }
+  if(exact){*cache=(EnergySpan){.valid=1,.exact=1,.kind=s->kind,.x=keyX,.y=keyY,.z=keyZ,.nx=s->nx,.ny=s->ny,.nz=s->nz};incidentEnergy(s,flicker,column,energy);return;}
+ }
+ if(same&&cache->exact){incidentEnergy(s,flicker,column,energy);return;}
+ if(!same||cache->index!=index){
+  Surface probe=*s;float low[3],high[3];
+  int reuseLow=same&&cache->index+1==index,reuseHigh=same&&cache->index-1==index;
+  if(reuseLow)memcpy(low,cache->high,sizeof(low));
+  if(reuseHigh)memcpy(high,cache->low,sizeof(high));
+  if(!reuseLow){energyProbe(&probe,(float)index,direction);incidentEnergy(&probe,flicker,column,low);}
+  if(!reuseHigh){energyProbe(&probe,(float)(index+1),direction);incidentEnergy(&probe,flicker,column,high);}
+  *cache=(EnergySpan){.valid=1,.index=index,.kind=s->kind,.x=keyX,.y=keyY,.z=keyZ,.nx=s->nx,.ny=s->ny,.nz=s->nz};memcpy(cache->low,low,sizeof(low));memcpy(cache->high,high,sizeof(high));
+ }
+ for(int ch=0;ch<3;ch++)energy[ch]=mixf(cache->low[ch],cache->high[ch],coordinate-index);
+}
+static uint32_t shadePixel(const Surface *s,uint32_t c,const float *flicker,int column,int row){
+  if(!s->kind)return c;
+  float energy[3];
+  if(s->kind==4&&weaponEnergyValid)memcpy(energy,weaponEnergy,sizeof(energy));
+  else{sampleEnergy(s,flicker,column,row,energy);if(s->kind==4){memcpy(weaponEnergy,energy,sizeof(energy));weaponEnergyValid=1;}}
   uint32_t out=0xff000000u;
   float depth=(s->x-renderer->viewX)*fx+(s->y-renderer->viewY)*fy;
   float haze=s->kind==4?0:.12f*clampf((depth-128)/384,0,1)*(fadeLevel/255.f),mist[3]={.012f,.022f,.035f};
@@ -495,18 +725,39 @@ static int staffShift(void){
 static const uint32_t *present(const uint32_t *original,int w,int h,int lighting){
  if(!renderer||w!=width||h!=height)return original;
  int shift=staffShift();if(!lighting&&!shift)return original;
- float flicker[8];
- if(lighting){memset(cornerCache,0,sizeof(cornerCache));gather(renderer);for(int j=0;j<numLights;j++)flicker[j]=lights[j].flicker?(.92f+.06f*sinf(g_app->time*.021f+j*2)+.04f*sinf(g_app->time*.047f+j)):1;}
- for(int i=0,x=0;i<w*h;i++){
+ float flicker[8];weaponEnergyValid=0;memset(shadowColumns,0,sizeof(shadowColumns));memset(verticalEnergy,0,sizeof(verticalEnergy));memset(horizontalEnergy,0,sizeof(horizontalEnergy));
+#ifdef OE2_QA_INTERACTIONS
+ double started=emscripten_get_now(),shadingStarted;
+#endif
+ if(lighting){
+  memset(cornerCache,0,sizeof(cornerCache));gather(renderer);
+  for(int j=0;j<numLights;j++){
+   int phase=lights[j].key%31; /* source identity, independent of processing range */
+   flicker[j]=lights[j].flicker?(.92f+.06f*sinf(g_app->time*.021f+phase*2)+.04f*sinf(g_app->time*.047f+phase)):1;
+  }
+ }
+#ifdef OE2_QA_INTERACTIONS
+ shadingStarted=emscripten_get_now();profile[0]=shadingStarted-started;profile[3]=numLights;profile[4]=0;
+ for(int j=0;j<numLights;j++)profile[4]+=casterCount[j];
+#endif
+ traceActive=lighting;
+ for(int i=0,x=0,y=0;i<w*h;i++){
   const Surface *s=&surfaces[i];uint32_t c=original[i];
   if(shift&&s->kind==4){s=&underWeapon[i];c=weaponBackground[i];}
-  lit[i]=lighting?shadePixel(s,c,flicker,x):c;
-  if(++x==w)x=0;
+  lit[i]=lighting?shadePixel(s,c,flicker,x,y):c;
+  if(++x==w){x=0;y++;}
  }
+#ifdef OE2_QA_INTERACTIONS
+ profile[1]=emscripten_get_now()-shadingStarted;double haloStarted=emscripten_get_now();
+#endif
  if(lighting)for(int j=0;j<numLights;j++)glow(&lights[j],flicker[j]);
  if(shift)for(int y=0;y<h-shift;y++)for(int x=0;x<w;x++){
-  int i=y*w+x;if(surfaces[i].kind==4)lit[(y+shift)*w+x]=lighting?shadePixel(&surfaces[i],original[i],flicker,x):original[i];
+  int i=y*w+x;if(surfaces[i].kind==4)lit[(y+shift)*w+x]=lighting?shadePixel(&surfaces[i],original[i],flicker,x,y):original[i];
  }
+#ifdef OE2_QA_INTERACTIONS
+ profile[2]=emscripten_get_now()-haloStarted;
+#endif
+ traceActive=0;
  return lit;
 }
 const uint32_t *BrewLight_render(const uint32_t *original,int w,int h){return present(original,w,h,1);}

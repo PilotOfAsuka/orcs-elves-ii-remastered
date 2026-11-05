@@ -187,7 +187,7 @@ API int oe2_world_revision(void) { return worldRevision; }
 API const uint32_t *oe2_world(void) { return worldPixels; }
 API const uint32_t *oe2_lit_world(void) { return BrewView_lit(worldPixels,worldW,worldH); }
 API const uint32_t *oe2_classic_world(void) { return worldW==176&&worldH==164?classicPixels:worldPixels; }
-API void oe2_light_distance(int percent){BrewLight_setRange(percent);}
+API void oe2_light_distance(int steps){BrewLight_setRange(steps);}
 API void oe2_quality(int level) { BrewView_setQuality(level); }
 API int oe2_weapon_bottom(void) { return BrewLight_weaponBottom(); }
 API const uint32_t *oe2_frame(void) {
@@ -218,6 +218,19 @@ static void string(const String *s) {
         else if (c >= 32 && c <= 126) add("%c", c);
     }
     add("\"");
+}
+/* Resource identifiers describe collision helpers, not objects for players.
+ * Filter before localization so neither language exposes technical labels. */
+static int internalName(const String *name){
+ if(!name||!name->buf)return 0;char key[64];int n=0;
+ for(int i=0;i<name->len&&n<63;i++){unsigned char c=name->buf[i];if(c=='_'||c==' '||c=='-'||c=='\n')continue;key[n++]=c>='a'&&c<='z'?c-'a'+'A':c;}
+ key[n]=0;
+ return !strcmp(key,"SPRITEWALL")||!strcmp(key,"NONOBSPRITEWALL")||!strcmp(key,"FAMILIARSPRITEWALL");
+}
+static const String *lookName(const Entity *entity){
+ if(!entity||!entity->def||entity->def->eType==0||(entity->def->eType==12&&!(entity->info&0x80000u)))return NULL;
+ const String *name=entity->name.len?&entity->name:&entity->def->name;
+ return internalName(name)?NULL:name;
 }
 /* Identify a scripted speaker from the exact event tile, never the nearest
  * decorative character. These reads leave script cursors and game RNG intact. */
@@ -307,7 +320,7 @@ API const char *oe2_json(void) {
     add(",\"ring_description\":");string(ring?&ring->description:NULL);
     add(",\"context\":"); string(&h->caption1);
     Entity *focus=p->facingEntity;
-    add(",\"target_name\":");string(focus?(focus->name.len?&focus->name:focus->def?&focus->def->name:NULL):NULL);
+    add(",\"target_name\":");string(lookName(focus));
     add(",\"events\":[");
     for(int i=0;i<h->numMessages&&i<3;i++){if(i)add(",");string(&h->messages[i]);}
     add("]");
