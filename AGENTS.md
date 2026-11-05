@@ -22,3 +22,5 @@
 - User preference for the current preset preparation (2026-11-06): prepare the local build and leave playtesting to the user. Do not drive/reload their game or run gameplay/performance/browser suites for this preparation request.
 
 - User explicitly authorized publication of the prepared Web build on 2026-11-06. Publish this approved version at the existing Pages root; do not build/upload an APK. Preserve the preference against extra public-page/asset checks and user-game interaction.
+
+- The user additionally authorized immediate Web publication of the 5/15/20-step adjustment. The weapon PNG artist handoff remains a local downloadable artifact.

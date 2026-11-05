@@ -38,8 +38,8 @@ var lock: OELockpickPanel
 var story_next: Button
 var story_back: Button
 var language_picker: OEStartupLanguage
-const LIGHT_DISTANCES: Array[int]=[4,7,10]
-var light_distance: int=4
+const LIGHT_DISTANCES: Array[int]=[5,15,20]
+var light_distance: int=5
 var quality_index: int=0
 var remastered: bool=false
 var choosing_language: bool=false

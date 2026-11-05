@@ -7,11 +7,12 @@
   const version = script ? script.search : '';
   const SAVE_DIR='/oe2-brew-v1'; // Permanent namespace: never add a build/release tag.
   const SAVE_NAME=/^(Config|SD_[0-9])$/;
-  const LIGHT_DISTANCES=[4,7,10];
-  const LIGHT_PROCESSING_KEY='oe2-brew-light-processing-steps';
+  const LIGHT_DISTANCES=[5,15,20];
+  const LIGHT_DISTANCE_NAMES=['low','medium','high'];
+  const LIGHT_PROCESSING_KEY='oe2-brew-light-processing-preset';
   function lightDistancePreset(value) {
-    const steps=Number(value)||4;
-    return LIGHT_DISTANCES.reduce((nearest,preset)=>Math.abs(steps-preset)<Math.abs(steps-nearest)?preset:nearest,4);
+    const steps=Number(value)||5;
+    return LIGHT_DISTANCES.reduce((nearest,preset)=>Math.abs(steps-preset)<Math.abs(steps-nearest)?preset:nearest,5);
   }
   let core, pendingMs = 0, syncTimer, syncChain = Promise.resolve(true);
   const audio = globalThis.BrewAudio = {
@@ -196,14 +197,16 @@
     },
     quality(value) { this.qualityLevel=Math.max(0,Math.min(2,Math.floor(Number(value)||0)));if(this.ready)core._oe2_quality(this.qualityLevel);try{localStorage.setItem('oe2-brew-quality',String(this.qualityLevel));}catch(_){} },
     savedQuality() { try{return Math.max(0,Math.min(2,Math.floor(Number(localStorage.getItem('oe2-brew-quality'))||0)));}catch(_){return 0;} },
-    lightDistance(value) { const steps=lightDistancePreset(value);if(this.ready)core._oe2_light_distance(steps);try{localStorage.setItem(LIGHT_PROCESSING_KEY,String(steps));}catch(_){} },
+    lightDistance(value) { const steps=lightDistancePreset(value);if(this.ready)core._oe2_light_distance(steps);try{localStorage.setItem(LIGHT_PROCESSING_KEY,LIGHT_DISTANCE_NAMES[LIGHT_DISTANCES.indexOf(steps)]);}catch(_){} },
     savedLightDistance() {
       try {
-        const saved=localStorage.getItem(LIGHT_PROCESSING_KEY);if(saved!==null)return lightDistancePreset(saved);
+        const saved=LIGHT_DISTANCE_NAMES.indexOf(localStorage.getItem(LIGHT_PROCESSING_KEY));if(saved>=0)return LIGHT_DISTANCES[saved];
+        const oldSteps=Number(localStorage.getItem('oe2-brew-light-processing-steps'));
+        if(oldSteps>0){const former=[4,7,10],nearest=former.reduce((a,b)=>Math.abs(oldSteps-b)<Math.abs(oldSteps-a)?b:a,4);return LIGHT_DISTANCES[former.indexOf(nearest)];}
         const old=Number(localStorage.getItem('oe2-brew-light-distance'));
         if(old>0){const former=[150,250,500],nearest=former.reduce((a,b)=>Math.abs(old-b)<Math.abs(old-a)?b:a,150);return LIGHT_DISTANCES[former.indexOf(nearest)];}
       }catch(_){}
-      return 4;
+      return 5;
     },
     debug(value) { try{localStorage.setItem('oe2-brew-debug',value?'1':'0');}catch(_){} },
     savedDebug() { try{return localStorage.getItem('oe2-brew-debug')==='1';}catch(_){return false;} },

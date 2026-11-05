@@ -7,7 +7,7 @@ const{boot,root}=require('./cinematic/common.cjs');
  for(const[map,x,y,angle]of scenes){
   core._oe2_qa_map(map);let stable=0;for(let n=0;n<1600;n++){const s=g.step(40);if(s.state===7)Brew.continueText();if([8,11,13].includes(s.state))Brew.key(0xe037);if(s.state===3&&!s.cinematic_active){if(++stable>8)break;}else stable=0;}
   assert.equal(g.model().map_id,map);assert.equal(core._oe2_qa_light_rays(),1,'48,000 accelerated/reference rays, original and changed walls');
-  for(const reach of[4,7,10])for(let quality=0;quality<3;quality++){
+  for(const reach of[5,15,20])for(let quality=0;quality<3;quality++){
    Brew.lightDistance(reach);Brew.quality(quality);let max=0,total=0,squared=0,changed=0;
    for(let pose=0;pose<16;pose++){
     core._oe2_qa_light_view(x+(pose%4)*3,y+(pose%3)*3,angle+pose*5);g.step(40);

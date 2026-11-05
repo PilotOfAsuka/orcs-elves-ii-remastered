@@ -243,3 +243,16 @@ corresponding Low/Medium/High names; gameplay saves retain their existing store.
 This clarification is prepared locally by rebuilding the core and exporting the
 UI, leaving playtesting to the user. The historical measurements above are not
 measurements of these new processing distances.
+
+
+## Current requested distances: 5 / 15 / 20 steps
+
+The user subsequently selected Low 5, Medium 15 and High 20 walking steps
+(320/960/1280 units) and authorized publication. The source appearance remains
+fixed at the former 120% reference; only the processing extent changes. The
+last-step fade and surrounding three-step neighborhood are retained.
+
+Settings now persist `low`, `medium` or `high` in
+`oe2-brew-light-processing-preset`. Previous 4/7/10-step and 150/250/500-percent
+preferences migrate by preset identity. No new performance or gameplay checks
+are claimed for this user-playtested adjustment.

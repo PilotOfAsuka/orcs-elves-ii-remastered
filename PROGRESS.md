@@ -183,3 +183,11 @@ The interface has Russian/English selection. Original BREW story art and game te
 - The user approved publishing the prepared Web revision with optimized dense-scene lighting, clean focus labels, startup hover suppression and corrected 4/7/10-step processing presets at the fixed 120% appearance.
 - Publication preflight confirms normal-core/UI export success, matching source/runtime bytes, matching content-hashed UI pack and no QA exports in the shipped WASM. The prepared artifact is used as-is. No new gameplay/performance/browser suite was run after the user's self-playtest preference.
 - Publish source and the Web bundle to the existing repository/Pages root with the same save namespace and legacy redirect. Do not build/upload APK or download public assets for a redundant live-site check.
+- Published source e2cd42c6b03e59e9c40869f10d3d8399785d6a41 and web-build 9829fbcc737b97e28282a4ef00c98be3bb3d9f79. GitHub Pages API reports this exact build as built without errors at the permanent root. All 12 release files match the prepared local bundle and manifest hashes. No public asset download/browser recheck or APK build was performed.
+
+
+## Approved processing-distance adjustment — 2026-11-06
+
+- At the user's request, Low/Medium/High are now 5/15/20 walking steps (320/960/1280 world units); the fixed former 120% source appearance and the surrounding three-step processing neighborhood are preserved.
+- Preference persistence now stores the preset name, so future distance changes retain the selected level. Existing 4/7/10-step values and the older percentage values migrate by their Low/Medium/High identity.
+- The user explicitly requested immediate Web publication of this adjustment at the permanent Pages root. Prepare the normal core/UI, verify release-package consistency, publish without extra browser/gameplay/performance suites, and do not build APK. Weapon PNG extraction is a separate local handoff artifact.

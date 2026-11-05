@@ -10,9 +10,10 @@ const path=require('node:path');
  const original=Buffer.from(Brew.testFile('SD_0'));await Brew.restoreBackup(exported.text,{load:false});assert.deepEqual(Buffer.from(Brew.testFile('SD_0')),original);
  const memory=new Map();globalThis.localStorage={getItem:key=>memory.get(key)??null,setItem:(key,value)=>memory.set(key,String(value))};
  const state=Brew.json();assert.equal(Brew.savedDebug(),false);Brew.debug(true);assert.equal(Brew.savedDebug(),true);Brew.debug(false);assert.equal(Brew.savedDebug(),false);assert.equal(Brew.json(),state);
- assert.equal(Brew.savedLightDistance(),4);
- for(const [old,steps]of[[125,4],[150,4],[250,7],[500,10]]){memory.set('oe2-brew-light-distance',String(old));assert.equal(Brew.savedLightDistance(),steps,'old setting migrates by preset name');}
- for(const steps of[4,7,10]){Brew.lightDistance(steps);assert.equal(Brew.savedLightDistance(),steps);}
- Brew.lightDistance(999);assert.equal(Brew.savedLightDistance(),10);Brew.lightDistance(0);assert.equal(Brew.savedLightDistance(),4);assert.equal(Brew.json(),state);
+ assert.equal(Brew.savedLightDistance(),5);
+ for(const [old,steps]of[[125,5],[150,5],[250,15],[500,20]]){memory.set('oe2-brew-light-distance',String(old));assert.equal(Brew.savedLightDistance(),steps,'old setting migrates by preset name');}
+ for(const [old,steps]of[[4,5],[7,15],[10,20]]){memory.set('oe2-brew-light-processing-steps',String(old));assert.equal(Brew.savedLightDistance(),steps);}
+ for(const steps of[5,15,20]){Brew.lightDistance(steps);assert.equal(Brew.savedLightDistance(),steps);}
+ Brew.lightDistance(999);assert.equal(Brew.savedLightDistance(),20);Brew.lightDistance(0);assert.equal(Brew.savedLightDistance(),5);assert.equal(Brew.json(),state);
  console.log('Android save bridge, checksum round trip and persisted debug preference passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

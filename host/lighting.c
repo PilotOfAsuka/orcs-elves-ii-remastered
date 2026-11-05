@@ -70,8 +70,8 @@ static Render *renderer;
  * separate from the fixed source falloff that matches the former 120% look. */
 #define LIGHT_REFERENCE_SCALE 1.2f
 #define WALK_STEP 64.f
-static int processingSteps=4;
-void BrewLight_setRange(int steps){processingSteps=steps<4?4:steps>10?10:steps;}
+static int processingSteps=5;
+void BrewLight_setRange(int steps){processingSteps=steps<5?5:steps>20?20:steps;}
 static float fx,fy,rx,ry;
 static float clampf(float x,float a,float b){return x<a?a:x>b?b:x;}
 static uint32_t hashWord(uint32_t h,uint32_t n){return (h^n)*16777619u;}
@@ -303,7 +303,7 @@ static int lightInView(float forward,float lateral,float distanceSquared,float r
 }
 #ifdef OE2_QA_INTERACTIONS
 int BrewLight_qaConeCheck(void){
- int saved=processingSteps,valid=1;const int levels[]={4,7,10},radii[]={50,150,300,600};
+ int saved=processingSteps,valid=1;const int levels[]={5,15,20},radii[]={50,150,300,600};
  for(int level=0;level<3&&valid;level++){
   processingSteps=levels[level];float reach=processingSteps*WALK_STEP;
   for(int angle=0;angle<64;angle++){float a=angle*6.28318530718f/64;if(!lightInView(cosf(a)*180,sinf(a)*180,180*180,40))valid=0;}
