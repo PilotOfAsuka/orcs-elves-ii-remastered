@@ -134,3 +134,10 @@ The interface has Russian/English selection. Original BREW story art and game te
 - New isolated test selects all eight native rings, checks the native strength/health bonuses and checkmarks, removes a ring, and round-trips an equipped ring through native save/load. It also verifies visible range changes and endpoint clamping at Low/Medium/High, without changing simulation, Classic pixels or binary saves. Preference persistence is covered alongside the Android backup/debug bridge.
 
 - Final local browser review covered phone and desktop pause/trade/inventory layouts, actual typed merchant input, ring selection/removal indicators and the HUD badge's direct return to the rings tab. Settings slider reached 150% through pointer input; player/wand portraits and speaker changes were visually checked. UI export now fails on reported Godot script errors instead of relying on its process exit status. No public-site browser/asset check was performed.
+
+
+## Publication and private APK — 2026-11-05
+
+- Pushed source b0db407589a41349a34572536c35e5ba7c4f0ad0 and replaced web-build with acd4a3d8de21ceeb7c3bed74a1207bc75e4b0974 at the same Pages root. No public asset downloads or live-site browser checks were made after publication.
+- Private dist/Orcs-Elves-II-0.2.3-test.apk: versionCode 3, 17700298 bytes, SHA-256 23647047f6f6ce116b60370d5cddbdc9036b1bea19b95b6e305aa4fcd18b4519. It embeds source b0db407589a41349a34572536c35e5ba7c4f0ad0 and the exact normal Web bundle, with no QA functions. Signature/alignment and all embedded file hashes pass; the existing test signing key is retained. Actual-device testing remains with the user. No APK was uploaded publicly.
+- Final visual evidence is kept locally in ignored build/proofs/final-ring-hud.png. The new ring badge, direct selection route, both speaker portraits and the 100–150% slider were verified in the local browser; layouts pass 114 menu, 24 ring-HUD and 24 modifier cases.
