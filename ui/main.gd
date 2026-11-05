@@ -14,6 +14,7 @@ var image_size:=Vector2i.ZERO
 var last_image_key: String=""
 var hud: OEAdventureHUD
 var frame: Panel
+var effects: OEStatusEffects
 var debug_overlay: Label
 var debug_enabled: bool=false
 var debug_elapsed: float=0
@@ -89,6 +90,8 @@ func _ready() -> void:
 		else:brew.continueText())
 	reader.choice_requested.connect(func(index: int): brew.choice(index))
 	reader.key_requested.connect(func(_key: int): brew.key(SOFT1))
+	effects=OEStatusEffects.new();add_child(effects);effects.hide()
+	move_child(effects,shade.get_index())
 	lock=OELockpickPanel.new();add_child(lock);lock.hide()
 	lock.key_requested.connect(func(key: int): brew.key(key))
 	debug_overlay=Label.new();debug_overlay.mouse_filter=Control.MOUSE_FILTER_IGNORE
@@ -145,6 +148,7 @@ func arrange() -> void:
 	frame.position=picture.position-Vector2(2,2);frame.size=picture.size+Vector2(4,4)
 	debug_overlay.position=picture.position+Vector2(8,picture.size.y-54);debug_overlay.size=Vector2(minf(300,picture.size.x-16),46)
 	encounter.position=picture.position+Vector2(10,10);encounter.size=Vector2(picture.size.x-20,76)
+	arrange_effects()
 	travel_title.position=picture.position+Vector2(8,8);travel_title.size=Vector2(picture.size.x-16,32)
 	status.position=picture.position+Vector2(12,picture.size.y/2-12);status.size=Vector2(picture.size.x-24,32)
 	var popup_width: float=minf(size.x-24,580)
@@ -185,6 +189,9 @@ func _process(delta: float) -> void:
 		reader.show_state({"kind":"dialogue","text":OEText.localize("Вы пали в бою…"),"title":"ПУТЬ ОКОНЧЕН","page":0,"pages":1,"choice":false,"right":"","primary":"Продолжить"})
 		shade.show()
 	encounter.show_state(state.hud,bool(state.get("cinematic_active",false)))
+	effects.show_state(state.hud.get("effects",[]))
+	effects.visible=not state.hud.get("effects",[]).is_empty() and game_state in [3,4,7,19,20,21]
+	arrange_effects()
 	if game_state in [0,2,5,6,8,11,13,14,15]: encounter.hide()
 	lock.show_state({"length":int(state.lock.length),"completed":int(state.lock.slot),"partial":int(state.lock.hits)==1,"attempts":int(state.lock.attempts),"last_direction":int(state.lock.last_direction),"finished":int(state.lock.done)!=0} if game_state==19 else {})
 	map_view.show_state(state.get("map",{}));map_tools.visible=game_state==5
@@ -226,6 +233,13 @@ func _process(delta: float) -> void:
 	status.text=""
 	if not str(brew.saveError).is_empty(): status.text=OEText.localize("Не удалось сохранить")
 	status.visible=not status.text.is_empty()
+
+func arrange_effects() -> void:
+	if effects==null:return
+	effects.position=picture.position+Vector2(8,10)
+	effects.size=Vector2(58,maxf(16,picture.size.y-20))
+	encounter.position=picture.position+Vector2(10+(66 if effects.visible else 0),10)
+	encounter.size.x=maxf(40,picture.size.x-20-(66 if effects.visible else 0))
 
 func update_menu() -> void:
 	var signature: String=JSON.stringify([state.menu_id,state.selected,state.items,state.get("notes",[]),state.get("details",{}),OEText.language,quality_index,debug_enabled])

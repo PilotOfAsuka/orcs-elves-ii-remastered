@@ -8,6 +8,17 @@
 #endif
 
 QA void oe2_qa_map(int map) { Canvas_loadMap(g_app->canvas,map); }
+QA void oe2_qa_status(int effect,int amount,int turns) {
+    Player *p=g_app->player;
+    if(effect<0) { for(int i=0;i<14;i++)Player_removeBuff(p,i); }
+    else if(effect<14) {
+        Player_removeBuff(p,effect);
+        if(turns>0)Player_setStatusEffect(p,effect,amount,1,turns);
+    }
+    Player_updateStats(p);
+}
+QA void oe2_qa_status_turn(void) { Player_advanceTurn(g_app->player); }
+QA void oe2_qa_status_familiar(int value) { g_app->player->isFamiliar=value!=0; }
 
 QA int oe2_qa_lock(int index) {
     Render *r=g_app->render;

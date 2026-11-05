@@ -19,6 +19,7 @@ func present(frame: Dictionary) -> void:
 	game.picture.show();game.frame.show();game.status.hide();game.story_ru.hide();game.travel_title.hide();game.story_back.hide();game.story_next.hide()
 	var kind: int=int(state.state)
 	game.hud.show_state(state.hud);game.encounter.show_state(state.hud,bool(state.get("cinematic_active",false)))
+	game.effects.show_state(state.hud.get("effects",[]));game.effects.visible=not state.hud.get("effects",[]).is_empty() and kind in [3,4,7,19,20,21]
 	if frame.get("fly",false):game.encounter.hide()
 	game.reader.show_state({"kind":"dialogue","text":str(state.dialogue),"title":OEText.localize("СОБЫТИЯ"),"page":0,"pages":1,"choice":false,"right":"","primary":OEText.localize("Продолжить")} if kind==7 else {})
 	game.shade.visible=kind in [2,7];game.menu.visible=kind==2

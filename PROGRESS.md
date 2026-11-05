@@ -99,3 +99,11 @@ The interface has Russian/English selection. Original BREW story art and game te
 
 - Published source d9c977934b416e1181a172ca7d31ea87450bd11b at the permanent Pages root (web-build 6b1f6d2ae9e640397dd0f5d353f6785516dc5047). The final local APK is dist/Orcs-Elves-II-0.2.1-test.apk, 17204682 bytes, signed with APK v2/v3 and ZIP-aligned; all packaged game asset hashes match the Web export. No APK was uploaded publicly.
 - User requests local Web verification only for future publications, without repeat downloads or browser runs against the public release. Recorded this in AGENTS.md and REMAINING_WORK.md.
+
+## Status-effect column — 2026-11-05
+
+- Restored the missing timed modifier presentation from the actual native Buff array, including original signed values, true remaining turns, compound modifier aggregation and familiar-form visibility. No status rules, save layout or clocks changed.
+- Decoded all twelve original status icons from resource 3030 with native RGB565 colors and magenta transparency. The art is generated into an ignored folder during the UI build.
+- Added a compact vertical column inside the left edge of the game view, following the user's final placement/size preference. Native icons are 14 units, row pitch 23, column width 58. Enemy HP/events sit beside it; the viewport and fixed health/armor HUD do not resize. Counts remain visible; expiring icons pulse gently. Both graphics modes and RU/EN labels use the same presentation.
+- Native/WASM replay passed 1140 checks over 1058 ticks, with exact binary save parity. The dedicated native-rule fixture passes positive/negative values, no countdown from idle ticks, player-turn decrement, expiration, compound-effect timing, familiar-only energy, save/load durations and pure getters at all three render qualities.
+- Godot layout checks passed 24 cases across 360×640, 390×844 and 1280×720, Classic/Remastered and 0/1/5/12 entries. World rectangles remain identical and icons stay inside the view beside the encounter overlay. Local visual checks also cover multiple effects and actual counter changes.

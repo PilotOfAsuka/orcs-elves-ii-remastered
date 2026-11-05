@@ -10,3 +10,5 @@
 8. Publish verified updates at the same permanent Pages root on web-build. Keep build hashes and cache busting, preserve the legacy /brew/ redirect, and verify locally before publication. The user checks the public site; avoid extra public asset downloads/browser checks unless requested.
 
 9. Test the private Android APK on actual devices: WebView/GPU compatibility, performance at all qualities, audio/background resume, safe areas and native document-picker backup import/export. APK signing, package contents and responsive Web behavior are verified; no on-device launch is claimed.
+
+10. Review timed modifiers during longer gameplay (rings/items, familiar use, overlapping debuffs and later encounters). Native modifier values/turns, save/load and responsive layout are covered by the new fixtures; full playthrough coverage remains outstanding.

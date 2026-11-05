@@ -216,6 +216,17 @@ API const char *oe2_json(void) {
         p->ce.health, p->ce.maxHealth, CombatEntity_getArmorPoints(&p->ce), CombatEntity_getMaxArmorPoints(&p->ce), wi,
         ammoType > 0 && ammoType < 7 ? p->ammo[ammoType] : -1);
     string(weapon ? &weapon->name : NULL);
+    /* Match the original modifier list, including stacked stat effects and
+     * familiar energy only while possessing. Merely read native counters. */
+    add(",\"effects\":[");
+    int effectFirst = 1;
+    for (int i = 0; i < 12; i++) {
+        const Buff *buff = &p->buffs[i];
+        if (buff->turns <= 0 || (i == 0 && !p->isFamiliar)) continue;
+        add("%s{\"id\":%d,\"amount\":%d,\"turns\":%d}", effectFirst ? "" : ",", i, buff->amount, buff->turns);
+        effectFirst = 0;
+    }
+    add("]");
     add(",\"context\":"); string(&h->caption1);
     add(",\"cinematic\":"); string(&h->caption2);
     add(",\"notices\":"); string(h->numMessages > 0 ? &h->messages[0] : NULL);

@@ -3,6 +3,7 @@ extends RefCounted
 ## UI-only localization. BREW game text comes from its original resources.
 static var language: String="ru"
 const UI={
+	"Фамильяр":"Familiar","Уклонение":"Avoidance","Очищение":"Remedy","Ускорение":"Haste","Опьянение":"Drunkenness","Регенерация":"Regeneration","Точность":"Accuracy","Сила":"Strength","Защита":"Defense","Заморозка":"Frozen","Отравление":"Poisoned","Уменьшение":"Shrunk","Осталось ходов: %d":"Turns remaining: %d",
 	"Подберите направление. Следите за замком.":"Find the direction. Watch the lock.",
 	"Скачать сохранение":"Download save","Загрузить копию сохранения":"Import save backup","Копия сохранения скачана":"Save backup downloaded","Копия сохранения восстановлена":"Save backup restored","Не удалось скачать сохранение":"Save download failed","Не удалось загрузить копию сохранения":"Save import failed","Загружаем сохранение…":"Importing save…",
 	"Подберите направление. Жёлтый — верно: нажмите ещё раз. Зелёный — позиция закреплена.":"Find the direction. Yellow means correct: press again. Green means the tumbler is set.",
