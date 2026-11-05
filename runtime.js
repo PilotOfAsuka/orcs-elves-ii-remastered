@@ -55,7 +55,7 @@
       if (seed !== undefined) core._oe2_test_seed(seed);
       const result = core.ccall('oe2_boot', 'number', ['string', 'number', 'number'], ['/gamedata', 176, 220]);
       if (result !== 0) throw new Error(`BREW startup failed (${result})`);
-      this.qualityLevel=this.savedQuality();core._oe2_quality(this.qualityLevel);
+      this.qualityLevel=this.savedQuality();core._oe2_quality(this.qualityLevel);core._oe2_light_distance(this.savedLightDistance());
       this.ready = true;
       return this;
     },
@@ -90,6 +90,11 @@
     save() { return this.ready&&!this.importing ? core._oe2_save() : 0; },
     load() { return this.ready&&!this.importing ? core._oe2_load() : 0; },
     inventory() { if (this.ready&&!this.importing) core._oe2_inventory(); },
+    inventoryTab(tab) { if(this.ready&&!this.importing)core._oe2_inventory_tab(tab); },
+    closeInventory() { if(this.ready&&!this.importing)core._oe2_close_inventory(); },
+    tradeOffer(value) { if(this.ready&&!this.importing){audio.unlock();return core._oe2_trade_offer(value);}return 0; },
+    tradeCancel() { if(this.ready&&!this.importing)core._oe2_trade_cancel(); },
+    itemDetails(menu,index) { if(this.ready&&!this.importing)core._oe2_item_details(menu,index); },
     image(kind) {
       let pointer, length;
       if (kind === 'story_base') { pointer=core._oe2_story_base();length=176*176*4; }
@@ -185,6 +190,8 @@
     },
     quality(value) { this.qualityLevel=Math.max(0,Math.min(2,Math.floor(Number(value)||0)));if(this.ready)core._oe2_quality(this.qualityLevel);try{localStorage.setItem('oe2-brew-quality',String(this.qualityLevel));}catch(_){} },
     savedQuality() { try{return Math.max(0,Math.min(2,Math.floor(Number(localStorage.getItem('oe2-brew-quality'))||0)));}catch(_){return 0;} },
+    lightDistance(value) { const percent=Math.max(100,Math.min(150,Math.round(Number(value)||100)));if(this.ready)core._oe2_light_distance(percent);try{localStorage.setItem('oe2-brew-light-distance',String(percent));}catch(_){} },
+    savedLightDistance() { try{return Math.max(100,Math.min(150,Math.round(Number(localStorage.getItem('oe2-brew-light-distance'))||100)));}catch(_){return 100;} },
     debug(value) { try{localStorage.setItem('oe2-brew-debug',value?'1':'0');}catch(_){} },
     savedDebug() { try{return localStorage.getItem('oe2-brew-debug')==='1';}catch(_){return false;} },
     graphics(value) { try { localStorage.setItem('oe2-brew-graphics',value); } catch (_) {} },

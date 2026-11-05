@@ -39,3 +39,8 @@ Godot: https://godotengine.org/ (installed desktop editor and official Web expor
 The complete BREW 7.0.41 string catalog has a separate Russian presentation translation in localization/ru. Original English strings and game rules remain unchanged in the core. The checked-in ui/locales/ru.json is built from those translations and the supported English catalog. Intro/ending text masks have separate Cyrillic SVG resources; the original parchment illustration and travel map art remain intact.
 
 Text-mask glyph outlines use Noto Serif Bold by the Noto Project Authors, obtained from the bundled LibreOffice font installation. Its SIL Open Font License and copyright notice are preserved in localization/FONT_LICENSE.txt. The optional regeneration tool uses fontTools 4.68; generated SVG resources are checked in, so ordinary UI builds do not require fontTools or the local font file.
+
+
+## Native menu and conversation artwork
+
+The build decodes original BREW BAR 3029 for item icons, 3031 for equipped-ring icons, 3021/3028 for the player/wand conversation images, 3007 for notice icons, and the original palette/mapping/bitshape/texel resources 1003–1006 for character sprite closeups. The helpers preserve RGB565 colors and native transparency. These derived atlases remain ignored build assets; no generated HD replacement art was introduced. Wall candle identities 61/69 were matched to the decoded original 117×117 materials and native world geometry.
