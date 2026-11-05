@@ -14,6 +14,10 @@ var image_size:=Vector2i.ZERO
 var last_image_key: String=""
 var hud: OEAdventureHUD
 var frame: Panel
+var debug_overlay: Label
+var debug_enabled: bool=false
+var debug_elapsed: float=0
+var debug_frames: int=0
 var encounter: OEEncounterHUD
 var status: Label
 var mode: Button
@@ -86,11 +90,17 @@ func _ready() -> void:
 	reader.choice_requested.connect(func(index: int): brew.choice(index))
 	reader.key_requested.connect(func(_key: int): brew.key(SOFT1))
 	lock=OELockpickPanel.new();add_child(lock);lock.hide()
-	lock.key_requested.connect(func(key: int): brew.key(SELECT if key==53 else 0xe021+key-48))
+	lock.key_requested.connect(func(key: int): brew.key(key))
+	debug_overlay=Label.new();debug_overlay.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	debug_overlay.add_theme_font_size_override("font_size",12)
+	debug_overlay.add_theme_color_override("font_color",Color("cce5c6"))
+	debug_overlay.add_theme_stylebox_override("normal",OESkin.plate(Color(0.01,0.025,0.015,0.85),Color("53664d"),5))
+	add_child(debug_overlay);debug_overlay.hide()
 	resized.connect(arrange);arrange()
 	if OS.has_feature("web"):
 		brew=JavaScriptBridge.get_interface("Brew")
 		quality_index=int(brew.savedQuality())
+		debug_enabled=bool(brew.savedDebug())
 		remastered=str(brew.savedGraphics())=="remastered";update_mode_button();arrange()
 		var saved: String=str(brew.savedLanguage())
 		if saved in ["ru","en"]: OEText.choose(saved);update_mode_button()
@@ -133,13 +143,14 @@ func arrange() -> void:
 		nav.position=Vector2(left,8)
 		movement.position=Vector2(left+main_width+20,46);movement.size=Vector2(240,180)
 	frame.position=picture.position-Vector2(2,2);frame.size=picture.size+Vector2(4,4)
+	debug_overlay.position=picture.position+Vector2(8,picture.size.y-54);debug_overlay.size=Vector2(minf(300,picture.size.x-16),46)
 	encounter.position=picture.position+Vector2(10,10);encounter.size=Vector2(picture.size.x-20,76)
 	travel_title.position=picture.position+Vector2(8,8);travel_title.size=Vector2(picture.size.x-16,32)
 	status.position=picture.position+Vector2(12,picture.size.y/2-12);status.size=Vector2(picture.size.x-24,32)
 	var popup_width: float=minf(size.x-24,580)
 	menu.position=Vector2((size.x-popup_width)/2,48);menu.size=Vector2(popup_width,size.y-72)
 	reader.position=Vector2((size.x-popup_width)/2,maxf(40,(size.y-400)/2));reader.size=Vector2(popup_width,minf(size.y-90,400))
-	lock.position=Vector2((size.x-popup_width)/2,maxf(40,(size.y-410)/2));lock.size=Vector2(popup_width,minf(size.y-85,410))
+	lock.position=Vector2((size.x-popup_width)/2,maxf(40,(size.y-440)/2));lock.size=Vector2(popup_width,minf(size.y-85,440))
 	map_view.position=picture.position;map_view.size=picture.size
 	map_tools.position=picture.position+Vector2(8,8)
 	story_back.position=picture.position+Vector2(0,picture.size.y-36);story_back.size=Vector2(48,32)
@@ -175,7 +186,7 @@ func _process(delta: float) -> void:
 		shade.show()
 	encounter.show_state(state.hud,bool(state.get("cinematic_active",false)))
 	if game_state in [0,2,5,6,8,11,13,14,15]: encounter.hide()
-	lock.show_state({"length":maxi(3,int(state.lock.length)),"completed":int(state.lock.hits),"partial":int(state.lock.slot)!=0,"attempts":int(state.lock.tries),"finished":int(state.lock.done)!=0} if game_state==19 else {})
+	lock.show_state({"length":int(state.lock.length),"completed":int(state.lock.slot),"partial":int(state.lock.hits)==1,"attempts":int(state.lock.attempts),"last_direction":int(state.lock.last_direction),"finished":int(state.lock.done)!=0} if game_state==19 else {})
 	map_view.show_state(state.get("map",{}));map_tools.visible=game_state==5
 	story_back.visible=game_state in [8,13] and int(state.story_page)>0;story_next.visible=game_state in [8,11,13,17]
 	story_next.text=OEText.localize("Продолжить")+" ›"
@@ -203,13 +214,21 @@ func _process(delta: float) -> void:
 			texture=ImageTexture.create_from_image(next);picture.texture=texture;image_size=dimensions
 		else: texture.update(next)
 		last_image_key=image_key
+	debug_overlay.visible=debug_enabled and game_state in [3,4,5,17]
+	debug_elapsed+=delta;debug_frames+=1
+	if debug_elapsed>=0.5:
+		var fps: float=debug_frames/maxf(0.001,debug_elapsed)
+		debug_frames=0;debug_elapsed=0
+		if debug_overlay.visible:
+			var timing: String="Шаг %.1f мс · Ремастер %.1f мс" if OEText.language=="ru" else "Core %.1f ms · Remaster %.1f ms"
+			debug_overlay.text=("FPS %.0f · %d×%d\n" % [fps,image_size.x,image_size.y])+(timing % [float(brew.tickMs),float(brew.lightMs) if remastered else 0.0])
 	if is_instance_valid(backup_notice): backup_notice.text=OEText.localize(str(brew.backupStatus))
 	status.text=""
 	if not str(brew.saveError).is_empty(): status.text=OEText.localize("Не удалось сохранить")
 	status.visible=not status.text.is_empty()
 
 func update_menu() -> void:
-	var signature: String=JSON.stringify([state.menu_id,state.selected,state.items,state.get("notes",[]),state.get("details",{}),OEText.language,quality_index])
+	var signature: String=JSON.stringify([state.menu_id,state.selected,state.items,state.get("notes",[]),state.get("details",{}),OEText.language,quality_index,debug_enabled])
 	if signature==menu_signature: return
 	menu_signature=signature
 	for child in menu_box.get_children(): child.free()
@@ -240,6 +259,8 @@ func update_menu() -> void:
 			if int(item.index)==int(state.selected): button.add_theme_color_override("font_color",OESkin.GOLD)
 			var id: int=state.menu_id;var index: int=item.index;button.pressed.connect(func(): brew.menu(id,index))
 	if int(state.menu_id) in [0x11,0x66]:
+		var debug_check:=CheckBox.new();debug_check.text=OEText.localize("Отладка");debug_check.button_pressed=debug_enabled;debug_check.custom_minimum_size.y=42;debug_check.focus_mode=Control.FOCUS_NONE;menu_box.add_child(debug_check)
+		debug_check.toggled.connect(func(enabled: bool): debug_enabled=enabled;brew.debug(enabled);menu_signature="")
 		var quality_label:=Label.new();quality_label.text="Качество ремастера" if OEText.language=="ru" else "Remastered quality";menu_box.add_child(quality_label)
 		var quality:=OptionButton.new();quality.custom_minimum_size.y=42;quality.focus_mode=Control.FOCUS_NONE
 		for caption in ["Low · 176×164","Medium · 352×328","High · 704×656"]: quality.add_item(caption)
@@ -298,7 +319,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	elif game_state in [8,11,13]: brew.key(SOFT1 if key.keycode in [KEY_LEFT,KEY_ESCAPE] else SOFT2)
 	elif game_state==14 and key.keycode in [KEY_ENTER,KEY_SPACE,KEY_ESCAPE]:brew.key(CLEAR)
 	elif game_state==19:
-		var keys: Dictionary={KEY_W:0xe023,KEY_UP:0xe023,KEY_S:0xe029,KEY_DOWN:0xe029,KEY_A:0xe025,KEY_LEFT:0xe025,KEY_D:0xe027,KEY_RIGHT:0xe027,KEY_ESCAPE:SELECT}
+		var keys: Dictionary={KEY_W:0xe031,KEY_UP:0xe031,KEY_S:0xe032,KEY_DOWN:0xe032,KEY_A:0xe033,KEY_LEFT:0xe033,KEY_D:0xe034,KEY_RIGHT:0xe034,KEY_ESCAPE:CLEAR}
 		if keys.has(key.keycode): brew.key(keys[key.keycode])
 	else:
 		var keys: Dictionary={KEY_W:1,KEY_UP:1,KEY_S:2,KEY_DOWN:2,KEY_A:3,KEY_LEFT:3,KEY_D:4,KEY_RIGHT:4,KEY_Z:9,KEY_C:10,KEY_Q:11,KEY_E:12,KEY_ENTER:6,KEY_SPACE:14,KEY_M:7,KEY_ESCAPE:5,KEY_I:16}

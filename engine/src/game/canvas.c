@@ -1021,9 +1021,13 @@ void Canvas_renderView(Canvas *canvas, int x, int y, int angle)
 	Canvas_updateFade(canvas);
 
 	if (canvas->state == ST_LOCKPICK) {
+#ifndef OE2_WEB_BRIDGE
 		/* the lock with its pins */
 		Render_draw2DSprite(app->render, 0xd, canvas->lockCorrectHits, canvas->screenCenterX - 0x2c,
 		                    canvas->renderRect[1] + 0x14, 0, 0, 0x100, 0);
+#endif
+		/* The browser host presents this indicator in its modal. Keeping the
+		 * phone overlay out of the world also avoids a duplicate lock behind it. */
 	} else if (canvas->state != ST_CINEMATIC && app->player->statusEffects[SE_TINT].turns > 0) {
 		Render_tintScreen(app->render);
 	}

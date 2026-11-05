@@ -46,6 +46,10 @@ static unsigned char wallChecked[3][129*129];
 typedef struct {float x,y,distance;int axis,valid;} CornerCache;
 static CornerCache cornerCache[704];
 static Light lights[8];
+/* Arrival events outlive the retired missile, independently of sprite slots. */
+typedef struct {Light light;int time,map,active;} Impact;
+static Impact impacts[8];
+static unsigned nextImpact;
 static int width,height,numLights,fadeLevel=255;
 static Render *renderer;
 static float fx,fy,rx,ry;
@@ -60,6 +64,19 @@ static const Source *sourceForSprite(const Sprite *s){
  return NULL;
 }
 int BrewLight_spriteEmits(const Sprite *s){return sourceForSprite(s)!=NULL;}
+void BrewLight_impact(const GameSprite *missile,int flaming){
+ if(!missile||!missile->sprite||!g_app)return;
+ const Source *p=sourceForSprite(missile->sprite);
+ if(flaming){for(unsigned i=0;i<sizeof(sources)/sizeof(sources[0]);i++)if(sources[i].tile==224){p=&sources[i];break;}}
+ if(!p)return; /* Physical arrows, blood, melee and debris do not emit. */
+ unsigned slot=nextImpact++%8;
+ float dx=missile->dest[0]-missile->start[0],dy=missile->dest[1]-missile->start[1],d=sqrtf(dx*dx+dy*dy);
+ /* Keep a wall hit on the incoming side of its opaque surface. */
+ float bias=d>.01f?fminf(4.f,d*.25f)/d:0;
+ Light l={missile->dest[0]-dx*bias,missile->dest[1]-dy*bias,(float)missile->dest[2],
+  p->r,p->g,p->b,fmaxf(190,p->radius*1.3f),p->power*3.4f,0,3000+(int)slot};
+ impacts[slot]=(Impact){l,g_app->time,g_app->canvas->mapId,1};
+}
 static void put(int x,int y,float px,float py,float pz,float nx,float ny,float nz,int kind){
  if(x<0||y<0||x>=width||y>=height)return;
  Surface *s=&surfaces[y*width+x];s->x=px;s->y=py;s->z=pz;
@@ -179,11 +196,20 @@ static void candidate(Light value,float cx,float cy){
  if(d>value.radius*value.radius*2.25f)return;
  if(numLights<7){lights[numLights++]=value;return;}
  int worst=0;float far=-1;
- for(int i=0;i<7;i++){float a=lights[i].x-cx,b=lights[i].y-cy,n=a*a+b*b;if(n>far){far=n;worst=i;}}
- if(d<far)lights[worst]=value;
+ for(int i=0;i<7;i++){
+  if(lights[i].key>=3000&&value.key<3000)continue;
+  float a=lights[i].x-cx,b=lights[i].y-cy,n=a*a+b*b;if(n>far){far=n;worst=i;}
+ }
+ if(far>=0&&(value.key>=3000||d<far))lights[worst]=value;
 }
 static void gather(Render *r){
  numLights=0;
+ for(int i=0;i<8;i++){
+  const Impact *impact=&impacts[i];int age=g_app->time-impact->time;
+  if(!impact->active||impact->map!=g_app->canvas->mapId||age<0||age>=320)continue;
+  Light l=impact->light;float decay=1-age/320.f;l.power*=decay*decay;
+  candidate(l,r->viewX,r->viewY);
+ }
  for(int i=0;i<r->numSprites&&i<800;i++){
   Sprite *s=&r->sprites[i];const Source *p=sourceForSprite(s);if(!p)continue;
   Light l={(float)s->x,(float)s->y,s->z+p->height,p->r,p->g,p->b,p->radius,p->power,p->flicker,i};candidate(l,r->viewX,r->viewY);

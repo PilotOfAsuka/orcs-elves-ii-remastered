@@ -133,8 +133,12 @@
     async exportSave() {
       try {
         await this.flush();const data=await this.backupData();
+        const filename='orcs-elves-ii-save-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';
+        if(globalThis.BrewAndroid&&typeof BrewAndroid.saveBackup==='function'){
+          this.backupStatus='';BrewAndroid.saveBackup(filename,data);return;
+        }
         const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
-        const link=document.createElement('a');link.href=url;link.download='orcs-elves-ii-save-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';
+        const link=document.createElement('a');link.href=url;link.download=filename;
         document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
         this.backupStatus='Копия сохранения скачана';
       }catch(error){this.backupStatus='Не удалось скачать сохранение';console.error('Save export:',error);}
@@ -181,6 +185,8 @@
     },
     quality(value) { this.qualityLevel=Math.max(0,Math.min(2,Math.floor(Number(value)||0)));if(this.ready)core._oe2_quality(this.qualityLevel);try{localStorage.setItem('oe2-brew-quality',String(this.qualityLevel));}catch(_){} },
     savedQuality() { try{return Math.max(0,Math.min(2,Math.floor(Number(localStorage.getItem('oe2-brew-quality'))||0)));}catch(_){return 0;} },
+    debug(value) { try{localStorage.setItem('oe2-brew-debug',value?'1':'0');}catch(_){} },
+    savedDebug() { try{return localStorage.getItem('oe2-brew-debug')==='1';}catch(_){return false;} },
     graphics(value) { try { localStorage.setItem('oe2-brew-graphics',value); } catch (_) {} },
     savedGraphics() { try { return localStorage.getItem('oe2-brew-graphics')||'classic'; } catch (_) { return 'classic'; } },
     language(value) { try { localStorage.setItem('oe2-brew-ui-language', value); } catch (_) {} },

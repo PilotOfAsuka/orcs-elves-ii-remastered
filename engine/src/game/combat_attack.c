@@ -1053,6 +1053,9 @@ void Combat_resolveProjectiles(Combat *combat)
 		}
 
 		int x = gs->dest[0], y = gs->dest[1], z = gs->dest[2];
+#ifdef OE2_WEB_BRIDGE
+		OE2_projectileImpact(gs, combat->bonusFlag);
+#endif
 		Game_gspriteDestroy(app->game, gs);
 		if (combat->projSprite != 0 &&
 		    (combat->attacker == NULL || (combat->target == NULL && combat->totalDamage != 0))) {

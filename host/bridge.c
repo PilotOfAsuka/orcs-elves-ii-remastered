@@ -89,6 +89,9 @@ API void oe2_tick(void) {
     Applet_Tick(g_app);
     nowMs += 40; ticks++;
 }
+void OE2_projectileImpact(const GameSprite *missile, int flaming) {
+    BrewLight_impact(missile, flaming);
+}
 API void oe2_key(int key) { if (g_app) Applet_HandleEvent(g_app, EVT_KEY, (uint16_t)key, 0); }
 API int oe2_action_key(int action) {
     if (!g_app) return 0;
@@ -218,8 +221,11 @@ API const char *oe2_json(void) {
     add(",\"notices\":"); string(h->numMessages > 0 ? &h->messages[0] : NULL);
     int targetHp = -1, targetMax = 0;
     if (h->targetEnt && h->targetEnt->monster) { targetHp = h->targetEnt->monster->ce.health; targetMax = h->targetEnt->monster->ce.maxHealth; }
-    add(",\"target_health\":%d,\"target_max\":%d},\"lock\":{\"slot\":%d,\"hits\":%d,\"done\":%d,\"tries\":%d,\"length\":%d}",
-        targetHp, targetMax, c->lockSlot, c->lockCorrectHits, c->lockDone, p->lockpickTries, c->lockString.len);
+    unsigned lockAttempts = (uint16_t)(((uint32_t)p->lockpickTries >> 16) - ((uint32_t)p->f270 >> 16));
+    int lastDirection = lockAttempts && c->lockEntered.len > 0 ? String_charAt(&c->lockEntered, c->lockEntered.len - 1) : 0;
+    add(",\"target_health\":%d,\"target_max\":%d},\"lock\":{\"slot\":%d,\"hits\":%d,\"done\":%d,\"tries\":%d,\"length\":%d,\"attempts\":%u,\"last_direction\":%d}",
+        targetHp, targetMax, c->lockSlot, c->lockCorrectHits, c->lockDone, p->lockpickTries,
+        TextUtil_strlenZ(g_app->textUtil, &g_app->game->lockCombination), lockAttempts, lastDirection);
     if (c->state == 5) {
         add(",\"map\":{\"level_id\":%d,\"hidden\":%s,\"x\":%.3f,\"y\":%.3f,\"angle\":%d,\"tiles\":[",
             c->mapId, g_app->game->automapFlag && c->mapId == 7 ? "true" : "false", c->viewX / 64.0, c->viewY / 64.0, c->viewAngle / 4);

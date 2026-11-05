@@ -55,3 +55,17 @@ Contact AO uses world positions and normals from the existing raster metadata ra
 The effect has the same world-space width at Low, Medium and High. A per-column cache reuses vertical wall corner distances without changing output pixels; the three sampled rendered buffers were byte-identical before/after this optimization. Held weapons are excluded. Billboard receivers face the camera rather than inheriting the last wall normal. Emitters' halo sizes scale with render quality. Held Freeze/Mold/Shrink colors follow their actual resource identities, and the Flaming Sword contributes warm light.
 
 Native geometric tests cover floor and ceiling seams, vertical wall bottoms, clear wall centres, perpendicular corners and absence of a false floor contact beneath upper walls, alongside the existing wall/sprite ray tests. This is a local contact approximation, not global indirect illumination or hardware ray tracing.
+
+## Projectile arrival flashes — 2026-11-05
+
+The original projectile resolver now notifies the host immediately before a
+landed missile is retired. This reads the original start/destination and current
+emissive sprite identity without changing its lifetime, damage, RNG or turn.
+An eight-entry presentation ring retains a colored local light for 320 ms with
+a quadratic decay, a larger radius and higher initial power than flight light.
+A four-unit incoming-side bias keeps wall impacts in front of opaque geometry.
+Physical arrows/melee/blood do not gain emission; flaming bonus arrows use the
+existing fire source. Impact lights have priority within the same seven-world-
+light budget, plus the existing held light, so no unbounded light loop is added.
+Rays, receiving surfaces and halos use the same occlusion as other sources.
+There is no full-screen white-flash overlay.

@@ -11,6 +11,7 @@ void BrewLight_tagCaster(Render *r,Sprite *sprite);
 void BrewLight_poseCaster(Render *r,int x,int y,int z,int tile,int frame,int flags,int mode,int scale);
 int BrewLight_spriteBlocks(const Render *r,const Sprite *s,float ax,float ay,float az,float bx,float by,float bz);
 int BrewLight_spriteEmits(const Sprite *s);
+void BrewLight_impact(const GameSprite *missile,int flaming);
 int BrewLight_weaponBottom(void);
 const uint32_t *BrewLight_classic(const uint32_t *original,int w,int h);
 const uint32_t *BrewLight_render(const uint32_t *original,int w,int h);

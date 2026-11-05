@@ -1,8 +1,8 @@
 const path=require('node:path'),fs=require('node:fs'),crypto=require('node:crypto');
 const root=path.resolve(__dirname,'../..'),out=path.join(root,'build/cinematic');
-async function boot({audio=false}={}){
-  process.chdir(path.join(out,'core'));let core,clock=0;const clips={},events=[],channels=new Map(),gains=new Map();
-  const factory=require(path.join(out,'core/brew-core.js'));
+async function boot({audio=false,coreDirectory=path.join(out,'core')}={}){
+  process.chdir(coreDirectory);let core,clock=0;const clips={},events=[],channels=new Map(),gains=new Map();
+  const factory=require(path.join(coreDirectory,'brew-core.js'));
   globalThis.createBrewModule=async options=>(core=await factory(options));
   require(path.join(root,'web/runtime.js'));
   const sound=globalThis.BrewAudio;

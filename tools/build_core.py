@@ -9,8 +9,12 @@ import argparse
 
 ROOT = Path(__file__).resolve().parents[1]
 SDK = ROOT / 'tools/vendor/emsdk'
-parser=argparse.ArgumentParser();parser.add_argument('--cinematic',action='store_true');options=parser.parse_args()
-OUT = ROOT / ('build/cinematic/core' if options.cinematic else 'build/web')
+parser=argparse.ArgumentParser()
+variant=parser.add_mutually_exclusive_group()
+variant.add_argument('--cinematic',action='store_true')
+variant.add_argument('--qa',action='store_true')
+options=parser.parse_args()
+OUT = ROOT / ('build/cinematic/core' if options.cinematic else 'build/qa-core' if options.qa else 'build/web')
 OUT.mkdir(parents=True, exist_ok=True)
 staging = ROOT / 'build/staging/gamedata'
 staging.mkdir(parents=True, exist_ok=True)
@@ -26,6 +30,7 @@ sources = [ROOT / 'engine/src/bar.c', ROOT / 'engine/src/moddata.c']
 sources += sorted((ROOT / 'engine/src/game').glob('*.c'))
 sources += [ROOT / 'host/bridge.c', ROOT / 'host/platform_web.c', ROOT / 'host/pmd_web.c', ROOT / 'host/lighting.c', ROOT / 'host/presentation.c']
 if options.cinematic:sources.append(ROOT/'tools/cinematic/bridge.c')
+if options.qa:sources.append(ROOT/'host/qa_interactions.c')
 args = [str(SDK / 'upstream/emscripten/emcc'), '-std=gnu17', '-O2', '-g2', '-fwrapv', '-funsigned-char',
         '-DOE2_WEB_BRIDGE', '-D_POSIX_C_SOURCE=200809L', '-I' + str(ROOT / 'engine/src'),
         '-I' + str(ROOT / 'engine/src/game'), *map(str, sources), '-lm', '-sUSE_ZLIB=1',
@@ -34,5 +39,6 @@ args = [str(SDK / 'upstream/emscripten/emcc'), '-std=gnu17', '-O2', '-g2', '-fwr
         '-lidbfs.js', '-sEXPORTED_RUNTIME_METHODS=FS,IDBFS,UTF8ToString,ccall,HEAPU8,HEAP16',
         '--no-entry', '--preload-file', str(staging) + '@/gamedata', '-o', str(OUT / 'brew-core.js')]
 if options.cinematic:args.insert(1,'-DOE2_CINEMATIC_CAPTURE')
+if options.qa:args.insert(1,'-DOE2_QA_INTERACTIONS')
 subprocess.run(args, cwd=ROOT, env=env, check=True)
 print('BREW WebAssembly core built')

@@ -27,6 +27,8 @@ float Film_offsetY(void);
 #endif
 
 #ifdef OE2_WEB_BRIDGE
+/* Presentation-only arrival flash; never changes combat or sprite lifetime. */
+void OE2_projectileImpact(const GameSprite *missile, int flaming);
 /* Host presentation hook: reads the finished world before the original HUD. */
 void OE2_captureWorld(const int16_t *rect);
 void OE2_captureRenderedWorld(Render *render);

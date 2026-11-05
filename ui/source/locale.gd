@@ -3,7 +3,10 @@ extends RefCounted
 ## UI-only localization. BREW game text comes from its original resources.
 static var language: String="ru"
 const UI={
+	"Подберите направление. Следите за замком.":"Find the direction. Watch the lock.",
 	"Скачать сохранение":"Download save","Загрузить копию сохранения":"Import save backup","Копия сохранения скачана":"Save backup downloaded","Копия сохранения восстановлена":"Save backup restored","Не удалось скачать сохранение":"Save download failed","Не удалось загрузить копию сохранения":"Save import failed","Загружаем сохранение…":"Importing save…",
+	"Подберите направление. Жёлтый — верно: нажмите ещё раз. Зелёный — позиция закреплена.":"Find the direction. Yellow means correct: press again. Green means the tumbler is set.",
+	"Позиция %d из %d · Попытки: %d":"Tumbler %d of %d · Attempts: %d","Выберите направление":"Choose a direction","Позиция закреплена":"Tumbler set","Верно! Повторите направление":"Correct! Repeat the direction","Другое направление":"Try another direction",
 	"ВЗЛОМ ЗАМКА":"PICK LOCK","Вверх":"Up","Вниз":"Down","Влево":"Left","Вправо":"Right","Попытки":"Attempts","Отменить взлом":"Cancel lockpicking",
 	"Выберите направление. Верное направление подтвердите повторным нажатием.":"Choose a direction. Confirm a correct direction by pressing it again.","БЫСТРЫЕ ДЕЙСТВИЯ":"QUICK ACTIONS",
 	"Здоровье":"Health","Броня":"Armor","Заряды":"Charges","Оружие":"Weapon",
@@ -11,6 +14,7 @@ const UI={
 	"Шаг влево":"Strafe left","Вперёд":"Forward","Шаг вправо":"Strafe right",
 	"Повернуть влево":"Turn left","Повернуть вправо":"Turn right","Действие / удар":"Action / attack",
 	"Следующее оружие":"Next weapon","Предыдущее оружие":"Previous weapon","Пропустить ход":"Wait a turn",
+	"Отладка":"Debug",
 	"Сохранить":"Save","Загрузить":"Load","Звук":"Sound","Полный экран":"Fullscreen",
 	"Быстро сохранить · F5":"Quick save · F5","Быстро загрузить · F9":"Quick load · F9",
 	"Включить / выключить звук":"Toggle sound","Исходная пиксельная графика · F2":"Original pixel graphics · F2",

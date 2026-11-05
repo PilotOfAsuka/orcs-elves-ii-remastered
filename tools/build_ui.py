@@ -29,6 +29,7 @@ html/canvas_resize_policy=2
 html/focus_canvas_on_start=true
 progressive_web_app/enabled=false
 ''')
+subprocess.run(['python3',str(ROOT/'tools/build_lock_icon.py')],check=True)
 subprocess.run(['python3',str(ROOT/'tools/build_localization.py'),'--strict'],check=True)
 subprocess.run([GODOT, '--headless', '--path', str(ROOT/'ui'), '--editor', '--import', '--quit'], check=True)
 subprocess.run([GODOT, '--headless', '--path', str(ROOT/'ui'), '--export-release', 'Web', str(OUT/'index.html')], check=True)

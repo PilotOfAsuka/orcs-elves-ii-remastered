@@ -1,6 +1,6 @@
 # Remaining work
 
-1. Finish browser playthrough checks: movement, combat, inventory, shops, quests, death, lockpicking, level transitions and ending. Add meaningful replay coverage when those scenarios are established. The trailer now includes an actual first-dungeon movement/combat/map/save sequence; that recording does not replace broader playthrough checks.
+1. Extend the verified map 1/map 3 chest lock scenarios to locked doors, enemy interruptions and later skill levels. Finish browser playthrough checks: movement, combat, inventory, shops, quests, death, lockpicking, level transitions and ending. Add meaningful replay coverage when those scenarios are established. The trailer now includes an actual first-dungeon movement/combat/map/save sequence; that recording does not replace broader playthrough checks.
 2. Complete quick weapon/item selection and review unusual events. Credits, travel labels, notebook and item descriptions now use the separate presentation; check later-game and touch-only flows in longer sessions.
 3. Extend save checks to unavailable/quota-limited storage and longer sessions. Page reload, binary cross-target parity and backup download/import pass; a corrupted backup is rejected without changing saves.
 4. Measure full scenes in the browser on desktop and narrow/mobile layouts. Keep the original simulation rate and optimize rendering/transfer only when measurements justify it. The offline 60 FPS trailer is not an interactive High-performance benchmark.
@@ -8,3 +8,5 @@
 6. Review Russian phrasing and rare dynamically assembled text during a full playthrough. All 1690 original string records now have translations; separate Cyrillic intro/ending text masks and runtime language changes are implemented. Catalog coverage does not replace a whole-game linguistic review.
 7. Remove unused source/reference platform files only when the browser/native targets no longer need them; preserve provenance and GPL credits.
 8. Publish verified updates at the same permanent Pages root on web-build. Keep build hashes and cache busting, preserve the legacy /brew/ redirect, and verify the live release after every publication.
+
+9. Test the private Android APK on actual devices: WebView/GPU compatibility, performance at all qualities, audio/background resume, safe areas and native document-picker backup import/export. APK signing, package contents and responsive Web behavior are verified; no on-device launch is claimed.

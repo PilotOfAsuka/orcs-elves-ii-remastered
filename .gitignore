@@ -10,3 +10,8 @@ __pycache__/
 
 /videos/*.mp4
 /videos/*.png
+
+/android/.private/
+/dist/
+
+/ui/generated/
