@@ -14,3 +14,5 @@
 - No additional agents unless the user asks.
 - Publish verified BREW updates at the existing Pages root on web-build; keep the public URL unchanged. User explicitly requested replacing the former root release.
 - Both modes retain original BREW textures/sprites. Remastered adds lighting and geometric ray shadows; do not restore generated HD art without a new request.
+
+- User preference (2026-11-05): verify the Web build locally before publishing. Do not download public release assets or run extra public-site browser checks after publication unless the user asks; the user will check the live site to save traffic.
