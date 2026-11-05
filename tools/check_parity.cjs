@@ -92,6 +92,11 @@ function crc(bytes){let n=0xffffffff;for(const b of bytes)n=crcTable[(n^b)&255]^
     for(let level=0;level<3;level++){
       Brew.quality(level);let image;
       const measurements=[];for(let i=0;i<3;i++){image=Buffer.from(Brew.image('lit'));measurements.push(Brew.lightMs);}
+      const gpu=Buffer.from(Brew.image('gpu'));
+      assert.equal(gpu.length,image.length,`GPU raster has the full selected quality ${level}`);
+      for(const field of ['xy','zna'])assert.equal(Brew.gpuBuffer(field).length,image.length);
+      assert.equal(Brew.gpuBuffer('shadows').length,1024*384*4);
+      assert.equal(Brew.gpuBuffer('contact').length,129*387*4);
       assert.equal(image.length,176*164*4*(4**level),`actual render buffer at quality ${level}`);
       assert.equal(Brew.json(),before,`quality ${level} cannot mutate model`);
       assert.deepEqual(Buffer.from(Brew.image('world')),classic,`quality ${level} cannot mutate canonical world`);

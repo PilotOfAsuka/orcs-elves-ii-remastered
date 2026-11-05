@@ -49,7 +49,7 @@
     pause(value) { if (!this.context) return; if (value) this.context.suspend(); else this.context.resume(); }
   };
   const Brew = globalThis.Brew = {
-    backupStatus:'', importing:false, qualityLevel: 0, ready: false, error: '', saveError: '', paused: false, tickMs: 0, maxTickMs: 0,
+    backupStatus:'', importing:false, qualityLevel: 0, ready: false, error: '', saveError: '', paused: false, tickMs: 0, maxTickMs: 0, presentationMs:0, gpuActive:false, gpuFailed:false, gpuFrameReady:false,
     async init({ persist = typeof document !== 'undefined', seed } = {}) {
       if (this.ready) return this;
       core = await globalThis.createBrewModule({ locateFile: file => base + file + version });
@@ -107,15 +107,26 @@
       if (kind === 'story_base') { pointer=core._oe2_story_base();length=176*176*4; }
       else if(kind==='travel'){pointer=core._oe2_travel();length=176*203*4;}
       else if (kind === 'story') { pointer = core._oe2_story(); length = 176 * 176 * 4; }
-      else if (kind === 'world' || kind === 'lit' || kind === 'classic') {
+      else if (kind === 'world' || kind === 'lit' || kind === 'gpu' || kind === 'classic') {
         const start=performance.now();
-        pointer=kind==='lit'?core._oe2_lit_world():(kind==='classic'?core._oe2_classic_world():core._oe2_world());
-        this.lightMs=kind==='lit'?performance.now()-start:0;
-        length=core._oe2_world_width()*core._oe2_world_height()*4*(kind==='lit'?4**this.qualityLevel:1);
+        pointer=kind==='gpu'?core._oe2_gpu_world():kind==='lit'?core._oe2_lit_world():(kind==='classic'?core._oe2_classic_world():core._oe2_world());
+        this.lightMs=(kind==='lit'||kind==='gpu')?performance.now()-start:0;
+        if(kind==='gpu'){this.gpuFrameReady=!!pointer;if(!pointer)this.gpuFailed=true;}
+        if(!pointer)return new Uint8Array();
+        length=core._oe2_world_width()*core._oe2_world_height()*4*((kind==='lit'||kind==='gpu')?4**this.qualityLevel:1);
       }
       else { pointer = core._oe2_frame(); length = 176 * 220 * 4; }
       return core.HEAPU8.subarray(pointer, pointer + length);
     },
+    gpuLightingEnabled() { return !this.gpuFailed && typeof core?._oe2_gpu_world==='function' && (typeof location==='undefined'||new URLSearchParams(location.search).get('lighting')!=='cpu'); },
+    gpuBuffer(kind) {
+      const pointer=kind==='xy'?core._oe2_gpu_xy():kind==='zna'?core._oe2_gpu_zna():kind==='contact'?core._oe2_gpu_contact():core._oe2_gpu_shadows();
+      const length=kind==='contact'?129*387*4:kind==='shadows'?1024*384*4:core._oe2_world_width()*core._oe2_world_height()*4*4**this.qualityLevel;
+      return core.HEAPU8.subarray(pointer,pointer+length);
+    },
+    gpuParameters() { return JSON.stringify(Array.from(new Float32Array(core.HEAPU8.buffer,core._oe2_gpu_params(),112))); },
+    gpuShadowRevision() { return core._oe2_gpu_shadow_revision(); },
+    gpuContactRevision() { return core._oe2_gpu_contact_revision(); },
     sync() {
       if (!this.persist) return;
       clearTimeout(syncTimer);

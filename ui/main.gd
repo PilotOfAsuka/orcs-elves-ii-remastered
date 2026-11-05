@@ -47,6 +47,7 @@ const RU_INTRO=[preload("res://localized/ru/intro_0.svg"),preload("res://localiz
 const RU_ENDING=[preload("res://localized/ru/ending_0.svg"),preload("res://localized/ru/ending_1.svg")]
 var held_action: int=0
 var repeat_in: float=0
+var gpu_lighting: OEGPULighting
 
 func _ready() -> void:
 	theme=OESkin.make_theme()
@@ -230,7 +231,15 @@ func _process(delta: float) -> void:
 	var image_key: String=kind+":"+str(revision)+":"+str(remastered)+":"+str(quality_index)+":"+OEText.language
 	if remastered and kind=="world" and game_state!=2: image_key+=":"+str(state.ticks)
 	if image_key!=last_image_key:
-		var raw: Variant=brew.image(("lit" if remastered else "classic") if kind=="world" else kind)
+		var use_gpu: bool=remastered and kind=="world" and bool(brew.gpuLightingEnabled())
+		var upload_started: int=Time.get_ticks_usec()
+		var raw: Variant=brew.image(("gpu" if use_gpu else "lit" if remastered else "classic") if kind=="world" else kind)
+		if use_gpu and not bool(brew.gpuFrameReady):use_gpu=false;raw=brew.image("lit")
+		if use_gpu:
+			if gpu_lighting==null:gpu_lighting=OEGPULighting.new()
+			if not gpu_lighting.update(brew,dimensions):
+				use_gpu=false;raw=brew.image("lit")
+		picture.material=gpu_lighting.material if use_gpu else null
 		var pixels: PackedByteArray=raw if raw is PackedByteArray else JavaScriptBridge.js_buffer_to_packed_byte_array(raw)
 		if pixels.size()!=dimensions.x*dimensions.y*4:
 			push_error("BREW image transport: type %s, bytes %d" % [type_string(typeof(raw)),pixels.size()]);return
@@ -238,6 +247,8 @@ func _process(delta: float) -> void:
 		if texture==null or dimensions!=image_size:
 			texture=ImageTexture.create_from_image(next);picture.texture=texture;image_size=dimensions
 		else: texture.update(next)
+		brew.presentationMs=(Time.get_ticks_usec()-upload_started)/1000.0
+		brew.gpuActive=use_gpu
 		last_image_key=image_key
 	debug_overlay.visible=debug_enabled and game_state in [3,4,5,17]
 	debug_elapsed+=delta;debug_frames+=1
@@ -245,8 +256,8 @@ func _process(delta: float) -> void:
 		var fps: float=debug_frames/maxf(0.001,debug_elapsed)
 		debug_frames=0;debug_elapsed=0
 		if debug_overlay.visible:
-			var timing: String="Шаг %.1f мс · Ремастер %.1f мс" if OEText.language=="ru" else "Core %.1f ms · Remaster %.1f ms"
-			debug_overlay.text=("FPS %.0f · %d×%d\n" % [fps,image_size.x,image_size.y])+(timing % [float(brew.tickMs),float(brew.lightMs) if remastered else 0.0])
+			var timing: String="Шаг %.1f мс · Подготовка %.1f мс" if OEText.language=="ru" else "Core %.1f ms · Prepare %.1f ms"
+			debug_overlay.text=("FPS %.0f · %d×%d%s\n" % [fps,image_size.x,image_size.y," · GPU" if bool(brew.gpuActive) and remastered else ""])+(timing % [float(brew.tickMs),float(brew.presentationMs) if remastered else 0.0])
 	if is_instance_valid(backup_notice): backup_notice.text=OEText.localize(str(brew.backupStatus))
 	status.text=""
 	if not str(brew.saveError).is_empty(): status.text=OEText.localize("Не удалось сохранить")

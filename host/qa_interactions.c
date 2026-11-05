@@ -98,6 +98,12 @@ QA int oe2_qa_lamp_state(int tile,int state){
  }
  return -1;
 }
+QA int oe2_qa_lamp_position(int tile,int field){
+ for(int i=0;i<g_app->render->numMapSprites;i++){
+  Sprite *s=&g_app->render->sprites[i];if((s->info&255)==tile)return field==0?i:field==1?s->x:field==2?s->y:s->z;
+ }
+ return -1;
+}
 QA void oe2_qa_dialogue(int style){
  Render *r=g_app->render;int text=0;
  for(int i=0;i<r->numByteCodes;i++)if(r->byteCodes[i*3]==8&&(r->byteCodes[i*3+1]&255)==style){text=(uint32_t)r->byteCodes[i*3+1]>>16;break;}
@@ -135,7 +141,11 @@ extern double BrewLight_qaProfile(int);
 extern int BrewLight_qaSourcePoint(int,int);
 QA void oe2_qa_light_cost(int mode){BrewLight_qaCostMode(mode);}
 QA double oe2_qa_light_profile(int field){return BrewLight_qaProfile(field);}
+extern const uint32_t *BrewLight_gpuTestFrame(void);
+QA const uint32_t *oe2_qa_gpu_reference(void){return BrewLight_gpuTestFrame();}
 QA int oe2_qa_light_point(int index,int field){return BrewLight_qaSourcePoint(index,field);}
+QA int oe2_qa_light_clear(int ax,int ay,int bx,int by){return BrewLight_visible(g_app->render,ax,ay,32,bx,by,32);}
+QA int oe2_qa_light_floor(int x,int y){return x>=0&&x<32&&y>=0&&y<32&&g_app->render->floorTiles[y*32+x]!=NULL;}
 QA void oe2_qa_light_view(int x,int y,int angle){
  Canvas *c=g_app->canvas;g_app->game->disableAI=1;
  MenuSystem_setMenu(g_app->menuSystem,0);

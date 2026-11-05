@@ -764,3 +764,4 @@ static const uint32_t *present(const uint32_t *original,int w,int h,int lighting
 }
 const uint32_t *BrewLight_render(const uint32_t *original,int w,int h){return present(original,w,h,1);}
 const uint32_t *BrewLight_classic(const uint32_t *original,int w,int h){return present(original,w,h,0);}
+#include "lighting_gpu.inc"

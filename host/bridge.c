@@ -186,6 +186,14 @@ API int oe2_world_height(void) { return worldH; }
 API int oe2_world_revision(void) { return worldRevision; }
 API const uint32_t *oe2_world(void) { return worldPixels; }
 API const uint32_t *oe2_lit_world(void) { return BrewView_lit(worldPixels,worldW,worldH); }
+API const uint32_t *oe2_gpu_world(void) { return BrewView_gpu(worldPixels,worldW,worldH); }
+API const uint32_t *oe2_gpu_xy(void){return BrewLight_gpuXY();}
+API const uint32_t *oe2_gpu_zna(void){return BrewLight_gpuZNA();}
+API const uint32_t *oe2_gpu_shadows(void){return BrewLight_gpuShadows();}
+API const float *oe2_gpu_params(void){return BrewLight_gpuParams();}
+API unsigned oe2_gpu_shadow_revision(void){return BrewLight_gpuShadowRevision();}
+API const uint32_t *oe2_gpu_contact(void){return BrewLight_gpuContact();}
+API unsigned oe2_gpu_contact_revision(void){return BrewLight_gpuContactRevision();}
 API const uint32_t *oe2_classic_world(void) { return worldW==176&&worldH==164?classicPixels:worldPixels; }
 API void oe2_light_distance(int steps){BrewLight_setRange(steps);}
 API void oe2_quality(int level) { BrewView_setQuality(level); }

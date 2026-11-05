@@ -285,3 +285,63 @@ adjustment. The attack anchor and native textures are unchanged.
 anchors at every render quality. Before/after captures and an additional 24
 in-dungeon poses are recorded locally. The correction is applied before command
 recording, so Classic and all Remastered resolutions share the corrected anchor.
+
+
+## GPU deferred browser lighting — 2026-11-06 (local)
+
+The browser now uses a CanvasItem shader on Godot's existing WebGL 2 context.
+The C software lighting pass remains the reference and `?lighting=cpu` fallback.
+The original BREW renderer still resolves textures, animation, depth and silhouettes
+at the actual selected 176×164 / 352×328 / 704×656 resolution. Gameplay is still
+one 40 ms BREW simulation; no GPU gameplay or alternate saved-game format exists.
+
+C exports the original RGBA raster and two full-resolution RGBA8 byte textures:
+16-bit world xy, 16-bit z, normal direction, receiver flags and an exact shadow
+plane correction. Coordinates normally have 1/16-world-unit precision. Very
+close point-source receivers use source-relative 1/16384-unit precision, avoiding
+normal-response spikes from rounding an emitter's own billboard. Receiver axis
+and plane selection are preserved explicitly at diagonal/cell boundaries.
+No floating-point texture/render-target extension is required.
+
+The existing three-ray wall/door and sprite-silhouette visibility cache supplies
+a 1024×384 RGBA8 atlas. Its two packed 16-bit halves hold all eight source counts
+with/without sprite blockers. Only actual receiving cells are resolved lazily;
+span and per-frame cell caches avoid repeating the same work for nearby pixels.
+This is not compilation of all level/light variants. Doors, source removal,
+moving actors, incoming missiles and expiry still invalidate/update the live
+inputs. A small 129×387 byte atlas stores the three contact-distance layers.
+Visibility/contact atlases are uploaded only when their contents change.
+
+The GPU evaluates every material pixel's distance falloff, facing term, colored
+source sum, visibility interpolation, contact shade, tone mapping, haze and halos.
+The original source powers, fixed 120% appearance, 5/15/20-cell circle, eight-slot
+budget, alpha silhouettes, Staff bottom anchor and Flaming Sword anchors remain.
+There is no finished-frame upscaling or GPU-to-CPU readback in the game. Test-only
+readback verifies real WebGL output against an independent C byte-contract decoder.
+
+The debug overlay identifies GPU and reports full preparation/transport time,
+not GPU execution time; FPS remains the actual interface frame cadence. Desktop
+results are not iPhone FPS estimates. `check_gpu_lighting.cjs` surveys eight
+reachable-cell views in all seven original maps at all presets/qualities and
+checks extinguish/relight/arrival/expiry. `check_gpu_walk.cjs` uses actual native
+move/turn inputs in disposable Dwarkar games (AI disabled to isolate rendering).
+`run_gpu_browser_check.cjs` validates the shared shader on Metal/WebGL;
+its `ui` mode validates Godot texture/uniform wiring and compares both backends.
+Generated cores, pixel data, browser profiles and results remain ignored/local.
+
+
+Final local Dwarkar Godot measurements (Apple M1, same pose, 100 UI frames):
+Medium preparation/transfer 10.27 → 7.18 ms; High 24.99 → 16.88 ms. Both were
+at approximately 60 UI FPS on this desktop; this is not a phone FPS result.
+A separate actual-input route uses 1254 advancing frames per backend, with
+identical moves/events. Its CPU-only medians are 8.49/26.25 ms (Medium/High),
+versus GPU preparation 3.94/14.96 ms before transfer and GPU draw. Fifteen real
+WebGL fixtures match the byte-contract decoder within 1/255. The 504 old/new
+render comparisons have maximum channel difference 10/255 and worst aggregate
+RMSE 0.168/255. Normal model/Classic/save native-WASM parity still passes.
+
+Reproduce locally by building `build_core.py --qa` and the normal core/UI,
+running `check_gpu_lighting.cjs`, then `check_gpu_walk.cjs cpu` and `gpu` in
+separate processes. `prepare_gpu_preview.py` stages a nonpersistent QA copy;
+`run_gpu_browser_check.cjs` and its `ui` mode use their own loopback server and
+Chrome profile. Never point these fixtures at the user's active browser/save.

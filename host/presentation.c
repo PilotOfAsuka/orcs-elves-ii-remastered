@@ -35,8 +35,8 @@ void BrewView_effect(Render *r,int type,int value){
  add((Command){.type=type,.args={value}});
 }
 void BrewView_setQuality(int level){quality=level>=0&&level<=2?level:0;}
-const uint32_t *BrewView_lit(const uint32_t *original,int width,int height){
- if(!valid||width!=176||height<1||height>220||(!quality&&nativeLive))return BrewLight_render(original,width,height);
+static const uint32_t *view(const uint32_t *original,int width,int height,int gpu){
+ if(!valid||width!=176||height<1||height>220||(!quality&&nativeLive))return gpu?BrewLight_gpu(original,width,height):BrewLight_render(original,width,height);
  if(!target)target=malloc(sizeof(Render));
  if(!pixels)pixels=malloc(MAX_VIEW_PIXELS*sizeof(uint16_t));
  if(!rgbaPixels)rgbaPixels=malloc(MAX_VIEW_PIXELS*sizeof(uint32_t));
@@ -75,8 +75,10 @@ const uint32_t *BrewView_lit(const uint32_t *original,int width,int height){
  }
  replaying=0;for(int i=0;i<13;i++)if(drawers[i])((SpanDrawer *)drawers[i])->render=old[i];
  for(int i=0;i<w*h;i++){uint16_t c=pixels[i];rgbaPixels[i]=(((c>>11)&31)*255/31)|((((c>>5)&63)*255/63)<<8)|(((c&31)*255/31)<<16)|0xff000000u;}
- return BrewLight_render(rgbaPixels,w,h);
+ return gpu?BrewLight_gpu(rgbaPixels,w,h):BrewLight_render(rgbaPixels,w,h);
 }
+const uint32_t *BrewView_lit(const uint32_t *original,int width,int height){return view(original,width,height,0);}
+const uint32_t *BrewView_gpu(const uint32_t *original,int width,int height){return view(original,width,height,1);}
 
 #ifdef OE2_QA_INTERACTIONS
 int BrewView_qaSpriteCommand(int index,int field){

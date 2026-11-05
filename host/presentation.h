@@ -7,4 +7,5 @@ void BrewView_sprite(Render *r,int sprite,int frame,int x,int y,int a,int blend,
 void BrewView_effect(Render *r,int type,int value);
 void BrewView_setQuality(int level);
 const uint32_t *BrewView_lit(const uint32_t *original,int width,int height);
+const uint32_t *BrewView_gpu(const uint32_t *original,int width,int height);
 #endif

@@ -26,3 +26,5 @@
 - The user additionally authorized immediate Web publication of the 5/15/20-step adjustment. The weapon PNG artist handoff remains a local downloadable artifact.
 
 - The user authorized Web publication after the full-circle lighting and Flaming Sword alignment fixes. Limit verification to the requested focused checks; do not interact with their live game or recheck public assets in a browser.
+
+- Current request: investigate slow dynamic lighting in Dwarkar/Gnomgrad and other locations, including GPU acceleration. Isolated renderer/browser measurements and disposable native-input walks are authorized for this investigation; never drive/reload the user's live game or touch their saves. Keep this new revision local pending a new publication request.
