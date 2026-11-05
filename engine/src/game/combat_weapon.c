@@ -164,11 +164,14 @@ void Combat_drawWeapon(Combat *combat)
 	w = player->ce.weapon;
 	int mode = 0;
 	switch (w) {
-	case 7: /* hammer: arm layer, then the head */
+	case 7: /* Flaming Sword: base layer, then animated fire */
 		drawSprite(8, frame, x, y, 0, blend, flip);
 		if (frame == 0) {
 			frame = now / 200 % 4 + 2;
-			x = screenX(scale, wx - 0x13);
+			/* ARM 0x130f0 uses centre + scale*(wx-19) directly.
+			 * screenX already subtracts 32: pass wx+13 to avoid subtracting
+			 * that centre offset twice from the flame layer. */
+			x = screenX(scale, wx + 0xd);
 			y = screenY(scale, wy - 0xd);
 		} else if (frame == 1) {
 			frame = 6;

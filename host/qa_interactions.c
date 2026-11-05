@@ -156,5 +156,26 @@ QA void oe2_qa_focus_label(int label,int fallback){
  g_app->player->facingEntity=&entity;g_app->hud->targetEnt=NULL;
 }
 
-extern int BrewLight_qaConeCheck(void);
-QA int oe2_qa_light_cone(void){return BrewLight_qaConeCheck();}
+extern int BrewLight_qaRadiusCheck(void);
+extern int BrewLight_qaSelectedKey(int);
+QA int oe2_qa_light_region(void){return BrewLight_qaRadiusCheck();}
+QA int oe2_qa_light_selected(int index){return BrewLight_qaSelectedKey(index);}
+
+/* Isolated presentation fixtures; they never touch persistent user files. */
+#include "presentation.h"
+extern void OE2_captureRenderedWorld(Render *);
+extern int BrewView_qaSpriteCommand(int,int);
+QA int oe2_qa_weapon_command(int index,int field){return BrewView_qaSpriteCommand(index,field);}
+QA void oe2_qa_sword_pose(int attack,int phase,int isolated){
+ Canvas *c=g_app->canvas;Player *p=g_app->player;Combat *combat=g_app->combat;Render *r=g_app->render;
+ int now=80000+(phase&3)*200;Plat_setVirtualClock(1,(uint32_t)now);g_app->time=now;
+ g_app->game->disableAI=1;MenuSystem_setMenu(g_app->menuSystem,0);
+ p->weapons|=1u<<7;p->ce.weapon=7;p->isFamiliar=0;p->facingEntity=NULL;p->statusEffects[9].turns=0;p->f264=0;
+ combat->attacker=NULL;combat->state=0;combat->toggle=attack!=0;combat->bobTimer=-1;combat->raiseFlag=0;
+ c->state=attack?4:3;r->shakeX=r->shakeY=0;r->drunkLevel=0;
+ r->dbgSkipFlats=isolated!=0;
+ if(!isolated){Canvas_renderView(c,c->viewX,c->viewY,c->viewAngle);return;}
+ BrewView_begin(r);BrewLight_begin(r);
+ for(int y=0;y<r->height;y++)memset(r->framebuffer+y*(r->fbDib->nPitch/2),0,(size_t)r->width*sizeof(uint16_t));
+ Combat_drawWeapon(combat);OE2_captureRenderedWorld(r);
+}

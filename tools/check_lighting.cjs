@@ -3,7 +3,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const{boot,root}=require('./cinematic/common.cjs');
 (async()=>{
  const g=await boot({coreDirectory:path.join(root,'build/qa-core')}),{Brew,core}=g,scenes=[[4,992,1504,586],[5,1248,1056,512],[6,1184,1056,768]],results=[];
- assert.equal(core._oe2_qa_light_cone(),1,'finite processing cones preserve near sources and off-screen influence');
+ assert.equal(core._oe2_qa_light_region(),1,'radial processing retains source influence in every direction');
  for(const[map,x,y,angle]of scenes){
   core._oe2_qa_map(map);let stable=0;for(let n=0;n<1600;n++){const s=g.step(40);if(s.state===7)Brew.continueText();if([8,11,13].includes(s.state))Brew.key(0xe037);if(s.state===3&&!s.cinematic_active){if(++stable>8)break;}else stable=0;}
   assert.equal(g.model().map_id,map);assert.equal(core._oe2_qa_light_rays(),1,'48,000 accelerated/reference rays, original and changed walls');

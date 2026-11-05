@@ -256,3 +256,32 @@ Settings now persist `low`, `medium` or `high` in
 `oe2-brew-light-processing-preset`. Previous 4/7/10-step and 150/250/500-percent
 preferences migrate by preset identity. No new performance or gameplay checks
 are claimed for this user-playtested adjustment.
+
+
+## Current full-circle processing (view cone removed)
+
+At the user's request, the processing region is now a full 360-degree circle of
+5/15/20 cells around the controlled first-person position. There is no angular
+or camera-frustum rejection. The finite radius remains conservative for emitter
+falloff disks, and receivers/halos retain the final-cell fade. Source appearance
+stays at the fixed former 120% reference. An incumbent score preference reduces
+near-equal source swaps within the existing light-slot budget; source flicker
+phases continue to follow source identity.
+
+`check_radius_lighting.cjs` verifies the real selected light identities over 144
+look directions in maps 4/5/6 and all presets. This is a targeted source-selection
+check, not a new end-to-end performance claim. Earlier view-cone measurements and
+implementation descriptions are historical.
+
+## Flaming Sword attachment correction
+
+The original MOD's ARM instructions at 0x130f0..0x13100 compute the idle flame x
+anchor directly as screenCenterX + scale×(weaponX−19). The reconstructed C caller
+passed weaponX−19 into screenX, which subtracts another 32 internally. Supplying
+weaponX+13 restores the original formula while retaining the original −13 y
+adjustment. The attack anchor and native textures are unchanged.
+
+`check_sword_alignment.cjs` checks 24 original-layer poses against ARM-derived
+anchors at every render quality. Before/after captures and an additional 24
+in-dungeon poses are recorded locally. The correction is applied before command
+recording, so Classic and all Remastered resolutions share the corrected anchor.

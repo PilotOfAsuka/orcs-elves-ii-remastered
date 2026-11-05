@@ -77,3 +77,10 @@ const uint32_t *BrewView_lit(const uint32_t *original,int width,int height){
  for(int i=0;i<w*h;i++){uint16_t c=pixels[i];rgbaPixels[i]=(((c>>11)&31)*255/31)|((((c>>5)&63)*255/63)<<8)|(((c&31)*255/31)<<16)|0xff000000u;}
  return BrewLight_render(rgbaPixels,w,h);
 }
+
+#ifdef OE2_QA_INTERACTIONS
+int BrewView_qaSpriteCommand(int index,int field){
+ for(int i=0;i<count;i++)if(commands[i].type==2){if(index--==0)return field>=0&&field<8?commands[i].args[field]:-1;}
+ return -1;
+}
+#endif

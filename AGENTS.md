@@ -24,3 +24,5 @@
 - User explicitly authorized publication of the prepared Web build on 2026-11-06. Publish this approved version at the existing Pages root; do not build/upload an APK. Preserve the preference against extra public-page/asset checks and user-game interaction.
 
 - The user additionally authorized immediate Web publication of the 5/15/20-step adjustment. The weapon PNG artist handoff remains a local downloadable artifact.
+
+- The user authorized Web publication after the full-circle lighting and Flaming Sword alignment fixes. Limit verification to the requested focused checks; do not interact with their live game or recheck public assets in a browser.

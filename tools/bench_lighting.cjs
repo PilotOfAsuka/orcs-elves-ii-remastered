@@ -28,7 +28,7 @@ const median=a=>[...a].sort((a,b)=>a-b)[Math.floor(a.length/2)];
    Brew.lightDistance(reach);Brew.quality(quality);core._oe2_qa_light_view(scene.x,scene.y,scene.angle);
    const before=Brew.json(),classic=Buffer.from(Brew.image('world')),coldStart=performance.now();let pixels=Buffer.from(Brew.image('lit'));const cold=performance.now()-coldStart;
    const warm=[],stages=[];for(let i=0;i<8;i++){pixels=Buffer.from(Brew.image('lit'));warm.push(Brew.lightMs);stages.push([0,1,2].map(k=>core._oe2_qa_light_profile(k)));}
-   const sourceStats={lights:core._oe2_qa_light_profile(3),casters:core._oe2_qa_light_profile(4),sourceCandidates:core._oe2_qa_light_profile(5),coneCulled:core._oe2_qa_light_profile(6)};
+   const sourceStats={lights:core._oe2_qa_light_profile(3),casters:core._oe2_qa_light_profile(4),sourceCandidates:core._oe2_qa_light_profile(5),radiusCulled:core._oe2_qa_light_profile(6)};
    assert.equal(Brew.json(),before);assert.deepEqual(Buffer.from(Brew.image('world')),classic);
    const name=`map${map}-r${reach}-q${quality}`,digest=hash(pixels);fs.writeFileSync(path.join(out,name+'.rgba'),pixels);
    const motion=[];const hashes=[];

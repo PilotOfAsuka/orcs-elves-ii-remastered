@@ -71,6 +71,8 @@ static Render *renderer;
 #define LIGHT_REFERENCE_SCALE 1.2f
 #define WALK_STEP 64.f
 static int processingSteps=5;
+static float processingX,processingY;
+static int retainedKeys[7],retainedCount,retainedMap=-1;
 void BrewLight_setRange(int steps){processingSteps=steps<5?5:steps>20?20:steps;}
 static float fx,fy,rx,ry;
 static float clampf(float x,float a,float b){return x<a?a:x>b?b:x;}
@@ -285,40 +287,37 @@ int BrewLight_qaTraceCheck(void){
 /* Only direct lighting/shadows are evaluated inside the processing region.
  * The final step fades to ambient; source powers and physical falloff stay fixed. */
 static float worldLightWeight(float x,float y){
- float dx=x-renderer->viewX,dy=y-renderer->viewY,d2=dx*dx+dy*dy;
+ float dx=x-processingX,dy=y-processingY,d2=dx*dx+dy*dy;
  float reach=processingSteps*WALK_STEP,start=reach-WALK_STEP;
  if(d2>=reach*reach)return 0;
  if(d2<=start*start)return 1;
  float t=(reach-sqrtf(d2))/WALK_STEP;return t*t*(3-2*t);
 }
-/* Finite 90-degree view cone plus a three-step neighborhood in all directions.
- * Expand by each source's influence so off-screen spill is retained. */
-static int lightInView(float forward,float lateral,float distanceSquared,float radius){
- float reach=processingSteps*WALK_STEP+radius;
- if(distanceSquared>reach*reach)return 0;
- float near=192+radius;
- if(distanceSquared<=near*near)return 1;
- float margin=radius*1.415f+1;
- return forward+radius+1>=0&&forward+lateral>=-margin&&forward-lateral>=-margin;
+/* Processing is a full circle around the controlled player. Retain a source
+ * whose influence disk intersects it, regardless of camera direction. */
+static int lightInRegion(float distanceSquared,float radius){
+ float reach=processingSteps*WALK_STEP+radius;return distanceSquared<=reach*reach;
+}
+static float selectionScore(int key,float distanceSquared){
+ /* A challenger must be meaningfully closer before displacing an incumbent.
+  * This prevents near-equal sources from swapping every movement substep. */
+ for(int i=0;i<retainedCount;i++)if(retainedKeys[i]==key)return distanceSquared*.8f;
+ return distanceSquared;
 }
 #ifdef OE2_QA_INTERACTIONS
-int BrewLight_qaConeCheck(void){
- int saved=processingSteps,valid=1;const int levels[]={5,15,20},radii[]={50,150,300,600};
- for(int level=0;level<3&&valid;level++){
+int BrewLight_qaRadiusCheck(void){
+ int saved=processingSteps,valid=1;const int levels[]={5,15,20};
+ for(int level=0;level<3;level++){
   processingSteps=levels[level];float reach=processingSteps*WALK_STEP;
-  for(int angle=0;angle<64;angle++){float a=angle*6.28318530718f/64;if(!lightInView(cosf(a)*180,sinf(a)*180,180*180,40))valid=0;}
-  if(!lightInView(-250,0,250*250,300)||lightInView(reach+301,0,(reach+301)*(reach+301),300))valid=0;
-  for(int r=0;r<4&&valid;r++)for(int x=-800;x<=800;x+=37)for(int y=-800;y<=800;y+=37){
-   if(lightInView(x,y,x*x+y*y,radii[r]))continue;
-   for(int depth=0;depth<=reach;depth+=64)for(int side=-4;side<=4;side++){
-    float lateral=depth*side*.25f;if(depth*depth+lateral*lateral>reach*reach)continue;
-    float dx=x-depth,dy=y-lateral;
-    if(dx*dx+dy*dy<radii[r]*radii[r])valid=0;
-   }
+  for(int angle=0;angle<64;angle++){
+   float a=angle*6.28318530718f/64,x=cosf(a)*(reach+40),y=sinf(a)*(reach+40);
+   if(!lightInRegion(x*x+y*y,50))valid=0;
+   x=cosf(a)*(reach+60);y=sinf(a)*(reach+60);if(lightInRegion(x*x+y*y,50))valid=0;
   }
  }
  processingSteps=saved;return valid;
 }
+int BrewLight_qaSelectedKey(int index){return index>=0&&index<numLights?lights[index].key:-1;}
 #endif
 static void candidate(Light value,float cx,float cy){
  value.radius*=LIGHT_REFERENCE_SCALE;
@@ -326,8 +325,7 @@ static void candidate(Light value,float cx,float cy){
 #ifdef OE2_QA_INTERACTIONS
  profile[5]++;
 #endif
- float dx=value.x-cx,dy=value.y-cy;
- if(!lightInView(dx*fx+dy*fy,dx*rx+dy*ry,d,value.radius)){
+ if(!lightInRegion(d,value.radius)){
 #ifdef OE2_QA_INTERACTIONS
   profile[6]++;
 #endif
@@ -337,9 +335,9 @@ static void candidate(Light value,float cx,float cy){
  int worst=0;float far=-1;
  for(int i=0;i<7;i++){
   if(lights[i].key>=3000&&lights[i].key<3008&&!(value.key>=3000&&value.key<3008))continue;
-  float a=lights[i].x-cx,b=lights[i].y-cy,n=a*a+b*b;if(n>far){far=n;worst=i;}
+  float a=lights[i].x-cx,b=lights[i].y-cy,n=selectionScore(lights[i].key,a*a+b*b);if(n>far){far=n;worst=i;}
  }
- if(far>=0&&((value.key>=3000&&value.key<3008)||d<far))lights[worst]=value;
+ if(far>=0&&((value.key>=3000&&value.key<3008)||selectionScore(value.key,d)<far))lights[worst]=value;
 }
 /* Wall identities 61/69 contain the small candle in the skull-and-bars niche.
  * The flame is at texel (79,91) of the original 117-square artwork. z1/z2
@@ -363,7 +361,7 @@ static void wallCandles(Render *r,const Line *line,int key,float zOffset){
     float sign=side?-1:1;
     Light l={line->x1+t*dx-sign*dy/len*4,line->y1+t*dy+sign*dx/len*4,z,
      1,.63f,.24f,155,1.4f,1,key+piece*64+(repeat-first)*2+side};
-    candidate(l,r->viewX,r->viewY);
+    candidate(l,processingX,processingY);
    }
   }
   if(!multi)break;
@@ -394,8 +392,8 @@ static void spriteWallCandle(Render *r,const Sprite *s,int key){
 static int wallCandlesEnabled=1;
 void BrewLight_qaWallCandles(int enabled){wallCandlesEnabled=enabled!=0;}
 int BrewLight_qaCandleGeometry(void){
- Light saved[8];memcpy(saved,lights,sizeof(saved));int oldCount=numLights;
- Render *r=calloc(1,sizeof(Render));r->viewX=64;r->viewY=32;r->ceilHeight=64;
+ Light saved[8];memcpy(saved,lights,sizeof(saved));int oldCount=numLights;float oldX=processingX,oldY=processingY;
+ Render *r=calloc(1,sizeof(Render));r->viewX=64;r->viewY=32;r->ceilHeight=64;processingX=64;processingY=32;
  Line l={.x1=0,.y1=0,.x2=128,.y2=0,.z1=0,.z2=128,.texture=61};
  float flame=79.f*64/117;
  numLights=0;wallCandles(r,&l,10000,0);
@@ -406,7 +404,7 @@ int BrewLight_qaCandleGeometry(void){
  l.flags=HIDDEN;numLights=0;wallCandles(r,&l,10000,0);ok&=numLights==0;
  l.flags=0;r->effFloor=30;wallCandles(r,&l,10000,0);ok&=numLights==0;
  l.flags=0x10000;l.texture2=69;r->ceilHeight=128;numLights=0;wallCandles(r,&l,10000,0);ok&=numLights==4;
- free(r);memcpy(lights,saved,sizeof(saved));numLights=oldCount;return ok;
+ free(r);memcpy(lights,saved,sizeof(saved));numLights=oldCount;processingX=oldX;processingY=oldY;return ok;
 }
 #endif
 #ifdef OE2_QA_INTERACTIONS
@@ -428,16 +426,19 @@ static void gather(Render *r){
 #ifdef OE2_QA_INTERACTIONS
  profile[5]=profile[6]=0;
 #endif
+ Canvas *view=g_app->canvas;
+ processingX=view->viewX;processingY=view->viewY;
+ if(retainedMap!=view->mapId){retainedMap=view->mapId;retainedCount=0;}
  numLights=0;
  for(int i=0;i<8;i++){
   const Impact *impact=&impacts[i];int age=g_app->time-impact->time;
   if(!impact->active||impact->map!=g_app->canvas->mapId||age<0||age>=320)continue;
   Light l=impact->light;float decay=1-age/320.f;l.power*=decay*decay;
-  candidate(l,r->viewX,r->viewY);
+  candidate(l,processingX,processingY);
  }
  for(int i=0;i<r->numSprites&&i<800;i++){
   Sprite *s=&r->sprites[i];const Source *p=sourceForSprite(s);if(!p)continue;
-  Light l={(float)s->x,(float)s->y,s->z+p->height,p->r,p->g,p->b,p->radius,p->power,p->flicker,i};candidate(l,r->viewX,r->viewY);
+  Light l={(float)s->x,(float)s->y,s->z+p->height,p->r,p->g,p->b,p->radius,p->power,p->flicker,i};candidate(l,processingX,processingY);
  }
  #ifdef OE2_QA_INTERACTIONS
  if(wallCandlesEnabled)
@@ -456,10 +457,11 @@ static void gather(Render *r){
   if(address<base||address>=base+sizeof(r->flats))continue;
   ptrdiff_t slot=(ptrdiff_t)((address-base)/(4096*sizeof(uint16_t)));
   if(slot>=0&&slot<r->numFlats&&r->flatIds[slot]==199){
-   Light l={(i%32)*64.f+32,(i/32)*64.f+32,r->effFloor+4.f,1,.25f,.04f,160,1.0f,1,1000+i};candidate(l,r->viewX,r->viewY);
+   Light l={(i%32)*64.f+32,(i/32)*64.f+32,r->effFloor+4.f,1,.25f,.04f,160,1.0f,1,1000+i};candidate(l,processingX,processingY);
   }
  }
  for(int i=0;i<numLights;i++)for(int j=i+1;j<numLights;j++)if(lights[j].key<lights[i].key){Light a=lights[i];lights[i]=lights[j];lights[j]=a;}
+ retainedCount=numLights;for(int i=0;i<retainedCount;i++)retainedKeys[i]=lights[i].key;
  Player *p=g_app->player;Canvas *c=g_app->canvas;
  if(p->weapons&&(p->ce.weapon==0||p->ce.weapon==7||p->ce.weapon>=8)){
   int w=p->ce.weapon;float a=(c->viewAngle&1023)*(6.28318530718f/1024);
