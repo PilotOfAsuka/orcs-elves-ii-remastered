@@ -2,11 +2,11 @@
   "engine": "BREW",
   "game_version": "7.0.41",
   "source_branch": "codex/brew-port",
-  "source_revision": "cc740a9a841054265ae6cb1fd9d6e50f722b37f5",
+  "source_revision": "66fd4d0321c060108f24a6a89f9ff3247c70256a",
   "files": {
     "index.html": {
       "bytes": 5501,
-      "sha256": "7918ebe72445e0ba9103a3760068c98b2d53ce2525faa9312c2ed0b322d2f415"
+      "sha256": "4175cadbcb66177e35b4b4f5f8f73dd7189b3ff4eaae1f1292db78e4c81c2d81"
     },
     "index.js": {
       "bytes": 279815,
@@ -34,11 +34,11 @@
     },
     "brew-core.js": {
       "bytes": 150274,
-      "sha256": "0f98a0e90bf0114b1c9fbf50995a201006bbc1ee9e5c970a372e7e3b58293195"
+      "sha256": "b5c5fb2554b5e38243d54eee183a7b135adc72a20296c1f921400b08d6d10e80"
     },
     "brew-core.wasm": {
-      "bytes": 387314,
-      "sha256": "0ee08b09b0933c659d4ce712766c58d3aa9d7ab7fe1b89e87a9ddb6bd74fd64c"
+      "bytes": 387885,
+      "sha256": "515022af416b79af5822e0ac7a642ce6cc9a3ccef0b83d42db7aec0524fb2c0a"
     },
     "brew-core.data": {
       "bytes": 6240098,
@@ -48,7 +48,7 @@
       "bytes": 14711,
       "sha256": "6ff115d5539014dcae84c181183a07712ac3d0af17eba89030b260e1a369cd83"
     },
-    "game-ui.8f7ff358480dc7dc.pck": {
+    "game-ui.2dd6b6bba1d1143d.pck": {
       "bytes": 1445508,
       "sha256": "590bcfe5f271553144a9b7601b0b87df4337ce2fddc321962987dde4c284dc62"
     }

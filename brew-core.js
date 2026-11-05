@@ -4617,23 +4617,23 @@ Module["IDBFS"] = IDBFS;
 // End JS library exports
 // end include: postlibrary.js
 var ASM_CONSTS = {
-  18204: () => {
+  18212: () => {
     if (globalThis.Brew) globalThis.Brew.sync();
   },
-  18253: () => {
+  18261: () => {
     if (globalThis.Brew) globalThis.Brew.sync();
   },
-  18302: ($0, $1, $2, $3, $4) => {
+  18310: ($0, $1, $2, $3, $4) => {
     globalThis.BrewAudio?.play($0, $1, $2, $3, $4);
   },
-  18354: $0 => {
+  18362: $0 => {
     globalThis.BrewAudio?.stop($0);
   },
-  18390: $0 => globalThis.BrewAudio?.playing($0) ? 1 : 0,
-  18444: ($0, $1) => {
+  18398: $0 => globalThis.BrewAudio?.playing($0) ? 1 : 0,
+  18452: ($0, $1) => {
     globalThis.BrewAudio?.volume($0, $1);
   },
-  18486: $0 => {
+  18494: $0 => {
     globalThis.BrewAudio?.pause($0);
   }
 };
