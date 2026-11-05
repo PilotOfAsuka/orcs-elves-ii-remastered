@@ -39,7 +39,7 @@ var ENVIRONMENT_IS_NODE = globalThis.process?.versions?.node && globalThis.proce
 
 // --pre-jses are emitted after the Module integration code, so that they can
 // refer to Module (if they choose; they can also define Module)
-// include: /var/folders/r4/1365s5t95832xmy7z8zbysl40000gn/T/tmpyybkm_3d.js
+// include: /var/folders/r4/1365s5t95832xmy7z8zbysl40000gn/T/tmpzsqnzg9n.js
 if (!Module["expectedDataFileDownloads"]) Module["expectedDataFileDownloads"] = 0;
 
 Module["expectedDataFileDownloads"]++;
@@ -627,7 +627,7 @@ Module["expectedDataFileDownloads"]++;
   });
 }))();
 
-// end include: /var/folders/r4/1365s5t95832xmy7z8zbysl40000gn/T/tmpyybkm_3d.js
+// end include: /var/folders/r4/1365s5t95832xmy7z8zbysl40000gn/T/tmpzsqnzg9n.js
 var programArgs = [];
 
 var thisProgram = "./this.program";
@@ -4617,29 +4617,29 @@ Module["IDBFS"] = IDBFS;
 // End JS library exports
 // end include: postlibrary.js
 var ASM_CONSTS = {
-  18212: () => {
+  18276: () => {
     if (globalThis.Brew) globalThis.Brew.sync();
   },
-  18261: () => {
+  18325: () => {
     if (globalThis.Brew) globalThis.Brew.sync();
   },
-  18310: ($0, $1, $2, $3, $4) => {
+  18374: ($0, $1, $2, $3, $4) => {
     globalThis.BrewAudio?.play($0, $1, $2, $3, $4);
   },
-  18362: $0 => {
+  18426: $0 => {
     globalThis.BrewAudio?.stop($0);
   },
-  18398: $0 => globalThis.BrewAudio?.playing($0) ? 1 : 0,
-  18452: ($0, $1) => {
+  18462: $0 => globalThis.BrewAudio?.playing($0) ? 1 : 0,
+  18516: ($0, $1) => {
     globalThis.BrewAudio?.volume($0, $1);
   },
-  18494: $0 => {
+  18558: $0 => {
     globalThis.BrewAudio?.pause($0);
   }
 };
 
 // Imports from the Wasm binary.
-var _oe2_test_seed, _oe2_story_base, _oe2_travel, _oe2_boot, _oe2_tick, _oe2_key, _oe2_action_key, _oe2_menu_select, _oe2_continue_dialogue, _oe2_choice, _oe2_save, _oe2_inventory, _oe2_inventory_tab, _oe2_close_inventory, _oe2_trade_offer, _oe2_trade_cancel, _oe2_item_details, _oe2_load, _oe2_world_width, _oe2_world_height, _oe2_world_revision, _oe2_world, _oe2_lit_world, _oe2_classic_world, _oe2_light_distance, _oe2_quality, _oe2_weapon_bottom, _oe2_frame, _oe2_story, _oe2_json, _setThrew, __emscripten_stack_restore, __emscripten_stack_alloc, _emscripten_stack_get_current, memory, __indirect_function_table, wasmMemory;
+var _oe2_test_seed, _oe2_story_base, _oe2_travel, _oe2_boot, _oe2_tick, _oe2_key, _oe2_action_key, _oe2_menu_select, _oe2_continue_dialogue, _oe2_choice, _oe2_save, _oe2_inventory, _oe2_inventory_tab, _oe2_close_inventory, _oe2_trade_offer, _oe2_trade_cancel, _oe2_item_details, _oe2_load, _oe2_world_width, _oe2_world_height, _oe2_world_revision, _oe2_world, _oe2_lit_world, _oe2_gpu_world, _oe2_gpu_xy, _oe2_gpu_zna, _oe2_gpu_shadows, _oe2_gpu_params, _oe2_gpu_shadow_revision, _oe2_gpu_contact, _oe2_gpu_contact_revision, _oe2_classic_world, _oe2_light_distance, _oe2_quality, _oe2_weapon_bottom, _oe2_frame, _oe2_story, _oe2_json, _setThrew, __emscripten_stack_restore, __emscripten_stack_alloc, _emscripten_stack_get_current, memory, __indirect_function_table, wasmMemory;
 
 function assignWasmExports(wasmExports) {
   _oe2_test_seed = Module["_oe2_test_seed"] = wasmExports["oe2_test_seed"];
@@ -4665,6 +4665,14 @@ function assignWasmExports(wasmExports) {
   _oe2_world_revision = Module["_oe2_world_revision"] = wasmExports["oe2_world_revision"];
   _oe2_world = Module["_oe2_world"] = wasmExports["oe2_world"];
   _oe2_lit_world = Module["_oe2_lit_world"] = wasmExports["oe2_lit_world"];
+  _oe2_gpu_world = Module["_oe2_gpu_world"] = wasmExports["oe2_gpu_world"];
+  _oe2_gpu_xy = Module["_oe2_gpu_xy"] = wasmExports["oe2_gpu_xy"];
+  _oe2_gpu_zna = Module["_oe2_gpu_zna"] = wasmExports["oe2_gpu_zna"];
+  _oe2_gpu_shadows = Module["_oe2_gpu_shadows"] = wasmExports["oe2_gpu_shadows"];
+  _oe2_gpu_params = Module["_oe2_gpu_params"] = wasmExports["oe2_gpu_params"];
+  _oe2_gpu_shadow_revision = Module["_oe2_gpu_shadow_revision"] = wasmExports["oe2_gpu_shadow_revision"];
+  _oe2_gpu_contact = Module["_oe2_gpu_contact"] = wasmExports["oe2_gpu_contact"];
+  _oe2_gpu_contact_revision = Module["_oe2_gpu_contact_revision"] = wasmExports["oe2_gpu_contact_revision"];
   _oe2_classic_world = Module["_oe2_classic_world"] = wasmExports["oe2_classic_world"];
   _oe2_light_distance = Module["_oe2_light_distance"] = wasmExports["oe2_light_distance"];
   _oe2_quality = Module["_oe2_quality"] = wasmExports["oe2_quality"];
