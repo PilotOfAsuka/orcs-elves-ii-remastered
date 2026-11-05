@@ -224,3 +224,9 @@ The interface has Russian/English selection. Original BREW story art and game te
 - An isolated Godot browser game verifies texture/uniform wiring, CPU fallback and Classic/Remastered toggles with unchanged player pose. Final full preparation/transport medians in the same Dwarkar view: Medium 10.27 → 7.18 ms; High 24.99 → 16.88 ms. Both backends reached the desktop UI refresh limit, so no desktop FPS multiplier or iPhone FPS claim is made. GPU is identified in the debug overlay; its timing is preparation, not GPU execution time.
 - Normal core, native driver and Godot Web export pass. Native/WASM replay still has 1140 exact model/Classic comparisons over 1058 ticks and byte-identical SD_0–SD_3. New GPU getters at all qualities preserve model, canonical pixels and saved bytes. The normal bundle has a matching core/runtime/UI content tag and no QA exports.
 - Evidence is local under build/gpu-check/ (report.json, browser-report.json, ui-report.json, walk-cpu-report.json, walk-gpu-report.json and screenshots), build/gpu-parity.log and build/parity-result.json. QA browser games use disposable profiles/origins and persist:false; the user's live game and saves were not opened/reloaded. This new revision remains local, with no source/Pages publication or APK build.
+
+
+## Approved GPU-lighting Web publication
+
+- The user explicitly requested publishing the completed local GPU revision. Release preflight confirms matching core/runtime/UI tag 5c22dc5225a3a140 and no QA exports. Existing local evidence remains valid: 504 all-map comparisons, 15 actual WebGL fixtures, separate matching Dwarkar walks, isolated Godot wiring/toggles and 1140 native/WASM parity checks with exact saved bytes.
+- Publish the prepared source and normal Web bundle to the existing permanent Pages root. No new gameplay/browser suites, public asset downloads, live-user-game interaction or APK build are required.

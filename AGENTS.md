@@ -28,3 +28,5 @@
 - The user authorized Web publication after the full-circle lighting and Flaming Sword alignment fixes. Limit verification to the requested focused checks; do not interact with their live game or recheck public assets in a browser.
 
 - Current request: investigate slow dynamic lighting in Dwarkar/Gnomgrad and other locations, including GPU acceleration. Isolated renderer/browser measurements and disposable native-input walks are authorized for this investigation; never drive/reload the user's live game or touch their saves. Keep this new revision local pending a new publication request.
+
+- The user has now explicitly requested Web publication of the verified GPU-lighting revision. Publish the prepared normal bundle at the existing Pages root. No APK build, user-game interaction or redundant public-page/asset browser checks.
