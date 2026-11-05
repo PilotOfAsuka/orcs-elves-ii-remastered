@@ -191,3 +191,13 @@ The interface has Russian/English selection. Original BREW story art and game te
 - At the user's request, Low/Medium/High are now 5/15/20 walking steps (320/960/1280 world units); the fixed former 120% source appearance and the surrounding three-step processing neighborhood are preserved.
 - Preference persistence now stores the preset name, so future distance changes retain the selected level. Existing 4/7/10-step values and the older percentage values migrate by their Low/Medium/High identity.
 - The user explicitly requested immediate Web publication of this adjustment at the permanent Pages root. Prepare the normal core/UI, verify release-package consistency, publish without extra browser/gameplay/performance suites, and do not build APK. Weapon PNG extraction is a separate local handoff artifact.
+
+- Published the requested 5/15/20-step adjustment: source cc740a9a841054265ae6cb1fd9d6e50f722b37f5, web-build 64eee153fef1db49853d7808360d774cc30d9289. The normal bundle passed export/hash consistency checks; no new gameplay/performance/browser suite or APK build was run.
+
+## Weapon artist handoff — 2026-11-06
+
+- Exported every first-person weapon resource for all 11 native weapon definitions: 65 individual 88×88 RGBA frames/layers, 11 native 24×24 inventory icons and 17 reference shared-effect frames. Names and weapon IDs come from original BAR entity/string resources rather than generic upstream weapon comments.
+- Original RGB565 colors, native bitshape alpha masks, untrimmed canvases and frame positions are preserved; all 65 held-weapon PNG pixel buffers match the existing original-resource catalog exactly. Fully opaque original inventory-icon backgrounds are retained rather than inventing transparency. Native additive/mixed glow layers are exported separately and described in the artist notes.
+- Local dist/Orcs-Elves-II-Weapon-Art-Kit-BREW-7.0.41.zip contains the PNGs, a complete original-size contact sheet, Russian/English handoff notes and a machine-readable manifest with native sprite/frame/material/texel/palette IDs, anchor values, alias groups and checksums. ZIP CRC and all PNG dimensions/RGBA round trips pass. No art replacements are installed in the game; integration waits for the artist's returned files.
+- Reproducible exporter: tools/export_weapon_art_kit.py, with an optional new --output folder. Existing handoff folders/ZIPs are protected. Derived art stays ignored and is not uploaded to the source or Pages branch.
+- GitHub Pages API confirms web-build 64eee153fef1db49853d7808360d774cc30d9289 completed successfully without errors. The artist handoff ZIP is local only (524090 bytes, SHA-256 8b71f97abe34e457f6368b8bcdb25bc292a75405370df0de3a978d5818c5a364).
