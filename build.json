@@ -2,11 +2,11 @@
   "engine": "BREW",
   "game_version": "7.0.41",
   "source_branch": "codex/brew-port",
-  "source_revision": "9a4f24d9c78d1ba9bd23e77a0fd2b52af328dfc1",
+  "source_revision": "d9c977934b416e1181a172ca7d31ea87450bd11b",
   "files": {
     "index.html": {
       "bytes": 5500,
-      "sha256": "35c02c3476a52fe814ef4000956962aca2863359220d814fc0c7477f8812d636"
+      "sha256": "f3e3c0b48660595924ba13e7d693b5b1c819bf2d9935e4daa201bf0748cb1955"
     },
     "index.js": {
       "bytes": 279815,
@@ -17,8 +17,8 @@
       "sha256": "fc74679e3b97f76878947fcd4fbe1268cbfa6188182a2e33bbc3f5dc9bfa57d0"
     },
     "index.pck": {
-      "bytes": 939224,
-      "sha256": "76898e39b42bfdbb2cdf6b821e93f2d8b232966e35e4a3419aaa388e42e89c36"
+      "bytes": 945208,
+      "sha256": "8d4209ded70cc8fc758e28ba7bfbabcbef05a1967446b5bda248a74613f032eb"
     },
     "index.png": {
       "bytes": 21443,
@@ -34,23 +34,23 @@
     },
     "brew-core.js": {
       "bytes": 149630,
-      "sha256": "8a9173a7987a531db56deb4de65b7cda71cdd25eb66a396e0f681dedf2dc51df"
+      "sha256": "0486726b4cb134da0b3c2a2392fa250591e85687ee397f2ea5c19a685a431ca8"
     },
     "brew-core.wasm": {
-      "bytes": 376118,
-      "sha256": "94da349b80efcaaa289133b6d6af32b05a02c218845a3d5120f0622a892b6228"
+      "bytes": 377179,
+      "sha256": "9448006747b45f1416b54aa9713eb707dca6a291b901cdf458e6cddd58a5057d"
     },
     "brew-core.data": {
       "bytes": 6240098,
       "sha256": "c36a4b7fefd7c242c620b295bc0810475af23685d644f2038dec36a1da7d6a99"
     },
     "runtime.js": {
-      "bytes": 12496,
-      "sha256": "fca8ae74a869053fcae3a71e5a46193e4e51cab75e979d202c94ab60cad225bd"
+      "bytes": 12890,
+      "sha256": "42f09e751153efe2a09f1940cac3dc6e13cef3a7c6cf86a1cc1378603ef5da77"
     },
-    "game-ui.613e5fc17e324e97.pck": {
-      "bytes": 939224,
-      "sha256": "76898e39b42bfdbb2cdf6b821e93f2d8b232966e35e4a3419aaa388e42e89c36"
+    "game-ui.267c80e126b399f5.pck": {
+      "bytes": 945208,
+      "sha256": "8d4209ded70cc8fc758e28ba7bfbabcbef05a1967446b5bda248a74613f032eb"
     }
   }
 }
