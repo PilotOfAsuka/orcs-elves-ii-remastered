@@ -69,3 +69,21 @@ existing fire source. Impact lights have priority within the same seven-world-
 light budget, plus the existing held light, so no unbounded light loop is added.
 Rays, receiving surfaces and halos use the same occlusion as other sources.
 There is no full-screen white-flash overlay.
+
+
+## Painted candles and restrained glows — 2026-11-05
+
+The candle painted into the skull-and-bars wall is global identity 61 or 69, material 140 or 164. Its flame is near texel (79,91) in the 117×117 original. Sources follow native U coordinates, repeating/mirrored pieces and actual vertical ranges, and are biased four units onto the visible side. Wall-textured props use the original orientation, mirror, size and vertical origin; hidden props are skipped. Identity 68 is a wooden grate and must not emit.
+
+Lamp/candle sprite identities 150/181 have four flame frames and a fifth extinguished frame. A fixed frame 4 removes the source immediately; ordinary hidden/replaced sources also disappear. Sources are never retained as permanent map decorations independently of native state.
+
+Starter-wand held light is deliberately gentle (radius 105, power 0.28); other held magic and environmental lights are unchanged. Optional halos use a smaller footprint and a 0.008 gain instead of 0.038. Held sources never receive a camera-space halo. Blended sprite/weapon passes preserve the background receiver rather than relighting blended background pixels as solid foreground; this remains an approximation, not a multilayer physical transparency model. Original Classic blending is untouched.
+
+`tools/check_candles.cjs` exercises mirrored/repeating/two-sided/hidden/clipped wall placement, native lamp script input, flame/extinguished/hidden frames, real map-4 illumination and state/pixel/save purity at Low/Medium/High.
+
+
+Lighting distance is a saved presentation preference, clamped to 100–150%.
+It scales environmental, projectile, arrival and held-source radii exactly once;
+power, hue, halo footprint and the eight-slot budget are unchanged. Distance
+changes invalidate the visibility cache. Native model, Classic and save purity
+are checked at both endpoints and outside-range inputs for every quality.

@@ -4,6 +4,10 @@ extends PanelContainer
 signal choice_requested(index: int)
 signal continue_requested
 signal key_requested(key: int)
+const PORTRAITS=preload("res://generated/dialogue/portraits.png")
+var portrait_frame: PanelContainer
+var portrait: TextureRect
+var crest: TextureRect
 var close_button: Button
 var title: Label
 var body: Label
@@ -13,13 +17,14 @@ var choice_buttons: Array[Button]=[]
 var page: int=-1
 var primary: Button
 var margin: MarginContainer
+var current_face: int=-2
 
 func _ready() -> void:
 	add_theme_stylebox_override("panel",OESkin.plate(Color("192018"),OESkin.BRONZE,0))
 	margin=MarginContainer.new()
 	for side in ["left","right","top","bottom"]: margin.add_theme_constant_override("margin_"+side,16)
 	add_child(margin)
-	var crest:=TextureRect.new()
+	crest=TextureRect.new()
 	crest.texture=OESkin.icon("book");crest.custom_minimum_size=Vector2(28,28)
 	crest.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;crest.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	crest.modulate=OESkin.GOLD
@@ -28,6 +33,8 @@ func _ready() -> void:
 	margin.add_child(box)
 	var header:=HBoxContainer.new()
 	box.add_child(header)
+	portrait_frame=PanelContainer.new();portrait_frame.add_theme_stylebox_override("panel",OESkin.plate(Color("101713"),OESkin.GOLD,5));portrait_frame.custom_minimum_size=Vector2(64,64);header.add_child(portrait_frame);portrait_frame.hide()
+	portrait=TextureRect.new();portrait.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST;portrait.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;portrait_frame.add_child(portrait)
 	header.add_child(crest)
 	title=Label.new()
 	title.add_theme_font_size_override("font_size",17)
@@ -75,7 +82,15 @@ func show_state(data: Dictionary) -> void:
 	title.text=(OEText.localize("ЛЕТОПИСЬ")+"   ·   %d / %d") % [int(data.page)+1,int(data.pages)] if data.kind=="story" else str(data.get("title","СОБЫТИЯ"))
 	if data.kind=="loading": title.text="В ПУТИ"
 	if data.kind=="credits": title.text="СОЗДАТЕЛИ"
+	var speaker: String=str(data.get("speaker",""))
+	if not speaker.is_empty():title.text=speaker
+	title.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	title.text=OEText.localize(title.text)
+	var face: int=int(data.get("portrait",-1))
+	portrait_frame.visible=face>=0 and face<266;crest.visible=not portrait_frame.visible
+	if portrait_frame.visible and face!=current_face:
+		current_face=face
+		var texture:=AtlasTexture.new();texture.atlas=PORTRAITS;texture.region=Rect2((face%16)*48,(face/16)*48,48,48);portrait.texture=texture
 	close_button.tooltip_text=OEText.localize("Закрыть сообщение")
 	close_button.visible=data.kind=="dialogue" and not str(data.get("right","")).is_empty()
 	if body.text!=str(data.text): body.text=str(data.text);scroll.scroll_vertical=0

@@ -12,3 +12,5 @@
 9. Test the private Android APK on actual devices: WebView/GPU compatibility, performance at all qualities, audio/background resume, safe areas and native document-picker backup import/export. APK signing, package contents and responsive Web behavior are verified; no on-device launch is claimed.
 
 10. Review timed modifiers during longer gameplay (rings/items, familiar use, overlapping debuffs and later encounters). Native modifier values/turns, save/load and responsive layout are covered by the new fixtures; full playthrough coverage remains outstanding.
+
+11. Review speaker identity and original-art portrait framing in later multi-character cinematics, plus every merchant/discount/inventory path during a full playthrough. Modern menus, native trade input and level-result presentation have local fixtures and responsive checks; those checks do not cover every story branch.

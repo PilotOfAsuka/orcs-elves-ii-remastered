@@ -3,6 +3,9 @@ extends RefCounted
 ## UI-only localization. BREW game text comes from its original resources.
 static var language: String="ru"
 const UI={
+	"Дальность освещения":"Lighting distance","Кольцо не надето":"No ring equipped","Снять кольцо":"Remove ring",
+	"Новая игра":"New game","Настройки":"Settings","Помощь / Об игре":"Help / About",
+	"ПАУЗА":"PAUSED","Продолжить игру":"Resume game","Ещё":"More","Свернуть":"Show less","ОБЛАСТЬ ПРОЙДЕНА":"AREA CLEARED","Персонаж":"Character","Золото: %d":"Gold: %d","Цена: %s":"Price: %s","Подробнее":"Details","Зелья":"Potions","Кольца":"Rings","Прочее":"Other","Вернуться в игру":"Return to game","ТОРГОВЛЯ":"TRADE","Уйти":"Leave","Ваше предложение":"Your offer","Предложить":"Make offer","Отмена":"Cancel",
 	"Фамильяр":"Familiar","Уклонение":"Avoidance","Очищение":"Remedy","Ускорение":"Haste","Опьянение":"Drunkenness","Регенерация":"Regeneration","Точность":"Accuracy","Сила":"Strength","Защита":"Defense","Заморозка":"Frozen","Отравление":"Poisoned","Уменьшение":"Shrunk","Осталось ходов: %d":"Turns remaining: %d",
 	"Подберите направление. Следите за замком.":"Find the direction. Watch the lock.",
 	"Скачать сохранение":"Download save","Загрузить копию сохранения":"Import save backup","Копия сохранения скачана":"Save backup downloaded","Копия сохранения восстановлена":"Save backup restored","Не удалось скачать сохранение":"Save download failed","Не удалось загрузить копию сохранения":"Save import failed","Загружаем сохранение…":"Importing save…",
@@ -40,6 +43,7 @@ static func localize(text: String) -> String:
 
 static var catalog: Dictionary={}
 static var ru_cache: Dictionary={}
+static var help_cache: Dictionary={}
 static var lowered: Dictionary={}
 static var patterns: Array=[]
 static var spaces: RegEx
@@ -94,12 +98,29 @@ static func inflect(text: String, grammatical_case: String, sentence_start: bool
 	if sentence_start and not text.is_empty() and text[0]==text[0].to_upper():result=result.left(1).to_upper()+result.substr(1)
 	return result
 
+static func expand_native_help(text: String) -> String:
+	# The phone UI cuts descriptions at a word and appends its 0x7f glyph.
+	# Recover only a unique complete resource, never guess an arbitrary prefix.
+	if not text.contains("\u007f") and not text.contains("…"):return text
+	if help_cache.has(text):return str(help_cache[text])
+	prepare();var prefix:=normalized(text).to_lower();var found: String=""
+	if prefix.length()<16:return text
+	for phrase: String in catalog.phrases:
+		if phrase.to_lower().begins_with(prefix):
+			if not found.is_empty():return text
+			found=phrase
+	if help_cache.size()>2048:help_cache.clear()
+	help_cache[text]=found if not found.is_empty() else text
+	return str(help_cache[text])
+
 static func translate(text: String, depth: int=0) -> String:
 	if text.is_empty() or depth>6:return text
+	if text.strip_edges().begins_with("✓"):return "✓ "+translate(text.strip_edges().substr(1).strip_edges(),depth+1)
 	prepare()
 	# Our own Russian UI labels are already localized; don't reinterpret them.
 	for c in text:
 		if c.unicode_at(0)>=0x400 and c.unicode_at(0)<=0x52f:return text
+	text=expand_native_help(text)
 	var key: String=normalized(text)
 	if ru_cache.has(key):return str(ru_cache[key])
 	var result: String=str(catalog.texts.get(key,lowered.get(key.to_lower(),"")))
@@ -137,11 +158,22 @@ static func translate(text: String, depth: int=0) -> String:
 		for line in text.replace("-\n","").replace("|","\n").split("\n"):lines.append(translate(line,depth+1))
 		result="\n".join(lines)
 	if result.is_empty():
+		var suffix:=RegEx.create_from_string("^(.+?) [x×]([0-9]+)$").search(key)
+		if suffix!=null:
+			var name:=translate(suffix.get_string(1),depth+1)
+			if name!=suffix.get_string(1):result=name+" ×"+suffix.get_string(2)
+	if result.is_empty():
 		# Numeric inventory quantities are a presentation format, not grammar.
 		var quantity:=RegEx.create_from_string("^([+\\-]?[0-9]+)x? +(.+)$").search(key)
 		if quantity!=null:
 			var name:=translate(quantity.get_string(2),depth+1)
 			if name!=quantity.get_string(2):result=quantity.get_string(1)+" × "+name
+	if result.is_empty():
+		# Store results join separately translated native resources into one row.
+		for phrase: String in catalog.phrases:
+			if key.to_lower().begins_with(phrase.to_lower()+" "):
+				result=str(catalog.texts[phrase])+" "+translate(key.substr(phrase.length()+1),depth+1)
+				break
 	if result.is_empty():
 		result=text
 		# Native builders sometimes concatenate catalog fragments (speaker/log lines).
@@ -164,7 +196,7 @@ static func translate_state(value: Variant, field: String="") -> Variant:
 		var result: Array=[]
 		for item in value:result.append(translate_state(item,field))
 		return result
-	if value is String and field in ["text","help","value","dialogue","left","right","context","notices","cinematic","weapon_name","name","travel_name","stats"]:return translate(str(value))
+	if value is String and field in ["text","help","value","dialogue","left","right","context","notices","cinematic","weapon_name","name","travel_name","stats","target_name","events","level_name","dialog_speaker","dialog_title","ring_name","ring_description"]:return translate(str(value))
 	return value
 
 static func merge_menu_text(items: Array) -> Array:

@@ -485,7 +485,7 @@ void Render_draw2DSprite(Render *render, int sprite, int frame, int x, int y, in
 				len = render->clipY2 - sy;
 
 #ifdef OE2_WEB_BRIDGE
-	BrewLight_weapon(render,xs,sy,len);
+	BrewLight_weapon(render,xs,sy,len,a);
 #endif
 			SPAN_DRAW(drawer, xs, sy, u, rshl(vStep, 4), len);
 		}

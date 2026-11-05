@@ -43,7 +43,7 @@ void BrewView_sprite(Render *r,int sprite,int frame,int x,int y,int a,int blend,
 void BrewView_effect(Render *r,int type,int value);
 void BrewLight_floor(Render *r,int x,int y,int u,int v,int du,int dv,int count,int ceiling);
 void BrewLight_span(Render *r,int x,int y,int count,int projection,int sprite);
-void BrewLight_weapon(Render *r,int x,int y,int count);
+void BrewLight_weapon(Render *r,int x,int y,int count,int blend);
 void BrewLight_tagCaster(Render *r,Sprite *sprite);
 void BrewLight_poseCaster(Render *r,int x,int y,int z,int tile,int frame,int flags,int mode,int scale);
 #endif

@@ -92,7 +92,16 @@ API void oe2_tick(void) {
 void OE2_projectileImpact(const GameSprite *missile, int flaming) {
     BrewLight_impact(missile, flaming);
 }
-API void oe2_key(int key) { if (g_app) Applet_HandleEvent(g_app, EVT_KEY, (uint16_t)key, 0); }
+API void oe2_key(int key) {
+    if(!g_app)return;
+    if(g_app->canvas->state==2&&key==AVK_SOFT1){
+        MenuSystem *m=g_app->menuSystem;
+        if(m->menu==3)return; /* A browser title screen has no phone Exit. */
+        if(m->menu>=500&&m->menu<=504){MenuSystem_setMenu(m,0);return;}
+        if(m->menu==309){m->digitEntry=0;MenuSystem_setMenu(m,m->backMenu);return;}
+    }
+    Applet_HandleEvent(g_app, EVT_KEY, (uint16_t)key, 0);
+}
 API int oe2_action_key(int action) {
     if (!g_app) return 0;
     for (int k = AVK_0; k <= AVK_9; k++) if (Canvas_getKeyAction(g_app->canvas, k) == action) return k;
@@ -132,8 +141,41 @@ API int oe2_save(void) {
     return 1;
 }
 API void oe2_inventory(void) {
-    if (g_app && (g_app->canvas->state == 3 || g_app->canvas->state == 5))
+    if (g_app && (g_app->canvas->state == 3 || g_app->canvas->state == 5) &&
+        !g_app->player->isFamiliar && g_app->player->statusEffects[9].turns==0) {
         MenuSystem_setMenu(g_app->menuSystem, 500);
+        MenuSystem_setMenu(g_app->menuSystem, 501);
+    }
+}
+API void oe2_inventory_tab(int tab) {
+    if(!g_app||tab<0||tab>3||g_app->canvas->state!=2)return;
+    int id=g_app->menuSystem->menu;
+    if(id<500||id>510)return;
+    MenuSystem_setMenu(g_app->menuSystem,501+tab);
+}
+API void oe2_close_inventory(void) {
+    if(g_app&&g_app->canvas->state==2&&g_app->menuSystem->menu>=500&&g_app->menuSystem->menu<=510)
+        MenuSystem_setMenu(g_app->menuSystem,0);
+}
+API int oe2_trade_offer(int value) {
+    if(!g_app||g_app->canvas->state!=2||g_app->menuSystem->menu!=0x135||value<0||value>99999)return 0;
+    MenuSystem *m=g_app->menuSystem; m->selectedIndex=2;m->digitEntry=1;g_app->menu->offerActive=1;
+    char digits[8];snprintf(digits,sizeof(digits),"%d",value);
+    for(char *p=digits;*p;p++)MenuSystem_handleNumberEntry(m,AVK_0+*p-'0');
+    MenuSystem_handleNumberEntry(m,AVK_SELECT);
+    return 1;
+}
+API void oe2_trade_cancel(void) {
+    if(g_app&&g_app->canvas->state==2&&g_app->menuSystem->menu==0x135) {
+        g_app->menuSystem->digitEntry=0;
+        MenuSystem_setMenu(g_app->menuSystem,g_app->menuSystem->backMenu);
+    }
+}
+API void oe2_item_details(int menu,int index) {
+    if(!g_app||g_app->canvas->state!=2)return;
+    MenuSystem *m=g_app->menuSystem;
+    if(m->menu!=menu||index<0||index>=m->numItems||!(m->items[index].flags&0x20))return;
+    m->selectedIndex=index;MenuSystem_select(m);
 }
 API int oe2_load(void) {
     if (!g_app || (g_app->canvas->state != 2 && g_app->canvas->state != 3)) return 0;
@@ -145,6 +187,7 @@ API int oe2_world_revision(void) { return worldRevision; }
 API const uint32_t *oe2_world(void) { return worldPixels; }
 API const uint32_t *oe2_lit_world(void) { return BrewView_lit(worldPixels,worldW,worldH); }
 API const uint32_t *oe2_classic_world(void) { return worldW==176&&worldH==164?classicPixels:worldPixels; }
+API void oe2_light_distance(int percent){BrewLight_setRange(percent);}
 API void oe2_quality(int level) { BrewView_setQuality(level); }
 API int oe2_weapon_bottom(void) { return BrewLight_weaponBottom(); }
 API const uint32_t *oe2_frame(void) {
@@ -169,9 +212,26 @@ static void string(const String *s) {
         unsigned char c = (unsigned char)s->buf[i];
         if (c == '\"' || c == '\\') add("\\%c", c);
         else if (c == '\n' || c == '|') add("\\n");
+        else if (c == 0x7f) add("\\u2026");
+        else if (c == 0x87) add("\\u2713");
+        else if (c == 0x80) add("\\u00b7");
         else if (c >= 32 && c <= 126) add("%c", c);
     }
     add("\"");
+}
+/* Identify a scripted speaker from the exact event tile, never the nearest
+ * decorative character. These reads leave script cursors and game RNG intact. */
+static Entity *dialogSpeaker(const Canvas *c){
+ if(c->state!=7||c->dialogStyle==1||c->dialogStyle==8||c->dialogStyle==2||c->dialogStyle==3||c->dialogStyle==4||c->dialogStyle==9)return NULL;
+ Render *r=g_app->render;ScriptThread *owner=c->dialogOwner;
+ if(owner)for(int f=owner->numFrames-1;f>=0;f--)for(int i=0;i<r->numTileEvents;i++){
+  if((r->tileEvents[i]&0x7ffffffu)!=(owner->frames[f].event&0x7ffffffu))continue;
+  int tile=r->eventTiles[i]&1023;
+  for(Entity *e=g_app->game->entityGrid[tile];e;e=e->nextOnTile)
+   if(e->def&&(e->def->eType==3||e->def->eType==2))return e;
+ }
+ Entity *e=g_app->player->facingEntity;
+ return c->dialogStyle==0&&e&&e->def&&(e->def->eType==3||e->def->eType==2)?e:NULL;
 }
 API const char *oe2_json(void) {
     used = 0; json[0] = 0;
@@ -187,11 +247,12 @@ API const char *oe2_json(void) {
     add("\"menu_id\":%d,\"menu_type\":%d,\"selected\":%d,\"items\":[", m->menu, m->type, m->selectedIndex);
     if (c->state == 2) for (int i = 0; i < m->numItems; i++) {
         if (i) add(",");
-        add("{\"index\":%d,\"flags\":%u,\"text\":", i, m->items[i].flags); string(&m->items[i].text);
+        add("{\"index\":%d,\"flags\":%u,\"action\":%d,\"icon\":%d,\"text\":", i, m->items[i].flags,m->items[i].action,m->items[i].param); string(&m->items[i].text);
         add(",\"value\":"); string(&m->items[i].text2);
         add(",\"help\":"); string(&m->items[i].help); add("}");
     }
-    add("],\"notes\":[");
+    add("],\"menu_context\":{\"gold\":%d,\"offer\":%d,\"back\":%d,\"level_name\":",p->gold,m->offerValue,m->backMenu);
+    string(&g_app->render->mapName);add("},\"notes\":[");
     if(c->state==2 && m->menu==0x70)for(int i=0;i<p->numNotebookIndexes && i<8;i++) {
         if(i)add(",");
         add("{\"id\":\"%d:%d\",\"done\":%s,\"failed\":%s}",c->mapStringGroup,p->notebookIndexes[i],
@@ -209,6 +270,19 @@ API const char *oe2_json(void) {
     string(&c->dialogText);
     add(",\"dialog_flags\":%d,\"dialog_choice\":%d,\"dialog_style\":%d,\"dialog_top\":%d,\"dialog_lines\":%d,\"dialog_typed\":%d,\"dialog_view\":%d,",
         c->dialogFlags, c->dialogChoice, c->dialogStyle, c->dialogTopLine, c->dialogNumLines,c->dialogTypeLine,c->dialogViewLines);
+    Entity *speaker=dialogSpeaker(c);
+    String speakerName={0},dialogTitle={0};int portrait=-1;
+    if(c->state==7){
+        if(c->dialogStyle==1){speakerName=(String){.buf="Ellon",.len=5};portrait=0;}
+        else if(c->dialogStyle==8){speakerName=(String){.buf="Elli",.len=4};portrait=1;}
+        else if(speaker){speakerName=speaker->name.len?speaker->name:speaker->def->name;portrait=2+speaker->def->tileIndex;}
+        if(c->dialogStyle==2||c->dialogStyle==9){
+            dialogTitle=c->dialogText;dialogTitle.len=0;
+            while(dialogTitle.len<c->dialogText.len&&dialogTitle.buf[dialogTitle.len]!='|')dialogTitle.len++;
+            if(c->dialogPortrait>=0&&c->dialogPortrait<8)portrait=258+c->dialogPortrait;
+        }
+    }
+    add("\"dialog_speaker\":");string(&speakerName);add(",\"dialog_title\":");string(&dialogTitle);add(",\"dialog_portrait\":%d,",portrait);
     int wi = p->ce.weapon;
     EntityDef *weapon = wi >= 0 && wi < 11 ? EntityDefs_find(g_app->entityDefs, 6, 1, wi) : NULL;
     int ammoType = wi >= 0 && wi < 11 ? g_app->combat->weapons[wi].ammoType : 0;
@@ -227,7 +301,16 @@ API const char *oe2_json(void) {
         effectFirst = 0;
     }
     add("]");
+    int ringId=p->equippedRing;
+    EntityDef *ring=ringId>0&&ringId<9&&(p->rings&(1u<<ringId))?EntityDefs_find(g_app->entityDefs,6,2,ringId):NULL;
+    add(",\"rings_owned\":%u,\"ring_id\":%d,\"ring_name\":",p->rings,ring?ringId:0);string(ring?(ring->longName.len?&ring->longName:&ring->name):NULL);
+    add(",\"ring_description\":");string(ring?&ring->description:NULL);
     add(",\"context\":"); string(&h->caption1);
+    Entity *focus=p->facingEntity;
+    add(",\"target_name\":");string(focus?(focus->name.len?&focus->name:focus->def?&focus->def->name:NULL):NULL);
+    add(",\"events\":[");
+    for(int i=0;i<h->numMessages&&i<3;i++){if(i)add(",");string(&h->messages[i]);}
+    add("]");
     add(",\"cinematic\":"); string(&h->caption2);
     add(",\"notices\":"); string(h->numMessages > 0 ? &h->messages[0] : NULL);
     int targetHp = -1, targetMax = 0;

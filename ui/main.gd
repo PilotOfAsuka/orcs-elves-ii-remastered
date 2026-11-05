@@ -29,6 +29,7 @@ var shade: ColorRect
 var menu: PanelContainer
 var menu_box: VBoxContainer
 var menu_signature: String=""
+var menu_more: bool=false
 var backup_notice: Label
 var reader: OEReaderPanel
 var map_view: OEDungeonMap
@@ -37,6 +38,7 @@ var lock: OELockpickPanel
 var story_next: Button
 var story_back: Button
 var language_picker: OEStartupLanguage
+var light_distance: int=100
 var quality_index: int=0
 var remastered: bool=false
 var choosing_language: bool=false
@@ -56,6 +58,8 @@ func _ready() -> void:
 	travel_title=Label.new();travel_title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;travel_title.add_theme_font_size_override("font_size",22);travel_title.add_theme_color_override("font_color",OESkin.PAPER);travel_title.add_theme_color_override("font_shadow_color",Color.BLACK);travel_title.add_theme_constant_override("shadow_outline_size",5);travel_title.mouse_filter=Control.MOUSE_FILTER_IGNORE;add_child(travel_title);travel_title.hide()
 	encounter=OEEncounterHUD.new();add_child(encounter)
 	hud=OEAdventureHUD.new();add_child(hud)
+	hud.ring_requested.connect(func():
+		if brew!=null and int(state.get("state",0)) in [3,5]:held_action=0;brew.inventory();brew.inventoryTab(1))
 	nav=HBoxContainer.new();nav.add_theme_constant_override("separation",6);add_child(nav)
 	for item in [["menu",5,"Меню","Esc"],["map",7,"Карта","M"],["pack",16,"РЮКЗАК","I"]]:
 		var button:=make_nav_button(str(item[0]),str(item[2]))
@@ -81,7 +85,7 @@ func _ready() -> void:
 	story_back=Button.new();story_back.text="‹";story_back.pressed.connect(func(): brew.key(SOFT1));add_child(story_back);story_back.hide()
 	story_next=Button.new();story_next.text="Продолжить ›";story_next.pressed.connect(func(): brew.key(SOFT2));add_child(story_next);story_next.hide()
 	shade=ColorRect.new();shade.color=Color(0.02,0.04,0.025,0.82);shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);shade.mouse_filter=Control.MOUSE_FILTER_STOP;add_child(shade);shade.hide()
-	menu=PanelContainer.new();add_child(menu);menu.hide()
+	menu=PanelContainer.new();menu.add_theme_stylebox_override("panel",OESkin.plate(Color("161e19"),OESkin.BRONZE,12));add_child(menu);menu.hide()
 	var menu_scroll:=ScrollContainer.new();menu_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;menu.add_child(menu_scroll)
 	menu_box=VBoxContainer.new();menu_box.size_flags_horizontal=Control.SIZE_EXPAND_FILL;menu_box.add_theme_constant_override("separation",7);menu_scroll.add_child(menu_box)
 	reader=OEReaderPanel.new();add_child(reader);reader.hide()
@@ -102,7 +106,7 @@ func _ready() -> void:
 	resized.connect(arrange);arrange()
 	if OS.has_feature("web"):
 		brew=JavaScriptBridge.get_interface("Brew")
-		quality_index=int(brew.savedQuality())
+		quality_index=int(brew.savedQuality());light_distance=int(brew.savedLightDistance())
 		debug_enabled=bool(brew.savedDebug())
 		remastered=str(brew.savedGraphics())=="remastered";update_mode_button();arrange()
 		var saved: String=str(brew.savedLanguage())
@@ -152,7 +156,9 @@ func arrange() -> void:
 	travel_title.position=picture.position+Vector2(8,8);travel_title.size=Vector2(picture.size.x-16,32)
 	status.position=picture.position+Vector2(12,picture.size.y/2-12);status.size=Vector2(picture.size.x-24,32)
 	var popup_width: float=minf(size.x-24,580)
-	menu.position=Vector2((size.x-popup_width)/2,48);menu.size=Vector2(popup_width,size.y-72)
+	var menu_id: int=int(state.get("menu_id",0))
+	var menu_height: float=minf(size.y-72,maxf(180,menu_box.get_combined_minimum_size().y+24)) if menu_id in [1,3,100,309,310,311,312,313] else size.y-72
+	menu.position=Vector2((size.x-popup_width)/2,maxf(40,(size.y-menu_height)/2));menu.size=Vector2(popup_width,menu_height)
 	reader.position=Vector2((size.x-popup_width)/2,maxf(40,(size.y-400)/2));reader.size=Vector2(popup_width,minf(size.y-90,400))
 	lock.position=Vector2((size.x-popup_width)/2,maxf(40,(size.y-440)/2));lock.size=Vector2(popup_width,minf(size.y-85,440))
 	map_view.position=picture.position;map_view.size=picture.size
@@ -175,14 +181,21 @@ func _process(delta: float) -> void:
 	frame.visible=picture.visible
 	var modal: bool=game_state in [2,7,12,17,19] or choosing_language
 	for button in actions: button.disabled=modal or game_state not in [3,4,5,20,21]
+	hud.ring_button.disabled=modal or game_state not in [3,5]
 	if modal: held_action=0
 	elif held_action!=0:
 		repeat_in-=delta
 		if repeat_in<=0: send_action(held_action);repeat_in=0.12
 	shade.visible=game_state in [2,7,14,19]
 	menu.visible=game_state==2
-	if menu.visible: update_menu()
-	reader.show_state({"kind":"dialogue","text":str(state.dialogue),"title":"СОБЫТИЯ","page":int(state.dialog_top),"pages":1,"choice":(int(state.dialog_flags)&4)!=0,"choices":[OEText.localize("Да"),OEText.localize("Нет")],"selected_choice":int(state.dialog_choice),"right":"" if (int(state.dialog_flags)&1)!=0 else str(state.right),"primary":"Продолжить"} if game_state==7 else {})
+	if menu.visible:
+		update_menu()
+		arrange()
+	var dialogue_body: String=str(state.dialogue)
+	if game_state==7 and int(state.get("dialog_style",0)) in [2,9]:
+		var header_end:=dialogue_body.find("\n")
+		if header_end>=0:dialogue_body=dialogue_body.substr(header_end+1).strip_edges()
+	reader.show_state({"kind":"dialogue","text":dialogue_body,"title":str(state.get("dialog_title","")) if not str(state.get("dialog_title","")).is_empty() else "СОБЫТИЯ","speaker":str(state.get("dialog_speaker","")),"portrait":int(state.get("dialog_portrait",-1)),"page":int(state.dialog_top),"pages":1,"choice":(int(state.dialog_flags)&4)!=0,"choices":[OEText.localize("Да"),OEText.localize("Нет")],"selected_choice":int(state.dialog_choice),"right":"" if (int(state.dialog_flags)&1)!=0 else str(state.right),"primary":"Продолжить"} if game_state==7 else {})
 	if game_state==14:
 		reader.show_state({"kind":"credits","text":OEText.entry("2:0"),"title":"СОЗДАТЕЛИ","page":0,"pages":1})
 	if game_state==12:
@@ -242,10 +255,11 @@ func arrange_effects() -> void:
 	encounter.size.x=maxf(40,picture.size.x-20-(66 if effects.visible else 0))
 
 func update_menu() -> void:
-	var signature: String=JSON.stringify([state.menu_id,state.selected,state.items,state.get("notes",[]),state.get("details",{}),OEText.language,quality_index,debug_enabled])
+	var signature: String=JSON.stringify([state.menu_id,state.selected,state.items,state.get("notes",[]),state.get("details",{}),OEText.language,quality_index,debug_enabled,menu_more])
 	if signature==menu_signature: return
 	menu_signature=signature
 	for child in menu_box.get_children(): child.free()
+	if OEMenuDesign.build(self,menu_box,state):return
 	var title:=Label.new();title.text=OEText.localize("ORCS & ELVES II");title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;title.add_theme_color_override("font_color",OESkin.GOLD);title.add_theme_font_size_override("font_size",21);menu_box.add_child(title)
 	var help_pages: Dictionary={5:4,6:5,7:6,8:8,9:1,10:2,11:3,12:7,0x68:1,0x69:2,0x6a:3,0x6b:7,0x6d:4,0x6e:5,0x6f:6}
 	if int(state.menu_id) in [0x70,400]:
@@ -280,6 +294,10 @@ func update_menu() -> void:
 		for caption in ["Low · 176×164","Medium · 352×328","High · 704×656"]: quality.add_item(caption)
 		quality.select(quality_index);menu_box.add_child(quality)
 		quality.item_selected.connect(func(index: int): quality_index=index;brew.quality(index);last_image_key="";menu_signature="")
+		var distance_label:=Label.new();distance_label.text=OEText.localize("Дальность освещения")+" · %d%%" % light_distance;menu_box.add_child(distance_label)
+		var distance:=HSlider.new();distance.min_value=100;distance.max_value=150;distance.step=5;distance.value=light_distance;distance.custom_minimum_size.y=36;menu_box.add_child(distance)
+		distance.add_theme_stylebox_override("slider",OESkin.plate(Color("0b120d"),OESkin.BRONZE,3));distance.add_theme_stylebox_override("grabber_area",OESkin.plate(Color("77613d"),OESkin.GOLD,3))
+		distance.value_changed.connect(func(value: float):light_distance=int(value);brew.lightDistance(light_distance);last_image_key="";distance_label.text=OEText.localize("Дальность освещения")+" · %d%%" % light_distance)
 		for item in [["Скачать сохранение",0],["Загрузить копию сохранения",1]]:
 			var backup:=Button.new();backup.text=OEText.localize(item[0]);backup.custom_minimum_size.y=42;backup.focus_mode=Control.FOCUS_NONE;menu_box.add_child(backup)
 			var action: int=item[1];backup.pressed.connect(func():

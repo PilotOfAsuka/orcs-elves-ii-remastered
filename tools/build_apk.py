@@ -3,7 +3,7 @@
 from pathlib import Path
 import argparse,hashlib,json,os,shutil,subprocess,zipfile
 ROOT=Path(__file__).resolve().parents[1]
-parser=argparse.ArgumentParser();parser.add_argument('--version-code',type=int,default=2);parser.add_argument('--version-name',default='0.2.2-test');args=parser.parse_args()
+parser=argparse.ArgumentParser();parser.add_argument('--version-code',type=int,default=3);parser.add_argument('--version-name',default='0.2.3-test');args=parser.parse_args()
 sdk=Path(os.environ.get('ANDROID_SDK_ROOT',str(Path.home()/'Library/Android/sdk')))
 versions=sorted((sdk/'build-tools').iterdir(),key=lambda p:tuple(map(int,p.name.split('.'))))
 tools=versions[-1];platform=sdk/'platforms/android-35/android.jar'

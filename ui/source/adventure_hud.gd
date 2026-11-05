@@ -1,6 +1,10 @@
 class_name OEAdventureHUD
 extends Control
 ## A fixed-height bronze instrument panel; stats never resize the game view.
+signal ring_requested
+const RINGS=preload("res://generated/menu/rings.png")
+var ring_button: Button
+var ring_id: int=-1
 var health_text: Label
 var armor_text: Label
 var weapon_text: Label
@@ -36,6 +40,10 @@ func _ready() -> void:
 	health_text=label(16);armor_text=label(16)
 	weapon_text=label(13);weapon_text.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
 	ammo_text=label(13);ammo_text.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
+	ring_button=Button.new();ring_button.focus_mode=Control.FOCUS_NONE;ring_button.expand_icon=true;ring_button.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST;ring_button.add_theme_constant_override("icon_max_width",18)
+	for part in ["normal","hover","pressed","disabled"]:ring_button.add_theme_stylebox_override(part,OESkin.plate(Color("17201c"),OESkin.GOLD if part=="hover" else OESkin.BRONZE,2))
+	ring_button.add_theme_color_override("icon_normal_color",Color.WHITE);ring_button.add_theme_color_override("icon_hover_color",Color.WHITE);ring_button.add_theme_color_override("icon_pressed_color",Color.WHITE)
+	ring_button.pressed.connect(func():ring_requested.emit());add_child(ring_button);ring_button.hide()
 	resized.connect(arrange);arrange()
 
 func arrange() -> void:
@@ -44,7 +52,8 @@ func arrange() -> void:
 	heart.position=Vector2(15,10);shield.position=Vector2(half+14,10)
 	health_caption.position=Vector2(50,3);armor_caption.position=Vector2(half+49,3)
 	health_text.position=Vector2(50,13);armor_text.position=Vector2(half+49,13)
-	weapon_icon.position=Vector2(13,50);weapon_text.position=Vector2(38,49);weapon_text.size=Vector2(maxf(20,size.x-120),22)
+	weapon_icon.position=Vector2(13,50);weapon_text.position=Vector2(38,49);weapon_text.size=Vector2(maxf(20,size.x-(151 if ring_button.visible else 120)),22)
+	ring_button.position=Vector2(size.x-103,49);ring_button.size=Vector2(24,22)
 	ammo_icon.position=Vector2(size.x-63,51);ammo_text.position=Vector2(size.x-43,49);ammo_text.size=Vector2(28,22)
 	queue_redraw()
 
@@ -83,6 +92,16 @@ func show_state(data: Dictionary) -> void:
 	health_text.text="%d / %d" % [int(data.health),int(data.max_health)]
 	armor_text.text="%d / %d" % [int(data.armor),int(data.max_armor)]
 	health_caption.text=OEText.localize("Здоровье").to_upper();armor_caption.text=OEText.localize("Броня").to_upper()
+	var next_ring: int=int(data.get("ring_id",0))
+	ring_button.visible=(int(data.get("rings_owned",0))&0x1fe)!=0
+	if next_ring!=ring_id:
+		ring_id=next_ring
+		if ring_id>0 and ring_id<=8:
+			var texture:=AtlasTexture.new();texture.atlas=RINGS;texture.region=Rect2(0,(ring_id-1)*18,18,18);ring_button.icon=texture
+		else:ring_button.icon=OESkin.icon("ring")
+	var ring_name: String=OEText.localize(str(data.get("ring_name",""))) if ring_id>0 else OEText.localize("Кольцо не надето")
+	ring_button.tooltip_text=ring_name+"\n"+OEText.localize(str(data.get("ring_description","")));ring_button.accessibility_name=ring_name
+	arrange()
 	weapon_text.text=OEText.localize(str(data.weapon_name)) if not str(data.weapon_name).is_empty() else OEText.localize("Оружие")
 	ammo_text.text=str(int(data.ammo)) if int(data.ammo)>=0 else "—"
 	queue_redraw()

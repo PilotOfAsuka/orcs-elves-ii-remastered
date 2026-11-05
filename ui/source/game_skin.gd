@@ -58,6 +58,7 @@ static func button_frame(fill: Color, edge: Color) -> StyleBoxTexture:
 static func icon(kind: String) -> Texture2D:
 	if icons.has(kind): return icons[kind]
 	var paths: Dictionary={
+		"ring":"<ellipse cx='16' cy='20' rx='9' ry='8'/><path d='m10 9 6-6 6 6-6 7-6-7zm0 0h12M16 3v13'/>",
 		"plus":"<path d='M6 16h20M16 6v20'/>",
 		"minus":"<path d='M6 16h20'/>",
 		"center":"<circle cx='16' cy='16' r='9'/><path d='M16 2v9m0 10v9M2 16h9m10 0h9'/>",

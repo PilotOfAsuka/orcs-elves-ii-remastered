@@ -7,6 +7,12 @@ func _init() -> void:
 		var row: Dictionary=OEText.catalog.ids[id]
 		if OEText.localize(str(row.en))!=str(row.ru):failures.append("Catalog: "+id)
 	var fixtures: Dictionary={
+		"A lightweight yet\npowerful …":str(OEText.catalog.ids["1:8"].ru),
+		"Your offer was rejected.":"Ваше предложение отклонено.",
+		"Your offer was accepted!":"Ваше предложение принято!",
+		"✓ Strength":"✓ Сила",
+		"Bolts x25":"Болты ×25",
+		"This sword is imbued\nwith the\u007f":str(OEText.catalog.ids["1:5"].ru),
 		"Orc took 7 damage!":"Орк получает 7 ед. урона!",
 		"Necromancer raises Rat!":"Некромант воскрешает крысу!",
 		"Necromancer's raise failed!":"Некроманту не удаётся воскресить мёртвого!",

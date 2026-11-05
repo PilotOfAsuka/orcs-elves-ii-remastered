@@ -10,5 +10,6 @@ const path=require('node:path');
  const original=Buffer.from(Brew.testFile('SD_0'));await Brew.restoreBackup(exported.text,{load:false});assert.deepEqual(Buffer.from(Brew.testFile('SD_0')),original);
  const memory=new Map();globalThis.localStorage={getItem:key=>memory.get(key)??null,setItem:(key,value)=>memory.set(key,String(value))};
  const state=Brew.json();assert.equal(Brew.savedDebug(),false);Brew.debug(true);assert.equal(Brew.savedDebug(),true);Brew.debug(false);assert.equal(Brew.savedDebug(),false);assert.equal(Brew.json(),state);
+ assert.equal(Brew.savedLightDistance(),100);Brew.lightDistance(125);assert.equal(Brew.savedLightDistance(),125);Brew.lightDistance(999);assert.equal(Brew.savedLightDistance(),150);Brew.lightDistance(0);assert.equal(Brew.savedLightDistance(),100);assert.equal(Brew.json(),state);
  console.log('Android save bridge, checksum round trip and persisted debug preference passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -31,9 +31,16 @@ progressive_web_app/enabled=false
 ''')
 subprocess.run(['python3',str(ROOT/'tools/build_lock_icon.py')],check=True)
 subprocess.run(['python3',str(ROOT/'tools/build_status_icons.py')],check=True)
+subprocess.run(['python3',str(ROOT/'tools/build_menu_icons.py')],check=True)
+subprocess.run(['python3',str(ROOT/'tools/build_portraits.py')],check=True)
 subprocess.run(['python3',str(ROOT/'tools/build_localization.py'),'--strict'],check=True)
-subprocess.run([GODOT, '--headless', '--path', str(ROOT/'ui'), '--editor', '--import', '--quit'], check=True)
-subprocess.run([GODOT, '--headless', '--path', str(ROOT/'ui'), '--export-release', 'Web', str(OUT/'index.html')], check=True)
+def godot(*args):
+    result=subprocess.run([GODOT,*args],cwd=ROOT,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    print(result.stdout,end='')
+    if result.returncode or re.search(r'(?:SCRIPT ERROR:|ERROR:)',result.stdout):
+        raise RuntimeError('Godot reported errors; do not publish this export')
+godot('--headless','--path',str(ROOT/'ui'),'--editor','--import','--quit')
+godot('--headless','--path',str(ROOT/'ui'),'--export-release','Web',str(OUT/'index.html'))
 html = (OUT/'index.html').read_text()
 needle = '<script src="index.js"></script>'
 if needle not in html:

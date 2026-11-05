@@ -52,12 +52,17 @@ static Impact impacts[8];
 static unsigned nextImpact;
 static int width,height,numLights,fadeLevel=255;
 static Render *renderer;
+static int lightDistance=100;
+void BrewLight_setRange(int percent){lightDistance=percent<100?100:percent>150?150:percent;}
 static float fx,fy,rx,ry;
 static float clampf(float x,float a,float b){return x<a?a:x>b?b:x;}
 static uint32_t hashWord(uint32_t h,uint32_t n){return (h^n)*16777619u;}
 static const Source *sourceForSprite(const Sprite *s){
  if(s->info&(0x10000u|0x40000u))return NULL;
  int tile=s->info&255;
+ /* Their fifth native frame contains an extinguished wick/empty lamp.
+  * Script opcode 0x62 fixes that frame with the high bit; normal flames loop 0..3. */
+ if((tile==150||tile==181)&&(s->info&0x80000000u)&&((s->info>>8)&15)>=4)return NULL;
  /* Native tile 116 draws its flaming meat only while this entity bit is set. */
  if(tile==116&&(!s->ent||!(s->ent->info&0x4000000u)))return NULL;
  for(unsigned i=0;i<sizeof(sources)/sizeof(sources[0]);i++)if(tile==sources[i].tile)return &sources[i];
@@ -100,7 +105,7 @@ void BrewLight_floor(Render *r,int x,int y,int u,int v,int du,int dv,int count,i
   put(x+i,y,(int32_t)uu/65536.f,(int32_t)vv/65536.f,(float)(ceiling?r->effCeil:r->effFloor),0,0,ceiling?-1:1,1);
 }
 void BrewLight_span(Render *r,int x,int y,int count,int projection,int sprite){
- if(r!=renderer||projection<=0||r->shade>=4)return;
+ if(r!=renderer||projection<=0||r->shade>=4||(sprite&&r->shade!=0))return;
  float t=(float)(sprite?r->projH:r->projW)/projection;
  float lateral=(2*x+1.f-width)/width;
  float px=r->viewX+(fx+rx*lateral)*t,py=r->viewY+(fy+ry*lateral)*t;
@@ -115,8 +120,10 @@ void BrewLight_span(Render *r,int x,int y,int count,int projection,int sprite){
   put(x,y+i,px,py,z,nx,ny,0,sprite?3:2);
  }
 }
-void BrewLight_weapon(Render *r,int x,int y,int count){
- if(r!=renderer||count<=0)return;
+void BrewLight_weapon(Render *r,int x,int y,int count,int blend){
+ /* Blended glows contain the background too. Keep its surface/normal so the
+  * old bright background is not relit as a solid weapon-shaped overlay. */
+ if(r!=renderer||count<=0||(blend>=1&&blend<=7))return;
  if(!weaponCopied){
   size_t pixels=(size_t)width*height;
   if(pixels>weaponCapacity){
@@ -192,16 +199,85 @@ int BrewLight_visible(const Render *r,float ax,float ay,float az,float bx,float 
  return 1;
 }
 static void candidate(Light value,float cx,float cy){
+ value.radius*=lightDistance/100.f;
  float d=(value.x-cx)*(value.x-cx)+(value.y-cy)*(value.y-cy);
  if(d>value.radius*value.radius*2.25f)return;
  if(numLights<7){lights[numLights++]=value;return;}
  int worst=0;float far=-1;
  for(int i=0;i<7;i++){
-  if(lights[i].key>=3000&&value.key<3000)continue;
+  if(lights[i].key>=3000&&lights[i].key<3008&&!(value.key>=3000&&value.key<3008))continue;
   float a=lights[i].x-cx,b=lights[i].y-cy,n=a*a+b*b;if(n>far){far=n;worst=i;}
  }
- if(far>=0&&(value.key>=3000||d<far))lights[worst]=value;
+ if(far>=0&&((value.key>=3000&&value.key<3008)||d<far))lights[worst]=value;
 }
+/* Wall identities 61/69 contain the small candle in the skull-and-bars niche.
+ * The flame is at texel (79,91) of the original 117-square artwork. z1/z2
+ * preserve its texture coordinate even on mirrored and repeated segments. */
+static void wallCandles(Render *r,const Line *line,int key,float zOffset){
+ if(line->flags&HIDDEN)return;
+ float dx=line->x2-line->x1,dy=line->y2-line->y1,len=sqrtf(dx*dx+dy*dy),du=line->z2-line->z1;
+ if(len<.01f||fabsf(du)<.01f)return;
+ int multi=(line->flags&0xc0010000u)!=0;
+ float top=multi?r->ceilHeight:64,bottom=multi?((line->flags&0x10000u)?r->floorHeight:64):r->effFloor;
+ int dual=multi&&r->ceilHeight>64&&line->texture!=line->texture2,piece=0;
+ for(;top>bottom;top-=64,piece++){
+  int tile=dual&&piece%2==0?line->texture2:line->texture;
+  float z=top-91.f*64/117+zOffset;
+  if((tile!=61&&tile!=69)||z<bottom||z>top+zOffset||((line->flags&0x20000u)&&z>r->effCeil))continue;
+  float low=fminf(line->z1,line->z2),high=fmaxf(line->z1,line->z2),flame=79.f*64/117;
+  int first=(int)ceilf((low-flame)/64),last=(int)floorf((high-flame)/64);
+  for(int repeat=first;repeat<=last;repeat++){
+   float t=(flame+repeat*64-line->z1)/du;
+   for(int side=0;side<((line->flags&1)?2:1);side++){
+    float sign=side?-1:1;
+    Light l={line->x1+t*dx-sign*dy/len*4,line->y1+t*dy+sign*dx/len*4,z,
+     1,.63f,.24f,155,1.4f,1,key+piece*64+(repeat-first)*2+side};
+    candidate(l,r->viewX,r->viewY);
+   }
+  }
+  if(!multi)break;
+ }
+}
+/* The same niche also appears as five wall-aligned decorations in map 6.
+ * Match Render_drawSpriteAt's orientation, mirroring, width and vertical origin. */
+static void spriteWallCandle(Render *r,const Sprite *s,int key){
+ int tile=s->info&255;
+ if((s->info&0x10000u)||!(s->info&0x40000u)||(tile!=61&&tile!=69)||((s->info&0x80000000u)&&((s->info>>8)&15)>=4))return;
+ int half=s->scale/2,reverse=(s->info&0x1000000u)!=0;uint32_t f=s->info;
+ Line l={.z1=0,.z2=half*2,.texture=tile,.texture2=tile,.flags=NO_DEPTH|0x20000u};
+ if(f&0x4000000u)l.flags|=1;
+ if(f&0x180000u){
+  int sign=((f&0x80000u)?1:-1)*(reverse?-1:1);
+  l.x1=s->x-sign*half;l.x2=s->x+sign*half;l.y1=l.y2=s->y;
+ }else if(f&0x600000u){
+  int sign=((f&0x200000u)?1:-1)*(reverse?-1:1);
+  l.y1=s->y-sign*half;l.y2=s->y+sign*half;l.x1=l.x2=s->x;
+ }else{
+  float rx=r->viewSin/65536.f,ry=r->viewCos/65536.f,sign=reverse?-1:1;
+  l.x1=(int)(s->x-sign*rx*half);l.x2=(int)(s->x+sign*rx*half);
+  l.y1=(int)(s->y-sign*ry*half);l.y2=(int)(s->y+sign*ry*half);
+ }
+ wallCandles(r,&l,key,s->z-32.f);
+}
+#ifdef OE2_QA_INTERACTIONS
+static int wallCandlesEnabled=1;
+void BrewLight_qaWallCandles(int enabled){wallCandlesEnabled=enabled!=0;}
+int BrewLight_qaCandleGeometry(void){
+ Light saved[8];memcpy(saved,lights,sizeof(saved));int oldCount=numLights;
+ Render *r=calloc(1,sizeof(Render));r->viewX=64;r->viewY=32;r->ceilHeight=64;
+ Line l={.x1=0,.y1=0,.x2=128,.y2=0,.z1=0,.z2=128,.texture=61};
+ float flame=79.f*64/117;
+ numLights=0;wallCandles(r,&l,10000,0);
+ int ok=numLights==2&&fabsf(lights[0].x-flame)<.01f&&lights[0].y==4;
+ l.z1=128;l.z2=0;numLights=0;wallCandles(r,&l,10000,0);
+ ok&=numLights==2&&fabsf(lights[0].x-(128-flame))<.01f;
+ l.flags=1;numLights=0;wallCandles(r,&l,10000,0);ok&=numLights==4&&lights[1].y==-4;
+ l.flags=HIDDEN;numLights=0;wallCandles(r,&l,10000,0);ok&=numLights==0;
+ l.flags=0;r->effFloor=30;wallCandles(r,&l,10000,0);ok&=numLights==0;
+ l.flags=0x10000;l.texture2=69;r->ceilHeight=128;numLights=0;wallCandles(r,&l,10000,0);ok&=numLights==4;
+ free(r);memcpy(lights,saved,sizeof(saved));numLights=oldCount;return ok;
+}
+#endif
 static void gather(Render *r){
  numLights=0;
  for(int i=0;i<8;i++){
@@ -213,6 +289,16 @@ static void gather(Render *r){
  for(int i=0;i<r->numSprites&&i<800;i++){
   Sprite *s=&r->sprites[i];const Source *p=sourceForSprite(s);if(!p)continue;
   Light l={(float)s->x,(float)s->y,s->z+p->height,p->r,p->g,p->b,p->radius,p->power,p->flicker,i};candidate(l,r->viewX,r->viewY);
+ }
+ #ifdef OE2_QA_INTERACTIONS
+ if(wallCandlesEnabled)
+#endif
+ {
+ for(int i=0;i<r->numLines;i++){
+  const Line *l=&r->lines[i];
+  if(l->texture==61||l->texture==69||l->texture2==61||l->texture2==69)wallCandles(r,l,10000+i*256,0);
+ }
+ for(int i=0;i<r->numMapSprites;i++)spriteWallCandle(r,&r->sprites[i],300000+i*256);
  }
  /* Original molten-crack flat 199 is emissive only where that material occurs. */
  for(int i=0;i<1024;i++){
@@ -229,10 +315,11 @@ static void gather(Render *r){
  if(p->weapons&&(p->ce.weapon==0||p->ce.weapon==7||p->ce.weapon>=8)){
   int w=p->ce.weapon;float a=(c->viewAngle&1023)*(6.28318530718f/1024);
   Light l={c->viewX+cosf(a)*14,c->viewY-sinf(a)*14,c->viewZ-5.f,1,.62f,.28f,210,1.15f,0,2000};
+  if(w==0){l.radius=105;l.power=.28f;}
   if(w==8){l.r=.35f;l.g=.65f;l.b=1;}else if(w==9){l.r=.25f;l.g=1;l.b=.35f;}else if(w==10){l.r=1;l.g=.18f;l.b=.10f;}else if(w==7){l.r=1;l.g=.38f;l.b=.08f;}
-  lights[numLights++]=l;
+  l.radius*=lightDistance/100.f;lights[numLights++]=l;
  }
- uint32_t h=2166136261u;
+ uint32_t h=hashWord(2166136261u,(uint32_t)lightDistance);
  for(int i=0;i<r->numLines;i++){
   Line *l=&r->lines[i];h=hashWord(h,(uint32_t)l->x1);h=hashWord(h,(uint32_t)l->y1);h=hashWord(h,(uint32_t)l->x2);h=hashWord(h,(uint32_t)l->y2);h=hashWord(h,l->flags&(HIDDEN|NO_DEPTH|0xc0010000u));
  }
@@ -362,14 +449,14 @@ static void glow(const Light *l,float flicker){
  if(d<12||!BrewLight_visible(renderer,renderer->viewX,renderer->viewY,renderer->viewZ,l->x,l->y,l->z))return;
  float cx=width*.5f+(dx*rx+dy*ry)*width/(2*d),cy=height*.5f-(l->z-renderer->viewZ)*width/(2*d);
  float scale=width/176.f;
- float radius=clampf(width*12.f/d,5*scale,28*scale),colour[3]={l->r,l->g,l->b};
+ float radius=clampf(width*5.5f/d,1.5f*scale,12*scale),colour[3]={l->r,l->g,l->b};
  int x0=(int)fmaxf(0,cx-radius),x1=(int)fminf(width-1,cx+radius),y0=(int)fmaxf(0,cy-radius),y1=(int)fminf(height-1,cy+radius);
  for(int y=y0;y<=y1;y++)for(int x=x0;x<=x1;x++){
   float ax=(x-cx)/radius,ay=(y-cy)/radius,r2=ax*ax+ay*ay;if(r2>1)continue;
   const Surface *s=&surfaces[y*width+x];
   float receiver=(s->x-renderer->viewX)*fx+(s->y-renderer->viewY)*fy;
   if(s->kind==4||(s->kind&&receiver+12<d))continue;
-  float strength=.038f*l->power*flicker*expf(-r2*4)*(fadeLevel/255.f)*(fadeLevel/255.f),out=0;
+  float strength=.008f*l->power*flicker*expf(-r2*4)*(fadeLevel/255.f)*(fadeLevel/255.f),out=0;
   uint32_t c=lit[y*width+x],pixel=0xff000000u;
   for(int ch=0;ch<3;ch++){float v=((c>>(ch*8))&255)/255.f;out=sqrtf(fminf(1,v*v+colour[ch]*strength));pixel|=(uint32_t)(out*255+.5f)<<(ch*8);}
   lit[y*width+x]=pixel;

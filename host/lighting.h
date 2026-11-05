@@ -2,11 +2,12 @@
 #define BREW_LIGHTING_H
 #include "game.h"
 void BrewLight_begin(Render *r);
+void BrewLight_setRange(int percent);
 void BrewLight_fade(int level);
 int BrewLight_nativeTarget(void);
 void BrewLight_floor(Render *r,int x,int y,int u,int v,int du,int dv,int count,int ceiling);
 void BrewLight_span(Render *r,int x,int y,int count,int projection,int sprite);
-void BrewLight_weapon(Render *r,int x,int y,int count);
+void BrewLight_weapon(Render *r,int x,int y,int count,int blend);
 void BrewLight_tagCaster(Render *r,Sprite *sprite);
 void BrewLight_poseCaster(Render *r,int x,int y,int z,int tile,int frame,int flags,int mode,int scale);
 int BrewLight_spriteBlocks(const Render *r,const Sprite *s,float ax,float ay,float az,float bx,float by,float bz);
