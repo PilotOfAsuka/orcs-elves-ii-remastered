@@ -13,7 +13,7 @@ for folder in (assets,classes,dex):
  folder.mkdir(parents=True)
 web=ROOT/'build/web';packs=list(web.glob('game-ui.*.pck'))
 if len(packs)!=1:raise RuntimeError('Build the Web export first')
-names=['index.html','index.js','index.wasm',packs[0].name,'index.audio.position.worklet.js','index.audio.worklet.js','brew-core.js','brew-core.wasm','brew-core.data','runtime.js']
+names=['index.html','index.js','index.wasm','index.png',packs[0].name,'index.audio.position.worklet.js','index.audio.worklet.js','brew-core.js','brew-core.wasm','brew-core.data','runtime.js']
 if (web/'runtime.js').read_bytes()!=(ROOT/'web/runtime.js').read_bytes():raise RuntimeError('Rebuild the Web export after runtime changes')
 manifest={'version':args.version_name,'source_revision':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'files':{}}
 for name in names:
